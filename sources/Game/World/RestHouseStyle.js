@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu'
-import { attribute, color } from 'three/tsl'
+import { attribute, texture, uv } from 'three/tsl'
 import { MeshDefaultMaterial } from '../Materials/MeshDefaultMaterial.js'
 
 // Vertex colours preserve the tent's stripes and foliage variation while using
@@ -33,10 +33,12 @@ export function recolorRestHouse(scene) {
     })
 }
 
-export function styleRestHouse(scene) {
+export function styleRestHouse(scene, pavingTexture) {
     recolorRestHouse(scene)
     const painted = new MeshDefaultMaterial({ colorNode: attribute('color', 'vec3'), hasWater: false })
-    const paving = new MeshDefaultMaterial({ colorNode: color('#e7cd98'), hasWater: false })
+    // Original UVs repeat every 1.7 local metres; enlarge the tile for readable slabs.
+    const paving = new MeshDefaultMaterial({ colorNode: texture(pavingTexture, uv().mul(.35)).rgb, hasWater: false })
+    paving.map = pavingTexture
     painted.name = 'RestHouse_GamePalette'
     paving.name = 'RestHouse_GamePaving'
     scene.traverse(mesh => {

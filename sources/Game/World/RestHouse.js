@@ -1,5 +1,6 @@
 import { clearGeometry } from './RestHouseClearing.js'
 import { styleRestHouse } from './RestHouseStyle.js'
+import { plantRestHouseTrees } from './RestHousePlanting.js'
 import * as THREE from 'three/webgpu'
 import { Fn, max, smoothstep } from 'three/tsl'
 import { Game } from '../Game.js'
@@ -99,6 +100,7 @@ export class RestHouse {
         scene.updateMatrixWorld(true)
         this.root = scene.getObjectByName('RestHouse_Root')
         this.shapes = JSON.parse(this.root.userData.collision_boxes_json)
+        this.shapes = plantRestHouseTrees(this.root, this.shapes, this.game.resources.oakTreesReferencesModel.scene)
         const worldRotation = this.root.getWorldQuaternion(new THREE.Quaternion())
         const scale = this.root.getWorldScale(new THREE.Vector3())
         const collider = (shape, category) => ({
@@ -111,7 +113,7 @@ export class RestHouse {
             { center: [5.2, -0.15, 24.4], size: [40, 0.3, 48.8] },
             { center: [0, -0.15, -3.2], size: [6.8, 0.3, 6.4] }
         ]
-        styleRestHouse(scene)
+        styleRestHouse(scene, this.game.resources.restHousePavingTexture)
         this.game.objects.add({ model: scene, updateMaterials: false })
         this.physical = this.game.objects.add(null, {
             type: 'fixed', friction: 0.7, restitution: 0,

@@ -151,6 +151,7 @@ export class Game
                 [ 'oakTreesReferencesModel',               `oakTrees/oakTreesReferences${compressedModelSuffix}.glb${cb}`,                                               'gltf' ],
                 [ 'cherryTreesVisualModel',                `cherryTrees/cherryTreesVisual${compressedModelSuffix}.glb${cb}`,                     'gltf' ],
                 [ 'cherryTreesReferencesModel',            `cherryTrees/cherryTreesReferences${compressedModelSuffix}.glb${cb}`,                 'gltf' ],
+                [ 'restHousePavingTexture', 'rest-house/stone-paving.webp?v=1', 'texture', (resource) => { resource.colorSpace = THREE.SRGBColorSpace; resource.flipY = false; resource.wrapS = THREE.MirroredRepeatWrapping; resource.wrapT = THREE.MirroredRepeatWrapping; resource.minFilter = THREE.LinearMipmapLinearFilter; resource.magFilter = THREE.LinearFilter; resource.generateMipmaps = true; resource.anisotropy = 2; } ],
                 [ 'restHouseModel', 'rest-house/rest-house.glb?cb=rest-house-v1', 'gltf' ],
                 [ 'sceneryModel',                          `scenery/scenery${compressedModelSuffix}.glb${cb}`,                                   'gltf' ],
                 [ 'areasModel',                            `areas/areas${compressedModelSuffix}.glb${cb}`,                                       'gltf' ],
@@ -265,6 +266,7 @@ export class Game
         })
     }
 }
+
 
 
 

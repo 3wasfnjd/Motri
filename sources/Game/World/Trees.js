@@ -101,15 +101,18 @@ export class Trees
     {
         for(const treeReference of this.references)
         {
+            const gardenScale = treeReference.userData.restHouseTreeScale
+            const halfHeight = gardenScale ? 2.5 * gardenScale : 2.5
+            const radius = gardenScale ? .15 * gardenScale : .15
             this.game.objects.add(
                 null,
                 {
                     type: 'fixed',
-                    position: treeReference.position.add(new THREE.Vector3(0, 2.5, 0)),
+                    position: (gardenScale ? treeReference.position.clone() : treeReference.position).add(new THREE.Vector3(0, halfHeight, 0)),
                     rotation: treeReference.quaternion,
                     friction: 0.7,
                     sleeping: true,
-                    colliders: [ { shape: 'cylinder', parameters: [ 2.5, 0.15 ], category: 'object' } ],
+                    colliders: [ { shape: 'cylinder', parameters: [ halfHeight, radius ], category: 'object' } ],
                     onCollision: (force, position) =>
                     {
                         this.game.audio.groups.get('hitDefault').playRandomNext(force, position)
