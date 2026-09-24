@@ -80,19 +80,23 @@ export class InputFlag
 
     setCountries()
     {
+        // Arabic labels and search terms; ISO codes and stored selections stay unchanged.
+        const regions = typeof Intl.DisplayNames === 'function' ? new Intl.DisplayNames(['ar'], {type:'region'}) : null
         for(const _country of countriesData)
         {
+            let arabicName = _country[0]
+            try { arabicName = regions?.of(_country[2].toUpperCase()) || arabicName } catch {}
             const imageUrl = `ui/flags/${_country[2]}.webp`
             const element = document.createElement('div')
             element.classList.add('choice')
             element.innerHTML = /* html */`
                 <img class="js-flag flag" src="${imageUrl}" loading="lazy">
-                <span class="label">${_country[0]} (${_country[2]})</span>
+                <span class="label">${arabicName} (${_country[2]})</span>
             `
 
             const country = {}
             country.element = element
-            country.terms = `${_country[0]} ${_country[1]} ${_country[2]}`
+            country.terms = `${arabicName} ${_country[0]} ${_country[1]} ${_country[2]}`
             country.imageUrl = imageUrl
             country.code = _country[2]
 
@@ -127,7 +131,7 @@ export class InputFlag
             {
                 this.countries.forEach((country) =>
                 {
-                    if(country.terms.match(new RegExp(sanatizedValue, 'i')))
+                    if(country.terms.toLocaleLowerCase().includes(sanatizedValue.toLocaleLowerCase()))
                     {
                         found = true
                         country.element.style.display = 'block'

@@ -1,3 +1,4 @@
+import {t,hasArabic,canvasFont} from '../localization/ar.js'
 import * as THREE from 'three/webgpu'
 
 let top = 0
@@ -53,6 +54,7 @@ export class TextCanvas
 
     updateText(text)
     {
+        text = Array.isArray(text) ? text.map(t) : t(text)
         this.lines = []
 
         if(typeof text === 'string')
@@ -60,6 +62,9 @@ export class TextCanvas
         else if(text instanceof Array)
             this.lines = text
 
+        this._motri2SourceFont ??= this.font
+        this.font = this.lines.some(hasArabic) ? canvasFont(this._motri2SourceFont) : this._motri2SourceFont
+        this.context.font = this.font
         this.draw()
     }
 
@@ -103,7 +108,8 @@ export class TextCanvas
             else if(this.horizontalAlign === 'right')
                 x = this.width
 
-            this.context.fillText(line, x, y)
+            this.context.direction = hasArabic(line) ? 'rtl' : 'ltr'
+            this.context.fillText(line, x, y, Math.max(1, this.width - 4))
 
             i++
         }

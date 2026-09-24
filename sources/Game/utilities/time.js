@@ -17,13 +17,13 @@ export function timeToReadableString(time, withHours = true, widthMinutes = true
     const parts = []
 
     if(hours > 0 && withHours)
-        parts.push(`${hours}h`)
+        parts.push(`${hours} ساعة`)
 
     if((hours > 0 || minutes > 0) && widthMinutes)
-        parts.push(`${minutes}m`)
+        parts.push(`${minutes} دقيقة`)
 
     if((hours > 0 || minutes > 0 || seconds > 0) && withSeconds)
-        parts.push(`${seconds}s`)
+        parts.push(`${seconds} ثانية`)
 
     return parts.join(' ')
 }

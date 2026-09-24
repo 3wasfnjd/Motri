@@ -1,3 +1,4 @@
+import {checkArabicInterface} from './motri2-ar-check.mjs';
 import assert from 'node:assert/strict';
 import {readFile,writeFile,mkdir,stat} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
@@ -5,7 +6,7 @@ import {createServer} from 'node:http';
 import path from 'node:path';
 await mkdir('artifacts',{recursive:true});
 const baseline=JSON.parse(await readFile('.motri2/upstream.json','utf8'));
-const allowed=new Set(['sources/index.html','sources/Game/Title.js','readme.md']);
+const allowed=new Set(["sources/index.html","sources/Game/Title.js","readme.md","sources/Game/Options.js","sources/Game/Achievements.js","sources/data/achievements.js","sources/Game/Map.js","sources/Game/Audio.js","sources/Game/Server.js","sources/Game/World/Whispers.js","sources/Game/utilities/time.js","sources/Game/InputFlag.js","sources/Game/TextCanvas.js","sources/Game/InteractivePoints.js","sources/Game/World/Bubble.js","sources/Game/World/Areas/CircuitArea.js","sources/Game/World/Intro.js"]);
 const changed=[],missing=[];
 for(const [file,expected] of Object.entries(baseline.files)) {
   let data;try{data=await readFile(file);}catch{missing.push(file);continue;}
@@ -91,6 +92,7 @@ try{
       assert.equal(measured.wheelCount,4);assert.equal(measured.serverConnected,false);assert.deepEqual(sockets,[]);
       assert.ok(Object.values(measured.position).every(Number.isFinite));
       assert.deepEqual(errors,[]);assert.deepEqual(badResponses,[],'All production assets resolve under /Motri2/');
+      await checkArabicInterface(page,viewport);
       await page.screenshot({path:`artifacts/motri2-${viewport.width}.png`});
       results.push({viewport,start,forward,keyboardForward:true,reverse:true,brake:true,touchDrive:true,touchRelease:true,blurRelease:true,...measured});
       await client.detach();

@@ -144,41 +144,42 @@ export class Intro
                 name = 'touch'
             }
 
-            // Load, set and save texture
+            // MOTRI2_AR_INTRO: authored Arabic mask, not a translated screenshot.
+            // Let material/mesh initialize before the first async update resolves.
+            await Promise.resolve()
             let cachedTexture = this.text.textures.get(name)
             if(!cachedTexture)
             {
-                const loader = this.game.resourcesLoader.getLoader('textureKtx')
-                
-                const resourcePath = `intro/${name}Label.ktx`
-                loader.load(
-                    resourcePath,
-                    (loadedTexture) =>
-                    {
-                        this.text.textures.set(name, loadedTexture)
-
-                        // Update material and mesh
-                        material.outputNode = Fn(() =>
-                        {
-                            texture(loadedTexture, vec2(uv().x, uv().y.oneMinus())).r.lessThan(0.5).discard()
-                            return vec4(1)
-                        })()
-                        material.needsUpdate = true
-                        mesh.visible = true
-                    }
-                )
+                const canvas = document.createElement('canvas')
+                canvas.width = 1024
+                canvas.height = 512
+                const context = canvas.getContext('2d')
+                context.fillStyle = '#000000'
+                context.fillRect(0, 0, 1024, 512)
+                context.fillStyle = '#ffffff'
+                context.textAlign = 'center'
+                context.textBaseline = 'middle'
+                context.direction = 'rtl'
+                context.font = '700 76px Tahoma, Arial, sans-serif'
+                context.fillText('ابدأ القيادة', 512, 178, 960)
+                context.font = '500 48px Tahoma, Arial, sans-serif'
+                const hint = name === 'touch' ? 'المس للبدء' : name === 'mouseKeyboard' ? 'اضغط Enter أو انقر للبدء' : 'اضغط زر التأكيد للبدء'
+                context.fillText(hint, 512, 285, 960)
+                cachedTexture = new THREE.CanvasTexture(canvas)
+                cachedTexture.flipY = false
+                cachedTexture.minFilter = THREE.LinearFilter
+                cachedTexture.magFilter = THREE.LinearFilter
+                cachedTexture.generateMipmaps = false
+                cachedTexture.name = 'ar-intro-' + name
+                this.text.textures.set(name, cachedTexture)
             }
-            else
+            material.outputNode = Fn(() =>
             {
-                // Update material and mesh
-                material.outputNode = Fn(() =>
-                {
-                    texture(cachedTexture, vec2(uv().x, uv().y.oneMinus())).r.lessThan(0.5).discard()
-                    return vec4(1)
-                })()
-                material.needsUpdate = true
-            }
-
+                texture(cachedTexture, vec2(uv().x, uv().y.oneMinus())).r.lessThan(0.5).discard()
+                return vec4(1)
+            })()
+            material.needsUpdate = true
+            mesh.visible = true
         }
 
         this.text.updateTexture()

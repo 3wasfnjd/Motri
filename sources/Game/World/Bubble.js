@@ -1,3 +1,4 @@
+import {hasArabic,canvasFont} from '../../localization/ar.js'
 import * as THREE from 'three/webgpu'
 import { color, Fn, mix, texture, uniform, uv, vec2, vec4 } from 'three/tsl'
 import gsap from 'gsap'
@@ -237,6 +238,10 @@ export class Bubble
         if(text === this.text)
             return
 
+        // Visitor text is not translated; support its original direction and shaping.
+        this._motri2SourceFont ??= this.font
+        this.font = hasArabic(text) ? canvasFont(this._motri2SourceFont) : this._motri2SourceFont
+        this.context.font = this.font
         const textSize = this.context.measureText(text)
         this.textWidth = Math.min(Math.ceil(textSize.width) + this.textPaddingHorizontal * 2 + 2, this.width)
         this.textRatio.value = this.textWidth / this.width
@@ -248,9 +253,10 @@ export class Bubble
 
         this.context.font = this.font
         this.context.fillStyle = '#ffffff'
-        this.context.textAlign = 'start'
+        this.context.direction = hasArabic(text) ? 'rtl' : 'ltr'
+        this.context.textAlign = hasArabic(text) ? 'right' : 'left'
         this.context.textBaseline = 'middle'
-        this.context.fillText(text, this.textPaddingHorizontal + 1, this.height * 0.5 + this.textOffsetVertical)
+        this.context.fillText(text, hasArabic(text) ? this.textWidth - this.textPaddingHorizontal - 1 : this.textPaddingHorizontal + 1, this.height * 0.5 + this.textOffsetVertical, this.width - this.textPaddingHorizontal * 2)
 
         this.canvas.texture.needsUpdate = true
 

@@ -521,17 +521,17 @@ export class Achievements
 
             if(clickCount === 1)
             {
-                button.textContent = 'Are you sure?'
+                button.textContent = "هل أنت متأكد؟"
             }
 
             else if(clickCount === 2)
             {
-                button.textContent = 'Definitely?'
+                button.textContent = "تأكيد حذف التقدم؟"
             }
 
             else if(clickCount === 3)
             {
-                button.textContent = 'Done!'
+                button.textContent = "تم!"
                 clickCount = 0
                 this.reset()
             }
@@ -542,7 +542,7 @@ export class Achievements
             event.preventDefault()
             clickCount = 0
 
-            button.textContent = 'Reset achievements'
+            button.textContent = "تصفير الإنجازات"
         })
     }
 

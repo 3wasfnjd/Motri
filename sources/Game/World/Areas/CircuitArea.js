@@ -867,7 +867,9 @@ export class CircuitArea extends Area
                     context.fillStyle = '#ff87a2'
                     context.textBaseline = 'middle'
                     context.textAlign = 'center'
-                    context.fillText('OFFLINE', resolution * 0.5, resolution * 0.5)
+                    context.direction = 'rtl'
+                    context.font = `700 ${resolution / 17}px Tahoma, Arial, sans-serif`
+                    context.fillText('غير متصل', resolution * 0.5, resolution * 0.5, resolution * .94)
                 }
                 else if(scores.length === 0)
                 {
@@ -875,7 +877,9 @@ export class CircuitArea extends Area
                     context.fillStyle = '#ffffff'
                     context.textBaseline = 'middle'
                     context.textAlign = 'center'
-                    context.fillText('NO SCORE YET TODAY', resolution * 0.5, resolution * 0.5)
+                    context.direction = 'rtl'
+                    context.font = `700 ${resolution / 17}px Tahoma, Arial, sans-serif`
+                    context.fillText('لا توجد نتائج اليوم', resolution * 0.5, resolution * 0.5, resolution * .94)
                 }
                 else
                 {

@@ -85,7 +85,7 @@ export class Title
             }
 
             
-            document.title = 'Motri2' + title.join('')
+            document.title = 'موتري 2' + title.join('')
         }
     }
 }

@@ -1,3 +1,4 @@
+import {tHtml} from '../localization/ar.js'
 import { clamp } from 'three/src/math/MathUtils.js'
 import { Game } from './Game.js'
 
@@ -64,7 +65,7 @@ export class Map
             const html = /* html */`
                 <div class="pin"></div>
                 <div class="name-container">
-                    <div class="name">${item.name}</div>
+                    <div class="name">${tHtml(item.name)}</div>
                 </div>
             `
 

@@ -1,3 +1,4 @@
+import {t,tHtml} from '../localization/ar.js'
 import labData from './lab.js'
 import projectsData from './projects.js'
 
@@ -235,4 +236,4 @@ export default
         'This one can’t be achieved.',
         1
     ],
-]
+].map(([id,title,description,...rest]) => [id,t(title),tHtml(description),...rest]) // MOTRI2_AR_ACHIEVEMENTS

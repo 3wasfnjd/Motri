@@ -1,3 +1,4 @@
+import {t,hasArabic} from '../localization/ar.js'
 import * as THREE from 'three/webgpu'
 import { Game } from './Game.js'
 import { color, distance, float, Fn, max, min, mix, mul, normalWorld, positionWorld, step, texture, uniform, uv, vec2, vec3, vec4 } from 'three/tsl'
@@ -188,6 +189,8 @@ export class InteractivePoints
         hideCallback = null
     )
     {
+        text = t(text)
+        const arabic = hasArabic(text)
         const newPosition = position.clone()
         // newPosition.y = 2.25
 
@@ -213,7 +216,7 @@ export class InteractivePoints
         const textPaddingLeft = align === InteractivePoints.ALIGN_LEFT ? 60 : 12
         const textPaddingRight = align === InteractivePoints.ALIGN_LEFT ? 12 : 60
         const textOffsetVertical = 2
-        const font = `700 ${height}px "Amatic SC"`
+        const font = arabic ? `700 ${height * .68}px Tahoma, Arial, sans-serif` : `700 ${height}px "Amatic SC"`
 
         const canvas = document.createElement('canvas')
         canvas.style.position = 'fixed'
@@ -235,9 +238,10 @@ export class InteractivePoints
 
         context.font = font
         context.fillStyle = '#ffffff'
-        context.textAlign = 'start'
+        context.direction = arabic ? 'rtl' : 'ltr'
+        context.textAlign = arabic ? 'right' : 'left'
         context.textBaseline = 'middle'
-        context.fillText(text, textPaddingLeft + 1, height * 0.5 + textOffsetVertical)
+        context.fillText(text, arabic ? width - textPaddingRight - 1 : textPaddingLeft + 1, height * 0.5 + textOffsetVertical)
 
         const labelTexture = new THREE.Texture(canvas)
         labelTexture.minFilter = THREE.NearestFilter
