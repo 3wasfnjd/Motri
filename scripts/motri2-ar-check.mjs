@@ -33,12 +33,12 @@ async function reachable(locator,viewport,label){
 export async function checkArabicInterface(page,viewport){
   assert.equal(await page.locator('html').getAttribute('lang'),'ar');
   assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
-  assert.ok((await page.title()).includes('موتري 2'));
+  assert.ok((await page.title()).includes('موتري'));
   assert.ok((await page.locator('.js-menu-trigger').getAttribute('aria-label')).includes('القائمة'));
   await page.locator('.js-menu-trigger').click();
   await page.waitForFunction(()=>window.game.menu.state===1,null,{timeout:30000});
   const close=page.locator('.js-menu .inner > .js-close');
-  const panels=[['home','موتري 2'],['options','الإعدادات'],['controls','طريقة التحكم'],['achievements','الإنجازات'],['circuit','حلبة السباق'],['behindTheScene','خلف الكواليس'],['whispers','اترك رسالة']];
+  const panels=[['home','موتري'],['options','الإعدادات'],['controls','طريقة التحكم'],['achievements','الإنجازات'],['circuit','حلبة السباق'],['behindTheScene','خلف الكواليس'],['whispers','اترك رسالة']];
   for(const [name,title] of panels){
     const button=page.locator(`.js-menu .js-navigation-item[data-name="${name}"]`);
     await reachable(button,viewport,name+' tab');await button.click();

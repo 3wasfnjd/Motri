@@ -1,4 +1,4 @@
-name: Motri2 checks and Pages
+name: Motri checks and Pages
 on:
   push:
     branches: [main]
@@ -12,11 +12,11 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: motri2-pages
+  group: motri-pages
   cancel-in-progress: false
 jobs:
   build:
-    if: github.repository == '3wasfnjd/Motri2'
+    if: github.repository == '3wasfnjd/Motri'
     runs-on: ubuntu-latest
     timeout-minutes: 18
     outputs:
@@ -42,7 +42,7 @@ jobs:
         run: |
           npm run build
           touch dist/.nojekyll
-          node --input-type=module -e "import{writeFileSync}from'node:fs';writeFileSync('dist/motri2-build.json',JSON.stringify({repository:'3wasfnjd/Motri2',commit:process.env.SOURCE_SHA,upstream:'41046b57eeed8d156d9c3fd7fa259900baef7816',stage:'identity-cleanup',locale:'ar'}))"
+          node --input-type=module -e "import{writeFileSync}from'node:fs';writeFileSync('dist/motri2-build.json',JSON.stringify({repository:'3wasfnjd/Motri',commit:process.env.SOURCE_SHA,upstream:'41046b57eeed8d156d9c3fd7fa259900baef7816',stage:'identity-cleanup',locale:'ar'}))"
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
       - name: Install isolated test browser on explicit request
@@ -87,7 +87,7 @@ jobs:
           python3 - <<'PY'
           import os,json,time,urllib.request
           expected=os.environ['EXPECTED']
-          root='https://3wasfnjd.github.io/Motri2/'
+          root='https://3wasfnjd.github.io/Motri/'
           for attempt in range(12):
             try:
               with urllib.request.urlopen(root+'motri2-build.json?v='+expected,timeout=15) as r: data=json.load(r)
@@ -95,7 +95,7 @@ jobs:
                 with urllib.request.urlopen(root+'?v='+expected,timeout=15) as r: html=r.read().decode('utf-8')
                 assert 'lang="ar"' in html and 'dir="rtl"' in html
                 assert 'عالم برونو' not in html and 'القاعدة الأصلية: Bruno Simon' not in html
-                assert 'مرحبًا بك في موتري 2.' in html
+                assert 'مرحبا بكم في موتري' in html
                 print('LIVE_IDENTITY_VERIFIED',json.dumps(data));break
             except Exception as e: print('Waiting for publication:',type(e).__name__)
             time.sleep(5)

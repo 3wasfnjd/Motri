@@ -18,7 +18,7 @@ for(const [file,expected] of Object.entries(baseline.files)){
   if(actual!==expected.sha256){assert.ok(allowed.has(file),'Unexpected non-localization change: '+file);changed.push(file);}
 }
 await writeFile('artifacts/baseline.json',JSON.stringify({files:Object.keys(baseline.files).length,changed,originalDrivingPreserved:true},null,2));
-const root=path.resolve('dist'),prefix='/Motri2/';
+const root=path.resolve('dist'),prefix='/Motri/';
 const mime={'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.wasm':'application/wasm','.json':'application/json','.glb':'model/gltf-binary','.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml','.mp3':'audio/mpeg','.woff':'font/woff','.woff2':'font/woff2'};
 const server=createServer(async(req,res)=>{try{const url=new URL(req.url,'http://localhost');if(!url.pathname.startsWith(prefix))throw new Error('Outside project');const file=path.resolve(root,decodeURIComponent(url.pathname.slice(prefix.length))||'index.html');assert.ok(file.startsWith(root+path.sep));assert.ok((await stat(file)).isFile());res.writeHead(200,{'content-type':mime[path.extname(file)]||'application/octet-stream'});res.end(await readFile(file));}catch{res.writeHead(404);res.end('Not found');}});
 await new Promise(r=>server.listen(4173,'127.0.0.1',r));
@@ -34,7 +34,7 @@ try{
   page.on('response',r=>{if(r.url().startsWith('http://127.0.0.1')&&r.status()>=400)badResponses.push(r.url());});
   page.on('websocket',s=>sockets.push(s.url()));
   try{
-    await page.goto('http://127.0.0.1:4173/Motri2/',{waitUntil:'domcontentloaded'});
+    await page.goto('http://127.0.0.1:4173/Motri/',{waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>window.game?.world?.visualVehicle&&window.game?.inputs?.actions.has('introStart'),null,{timeout:180000});
     assert.deepEqual(errors,[]);assert.equal(await page.locator('html').getAttribute('lang'),'ar');
     assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
@@ -62,7 +62,7 @@ try{
         throw error;
       }finally{await element.dispose();}
     };
-    const panels=[['home','موتري 2'],['options','الإعدادات'],['controls','طريقة التحكم'],['achievements','الإنجازات'],['circuit','حلبة السباق'],['whispers','اترك رسالة'],['behindTheScene','خلف الكواليس']];
+    const panels=[['home','موتري'],['options','الإعدادات'],['controls','طريقة التحكم'],['achievements','الإنجازات'],['circuit','حلبة السباق'],['whispers','اترك رسالة'],['behindTheScene','خلف الكواليس']];
     for(const viewport of [{width:390,height:844},{width:844,height:390}]){
       await page.setViewportSize(viewport);
       await page.locator('.js-menu-trigger').click();

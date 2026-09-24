@@ -23,7 +23,7 @@ const integrity={upstream:baseline.revision,files:Object.keys(baseline.files).le
 await writeFile('artifacts/baseline.json',JSON.stringify(integrity,null,2));
 console.log('BASELINE_INTEGRITY',JSON.stringify(integrity));
 const {chromium}=await import(process.env.MOTRI2_PLAYWRIGHT_MODULE || 'playwright');
-const root=path.resolve('dist'),prefix='/Motri2/';
+const root=path.resolve('dist'),prefix='/Motri/';
 const mime={'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.wasm':'application/wasm','.glb':'model/gltf-binary','.json':'application/json','.webmanifest':'application/manifest+json','.ktx':'image/ktx2','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.mp3':'audio/mpeg','.wav':'audio/wav','.woff':'font/woff','.woff2':'font/woff2','.ttf':'font/ttf'};
 const server=createServer(async(req,res)=>{
   try{
@@ -57,7 +57,7 @@ try{
           return fillText.call(this,text,...args);
         };
       });
-      await page.goto('http://127.0.0.1:4173/Motri2/',{waitUntil:'domcontentloaded',timeout:60000});
+      await page.goto('http://127.0.0.1:4173/Motri/',{waitUntil:'domcontentloaded',timeout:60000});
       await page.waitForFunction(()=>window.game?.physicalVehicle?.controller&&window.game?.world?.visualVehicle&&window.game.inputs.actions.has('introStart'),null,{timeout:180000});
       assert.deepEqual(errors,[]);
       await page.waitForFunction(()=>window.__arabicDraws.some(d=>d.text==='ابدأ القيادة'),null,{timeout:20000});
@@ -105,7 +105,7 @@ try{
       });
       assert.equal(measured.wheelCount,4);assert.equal(measured.serverConnected,false);assert.deepEqual(sockets,[]);
       assert.ok(Object.values(measured.position).every(Number.isFinite));
-      assert.deepEqual(errors,[]);assert.deepEqual(badResponses,[],'All production assets resolve under /Motri2/');
+      assert.deepEqual(errors,[]);assert.deepEqual(badResponses,[],'All production assets resolve under /Motri/');
       await checkArabicInterface(page,viewport);
       assert.deepEqual(errors,[],'No runtime errors after Arabic UI interactions');
       await page.screenshot({path:`artifacts/motri2-${viewport.width}.png`});
