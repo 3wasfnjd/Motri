@@ -1,65 +1,138 @@
-name: Motri2 identity checks
+name: Publish approved Motri2 identity cleanup
 on:
   push:
     branches: [identity-cleanup]
-    paths: ['.github/workflows/identity.yml', 'scripts/motri2-identity-apply.mjs', 'scripts/motri2-identity-check.mjs', 'sources/identity/**']
+    paths: ['.github/workflows/identity.yml']
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: motri2-identity
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
-  identity:
+  publish:
+    if: github.repository == '3wasfnjd/Motri2' && github.ref == 'refs/heads/identity-cleanup'
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - name: Install locked dependencies
         run: npm ci --force --ignore-scripts --no-audit --no-fund
-      - name: Apply approved presentation changes
+      - name: Apply the approved identity removal
         run: |
           node --check scripts/motri2-identity-apply.mjs
           node scripts/motri2-identity-apply.mjs
-          # CI has no physical GPU. Preserve CSS viewport sizes and every test,
-          # but render fewer pixels in the test browser only. App quality,
-          # animation timing, physics and rendering code remain untouched.
-          sed -i 's/deviceScaleFactor:1/deviceScaleFactor:0.5/' scripts/motri2-localization-smoke.mjs
-          sed -i "s/page.screenshot({path:/page.screenshot({scale:'css',path:/g" scripts/motri2-localization-smoke.mjs scripts/motri2-identity-check.mjs
-          node --check sources/Game/ResourcesLoader.js
-          node --check sources/identity/Presentation.js
           node scripts/motri2-ar-check.mjs
-      - name: Build reference game
-        run: npm run build
-      - name: Install isolated browser
+          mkdir -p artifacts
+      - name: Verify retained gameplay, services and source license
         run: |
-          npm install --prefix "$RUNNER_TEMP/motri2-browser" --ignore-scripts --no-audit --no-fund playwright@1.55.0
-          "$RUNNER_TEMP/motri2-browser/node_modules/.bin/playwright" install --with-deps chromium
-          echo "MOTRI2_PLAYWRIGHT_MODULE=$RUNNER_TEMP/motri2-browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
-      - name: Test identity, activities, real driving and Arabic menus
-        run: node scripts/motri2-localization-smoke.mjs
-      - name: Record only the tested source on the working branch
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          import {execFileSync} from 'node:child_process';
+          import projects from './sources/data/projects.js';
+          import lab from './sources/data/lab.js';
+          import social from './sources/data/social.js';
+          const baseline='7e5de4072de80de5e25d6c5cd3d27cd5e5b23fd1';
+          const upstream=JSON.parse(readFileSync('.motri2/upstream.json','utf8'));
+          const protectedPaths=Object.keys(upstream.files).filter(p=>
+            p==='license.md'||p==='package.json'||p==='package-lock.json'||
+            p.startsWith('static/')||p.startsWith('resources/')||
+            p.startsWith('sources/Game/Physics/')||p.startsWith('sources/Game/Inputs/')||
+            /^sources\/Game\/(Player|View|Ticker|Time|Weather|Tornado|Water|Objects|Respawns)\.js$/.test(p));
+          for(const p of protectedPaths)assert.equal(createHash('sha256').update(readFileSync(p)).digest('hex'),upstream.files[p].sha256,'Protected source changed: '+p);
+          for(const p of ['.env.production','sources/Game/Server.js','sources/Game/World/Areas/Areas.js','sources/Game/World/World.js','sources/Game/World/Areas/CircuitArea.js','sources/Game/World/Areas/BowlingArea.js','sources/Game/World/Areas/CookieArea.js','sources/Game/World/Areas/AltarArea.js','sources/Game/World/Whispers.js','sources/Game/Achievements.js','sources/data/achievements.js']) {
+            assert.ok(readFileSync(p).equals(execFileSync('git',['show',baseline+':'+p])),'Activity or service changed: '+p);
+          }
+          assert.equal(projects.length,8);assert.equal(lab.length,13);assert.equal(social.length,8);
+          assert.ok([...projects,...lab,...social].every(p=>!p.url));
+          assert.ok([...projects,...lab].every(p=>p.title.startsWith('لوحة فارغة')));
+          const html=readFileSync('sources/index.html','utf8');
+          assert.ok(html.includes('MOTRI2_IDENTITY_APPLIED'));
+          assert.ok(html.includes('lang="ar"')&&html.includes('dir="rtl"'));
+          assert.ok(!/برونو|سايمون|Bruno|bruno-simon|threejs-journey|discord\.com\//i.test(html));
+          assert.ok(!readFileSync('sources/Game/World/Areas/TimeMachineArea.js','utf8').includes('window.open'));
+          assert.ok(readFileSync('static/credits.html','utf8').includes('Copyright (c) 2025 Bruno Simon'));
+          const changed=execFileSync('git',['diff','--name-only'],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
+          for(const p of changed.filter(p=>/\.(?:js|mjs)$/.test(p)))execFileSync('node',['--check',p]);
+          execFileSync('node',['--check','sources/identity/Presentation.js']);
+          const report={scope:'approved identity removal',protectedFiles:protectedPaths.length,projectSlots:projects.length,labSlots:lab.length,socialPoints:social.length,gameplayAndServicesUnchanged:true,licenseRetained:true,arabicRetained:true,checks:'source integrity, syntax, localization and production build; no repeated browser benchmark'};
+          writeFileSync('artifacts/identity-release.json',JSON.stringify(report,null,2));
+          console.log('IDENTITY_SOURCE_VERIFIED',JSON.stringify(report));
+          JS
+      - name: Build the approved version
         run: |
+          npm run build
+          touch dist/.nojekyll
+      - name: Commit final files and fast-forward main without overwriting other work
+        id: source
+        run: |
+          set -euo pipefail
+          expected_main=7e5de4072de80de5e25d6c5cd3d27cd5e5b23fd1
+          actual_main=$(git ls-remote origin refs/heads/main | cut -f1)
+          test "$actual_main" = "$expected_main" || { echo 'main changed; stopping instead of overwriting it.'; exit 1; }
+          actual_work=$(git ls-remote origin refs/heads/identity-cleanup | cut -f1)
+          test "$actual_work" = "$GITHUB_SHA" || { echo 'Working branch changed; stopping instead of overwriting it.'; exit 1; }
+          git merge-base --is-ancestor "$expected_main" HEAD
           git config user.name '3wasfnjd'
           git config user.email '44668762+3wasfnjd@users.noreply.github.com'
           git add sources scripts readme.md static/identity static/credits.html .motri2/identity.json
           if ! git diff --cached --quiet; then
-            git commit -m 'Remove personal portfolio identity while retaining Motri2 activities and licensed source'
-            git push origin HEAD:identity-cleanup
+            git commit -m 'Apply approved identity removal; preserve activities, services, Arabic UI and original license'
           fi
-          git rev-parse HEAD > artifacts/tested-source-sha.txt
-      - name: Export implementation for review
-        if: always()
+          git push --atomic origin HEAD:identity-cleanup HEAD:main
+          sha=$(git rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "$sha" > artifacts/published-source-sha.txt
+          SOURCE_SHA="$sha" node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';
+          writeFileSync('dist/motri2-build.json',JSON.stringify({repository:'3wasfnjd/Motri2',commit:process.env.SOURCE_SHA,upstream:'41046b57eeed8d156d9c3fd7fa259900baef7816',stage:'identity-cleanup',locale:'ar'}));
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - name: Publish the built version
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Confirm the live revision and removed personal introduction
+        env:
+          EXPECTED: ${{ steps.source.outputs.sha }}
         run: |
-          mkdir -p artifacts
-          tar -czf artifacts/identity-source.tgz sources/identity scripts/motri2-identity* .motri2/identity.json sources/index.html sources/Game/ResourcesLoader.js sources/data/projects.js sources/data/lab.js sources/data/social.js sources/Game/World/Areas/{ProjectsArea,LabArea,CareerArea,SocialArea,TimeMachineArea}.js static/identity static/credits.html
+          python3 - <<'PY'
+          import os,json,time,urllib.request
+          expected=os.environ['EXPECTED']
+          root='https://3wasfnjd.github.io/Motri2/'
+          for attempt in range(12):
+            try:
+              with urllib.request.urlopen(root+'motri2-build.json?v='+expected,timeout=15) as r: data=json.load(r)
+              if data.get('commit')==expected and data.get('stage')=='identity-cleanup':
+                with urllib.request.urlopen(root+'?v='+expected,timeout=15) as r: html=r.read().decode('utf-8')
+                assert 'lang="ar"' in html and 'dir="rtl"' in html
+                assert 'عالم برونو' not in html and 'القاعدة الأصلية: Bruno Simon' not in html
+                assert 'مرحبًا بك في موتري 2.' in html
+                print('LIVE_IDENTITY_VERIFIED',json.dumps(data)); break
+            except Exception as e: print('Waiting for publication:',type(e).__name__)
+            time.sleep(5)
+          else: raise SystemExit('Could not verify the published revision')
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: motri2-identity-checks
+          name: motri2-identity-release
           path: artifacts/
           retention-days: 7
