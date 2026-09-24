@@ -1,9 +1,11 @@
 // Arabic presentation only. Never translate action IDs, storage keys or user input.
 import dictionary from './ar.json' with {type:'json'};
+const additional = Object.freeze({'OnlyFans':'مراوح فقط','10 ans':'10 سنوات','Bonhomme | 10 ans':'Bonhomme | 10 سنوات'});
 export const hasArabic = text => /[\u0600-\u06ff]/u.test(String(text));
 export function t(value) {
   if(typeof value !== 'string')return value;
   const key=value.replace(/\s+/gu,' ').trim();
+  if(Object.hasOwn(additional,key))return additional[key];
   if(Object.hasOwn(dictionary,key))return dictionary[key];
   if(/^\d+h\s+\d+min\s+\d+s$/.test(key))return key.replace('h',' ساعة').replace('min',' دقيقة').replace('s',' ثانية');
   return value;

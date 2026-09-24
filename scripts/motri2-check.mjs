@@ -20,7 +20,7 @@ assert.ok(!/googletagmanager|google-analytics|G-JMSN30BQ5J/.test(html),'Do not s
 const integrity={upstream:baseline.revision,files:Object.keys(baseline.files).length,changed,originalDrivingPreserved:true};
 await writeFile('artifacts/baseline.json',JSON.stringify(integrity,null,2));
 console.log('BASELINE_INTEGRITY',JSON.stringify(integrity));
-const {chromium}=await import('playwright');
+const {chromium}=await import(process.env.MOTRI2_PLAYWRIGHT_MODULE || 'playwright');
 const root=path.resolve('dist'),prefix='/Motri2/';
 const mime={'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.wasm':'application/wasm','.glb':'model/gltf-binary','.json':'application/json','.webmanifest':'application/manifest+json','.ktx':'image/ktx2','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.mp3':'audio/mpeg','.wav':'audio/wav','.woff':'font/woff','.woff2':'font/woff2','.ttf':'font/ttf'};
 const server=createServer(async(req,res)=>{
@@ -39,16 +39,28 @@ let browser;
 const results=[];
 try{
   browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
-  for(const viewport of [{width:390,height:844},{width:844,height:390}]) {
+  for(const viewport of [{width:320,height:568},{width:390,height:844},{width:844,height:390}]) {
     const context=await browser.newContext({viewport,deviceScaleFactor:1,isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'});
     const page=await context.newPage(),errors=[],badResponses=[],sockets=[];
     page.on('pageerror',e=>errors.push(e.message));
     page.on('response',r=>{if(r.url().startsWith('http://127.0.0.1:4173')&&r.status()>=400)badResponses.push({url:r.url(),status:r.status()});});
     page.on('websocket',ws=>sockets.push(ws.url()));
     try{
+      await page.addInitScript(() => {
+        window.__arabicDraws=[];
+        const fillText=CanvasRenderingContext2D.prototype.fillText;
+        CanvasRenderingContext2D.prototype.fillText=function(text,...args) {
+          if(/[\u0600-\u06ff]/u.test(String(text)) && window.__arabicDraws.length<200)
+            window.__arabicDraws.push({text:String(text),direction:this.direction,font:this.font,width:this.canvas.width,height:this.canvas.height});
+          return fillText.call(this,text,...args);
+        };
+      });
       await page.goto('http://127.0.0.1:4173/Motri2/',{waitUntil:'domcontentloaded',timeout:60000});
       await page.waitForFunction(()=>window.game?.physicalVehicle?.controller&&window.game?.world?.visualVehicle&&window.game.inputs.actions.has('introStart'),null,{timeout:180000});
       assert.deepEqual(errors,[]);
+      await page.waitForFunction(()=>window.__arabicDraws.some(d=>d.text==='ابدأ القيادة'),null,{timeout:20000});
+      const introMasks=await page.evaluate(()=>[...window.game.world.intro.text.textures.values()].map(t=>({name:t.name,data:t.image.toDataURL()})));
+      for(let i=0;i<introMasks.length;i++)await writeFile(`artifacts/ar-intro-mask-${viewport.width}-${i}.png`,Buffer.from(introMasks[i].data.split(',')[1],'base64'));
       await page.keyboard.press('Enter');
       await page.waitForFunction(()=>window.game.reveal.step===2,null,{timeout:60000});
       await page.waitForFunction(()=>window.game.physicalVehicle.wheels.inContactCount>=2,null,{timeout:30000});

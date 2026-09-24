@@ -45,3 +45,38 @@ html[lang="ar"] .achievements-content .global-progress.is-achieved .time::before
 html[lang="ar"] .map .location .name{font-size:18px;letter-spacing:0;line-height:1.5;}
 html[lang="ar"].input-filter-menu #motri2-reference,html[lang="ar"].input-filter-modal #motri2-reference{display:none;}
 @media(max-width:440px){html[lang="ar"] .menu .contents .controls-content .list{font-size:12px;}html[lang="ar"] .controls-content .tabs-navigation .label{font-size:11px;}}
+
+/* MOTRI2_AR_FINAL: reserve a separate close-button slot at every aspect ratio.
+   The upstream half-width tab row overlapped Close on landscape phones. */
+html[lang="ar"] .menu .inner > .navigation{
+  left:0;right:52px;bottom:100%;width:auto;max-width:none;
+  display:flex;justify-content:flex-end;gap:3px;z-index:3;
+}
+html[lang="ar"] .menu .inner > .navigation > .item{
+  flex:0 1 50px;min-width:30px;width:50px;height:44px;
+}
+html[lang="ar"] .menu .inner > .close{
+  top:auto;right:0;bottom:100%;width:44px;height:44px;
+  transform:none;z-index:4;
+}
+html[lang="ar"] .menu .inner > .close:focus-visible,
+html[lang="ar"] .menu .navigation > .item:focus-visible{
+  outline:2px solid #fff;outline-offset:2px;
+}
+html[lang="ar"] .modal .content > .title,
+html[lang="ar"] .modal .content > .your-time{padding-inline-start:48px;}
+html[lang="ar"] .modal .content > .close{z-index:3;transform:none;}
+html[lang="ar"] .modal.circuit-end .content,
+html[lang="ar"] .modal.discord .content{
+  max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);overflow-y:auto;
+}
+html[lang="ar"] .circuit-end .your-time .value,
+html[lang="ar"] .circuit-content .leaderboard{
+  direction:ltr;unicode-bidi:isolate;
+}
+html[lang="ar"] .controls-content .key{unicode-bidi:isolate;}
+html[lang="ar"] .input-flag .search{font-size:16px;}
+@media(max-width:360px){
+  html[lang="ar"] .menu .inner > .navigation{right:49px;gap:1px;}
+  html[lang="ar"] .menu .inner > .navigation > .item{flex:1 1 0;}
+}
