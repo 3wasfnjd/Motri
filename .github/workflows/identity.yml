@@ -1,4 +1,4 @@
-name: Publish approved Motri2 identity cleanup
+name: Finalize approved Motri2 identity cleanup
 on:
   push:
     branches: [identity-cleanup]
@@ -10,17 +10,12 @@ concurrency:
   group: motri2-identity
   cancel-in-progress: false
 jobs:
-  publish:
+  finalize:
     if: github.repository == '3wasfnjd/Motri2' && github.ref == 'refs/heads/identity-cleanup'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -75,18 +70,15 @@ jobs:
           console.log('IDENTITY_SOURCE_VERIFIED',JSON.stringify(report));
           JS
       - name: Build the approved version
-        run: |
-          npm run build
-          touch dist/.nojekyll
-      - name: Commit final files and fast-forward main without overwriting other work
-        id: source
+        run: npm run build
+      - name: Commit the final implementation without overwriting other work
         run: |
           set -euo pipefail
           expected_main=7e5de4072de80de5e25d6c5cd3d27cd5e5b23fd1
           actual_main=$(git ls-remote origin refs/heads/main | cut -f1)
-          test "$actual_main" = "$expected_main" || { echo 'main changed; stopping instead of overwriting it.'; exit 1; }
+          test "$actual_main" = "$expected_main" || { echo 'main changed; stop for reconciliation.'; exit 1; }
           actual_work=$(git ls-remote origin refs/heads/identity-cleanup | cut -f1)
-          test "$actual_work" = "$GITHUB_SHA" || { echo 'Working branch changed; stopping instead of overwriting it.'; exit 1; }
+          test "$actual_work" = "$GITHUB_SHA" || { echo 'Working branch changed; stop for reconciliation.'; exit 1; }
           git merge-base --is-ancestor "$expected_main" HEAD
           git config user.name '3wasfnjd'
           git config user.email '44668762+3wasfnjd@users.noreply.github.com'
@@ -94,42 +86,8 @@ jobs:
           if ! git diff --cached --quiet; then
             git commit -m 'Apply approved identity removal; preserve activities, services, Arabic UI and original license'
           fi
-          git push --atomic origin HEAD:identity-cleanup HEAD:main
-          sha=$(git rev-parse HEAD)
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          echo "$sha" > artifacts/published-source-sha.txt
-          SOURCE_SHA="$sha" node --input-type=module <<'JS'
-          import {writeFileSync} from 'node:fs';
-          writeFileSync('dist/motri2-build.json',JSON.stringify({repository:'3wasfnjd/Motri2',commit:process.env.SOURCE_SHA,upstream:'41046b57eeed8d156d9c3fd7fa259900baef7816',stage:'identity-cleanup',locale:'ar'}));
-          JS
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-      - name: Publish the built version
-        id: deployment
-        uses: actions/deploy-pages@v4
-      - name: Confirm the live revision and removed personal introduction
-        env:
-          EXPECTED: ${{ steps.source.outputs.sha }}
-        run: |
-          python3 - <<'PY'
-          import os,json,time,urllib.request
-          expected=os.environ['EXPECTED']
-          root='https://3wasfnjd.github.io/Motri2/'
-          for attempt in range(12):
-            try:
-              with urllib.request.urlopen(root+'motri2-build.json?v='+expected,timeout=15) as r: data=json.load(r)
-              if data.get('commit')==expected and data.get('stage')=='identity-cleanup':
-                with urllib.request.urlopen(root+'?v='+expected,timeout=15) as r: html=r.read().decode('utf-8')
-                assert 'lang="ar"' in html and 'dir="rtl"' in html
-                assert 'عالم برونو' not in html and 'القاعدة الأصلية: Bruno Simon' not in html
-                assert 'مرحبًا بك في موتري 2.' in html
-                print('LIVE_IDENTITY_VERIFIED',json.dumps(data)); break
-            except Exception as e: print('Waiting for publication:',type(e).__name__)
-            time.sleep(5)
-          else: raise SystemExit('Could not verify the published revision')
-          PY
+          git push origin HEAD:identity-cleanup
+          git rev-parse HEAD > artifacts/final-source-sha.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
