@@ -15,6 +15,7 @@ export class VisualVehicle
         this.game = Game.getInstance()
         
         this.model = model
+        this.isHaval = this.model.userData.vehicleType === 'havalH9'
 
         this.setParts()
         this.setMainGroundTrack()
@@ -87,7 +88,9 @@ export class VisualVehicle
             {
                 child.receiveShadow = true
                 child.castShadow = true
-                child.material.shadowSide = THREE.BackSide
+                const materials = Array.isArray(child.material) ? child.material : [ child.material ]
+                for(const material of materials)
+                    material.shadowSide = THREE.BackSide
             }
 
             for(const search of searchList)
@@ -103,7 +106,8 @@ export class VisualVehicle
 
         // Chassis
         this.parts.chassis.rotation.reorder('YXZ')
-        this.game.materials.updateObject(this.parts.chassis)
+        if(!this.isHaval)
+            this.game.materials.updateObject(this.parts.chassis)
         this.game.scene.add(this.parts.chassis)
 
         // Blinker left
@@ -123,11 +127,20 @@ export class VisualVehicle
             this.parts.backLights.visible = false
 
         // Wheel
-        this.game.materials.updateObject(this.parts.wheelContainer)
+        if(this.isHaval)
+            this.parts.wheelContainer.removeFromParent()
+        else
+            this.game.materials.updateObject(this.parts.wheelContainer)
     }
 
     setPaints()
     {
+        if(this.isHaval)
+        {
+            this.paints = { choices: {}, changeTo: () => false }
+            return
+        }
+
         this.paints = {}
 
         this.paints.choices = {}
@@ -375,15 +388,18 @@ export class VisualVehicle
         this.boostTrails = {}
         this.boostTrails.instance = new Trails()
 
+        const trailX = this.isHaval ? -1.50 : -1.28
+        const trailZ = this.isHaval ? 0.48 : 0.55
+
         this.boostTrails.leftReference = new THREE.Object3D()
-        this.boostTrails.leftReference.position.set(-1.28, 0.1, -0.55)
+        this.boostTrails.leftReference.position.set(trailX, 0.1, -trailZ)
         this.parts.chassis.add(this.boostTrails.leftReference)
 
         this.boostTrails.left = this.boostTrails.instance.create()
         this.boostTrails.leftReference.getWorldPosition(this.boostTrails.left.position)
     
         this.boostTrails.rightReference = new THREE.Object3D()
-        this.boostTrails.rightReference.position.set(-1.28, 0.1, 0.55)
+        this.boostTrails.rightReference.position.set(trailX, 0.1, trailZ)
         this.parts.chassis.add(this.boostTrails.rightReference)
 
         this.boostTrails.right = this.boostTrails.instance.create()

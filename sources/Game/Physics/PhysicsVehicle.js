@@ -2,12 +2,14 @@ import * as THREE from 'three/webgpu'
 import { Game } from '../Game.js'
 import { Events } from '../Events.js'
 import { lerp, remap, remapClamp, smallestAngle } from '../utilities/maths.js'
+import { HAVAL_H9_HALF_TRACK, HAVAL_H9_WHEEL_RADIUS } from '../World/HavalH9Adapter.js'
 
 export class PhysicsVehicle
 {
     constructor()
     {
         this.game = Game.getInstance()
+        this.isHaval = this.game.resources.vehicle?.scene?.userData.vehicleType === 'havalH9'
 
         this.events = new Events()
 
@@ -92,7 +94,11 @@ export class PhysicsVehicle
             position: this.position,
             friction: 0.4,
             rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Euler(0, 1, 0), Math.PI * 0),
-            colliders: [
+            colliders: this.isHaval ? [
+                { shape: 'cuboid', mass: 2.5, parameters: [ 1.52, 0.34, 0.76 ], position: { x: 0, y: -0.55, z: 0 }, centerOfMass: { x: 0, y: -0.55, z: 0 } },
+                { shape: 'cuboid', mass: 0, parameters: [ 0.95, 0.28, 0.64 ], position: { x: -0.05, y: -0.15, z: 0 } },
+                { shape: 'cuboid', mass: 0, parameters: [ 1.62, 0.38, 0.82 ], position: { x: 0, y: -0.52, z: 0 }, category: 'bumper' },
+            ] : [
                 { shape: 'cuboid', mass: 2.5, parameters: [ 1.3, 0.4, 0.85 ], position: { x: 0, y: -0.1, z: 0 }, centerOfMass: { x: 0, y: -0.5, z: 0 } }, // Main
                 { shape: 'cuboid', mass: 0, parameters: [ 0.5, 0.15, 0.65 ], position: { x: 0, y: 0.4, z: 0 } }, // Top
                 { shape: 'cuboid', mass: 0, parameters: [ 1.5, 0.5, 0.9 ], position: { x: 0.1, y: -0.2, z: 0 }, category: 'bumper' }, // Bumper
@@ -138,8 +144,8 @@ export class PhysicsVehicle
 
         // Settings
         this.wheels.settings = {
-            offset: { x: 0.90, y: 0, z: 0.75 },
-            radius: 0.4,
+            offset: { x: 0.90, y: 0, z: this.isHaval ? HAVAL_H9_HALF_TRACK : 0.75 },
+            radius: this.isHaval ? HAVAL_H9_WHEEL_RADIUS : 0.4,
             directionCs: { x: 0, y: -1, z: 0 },
             axleCs: { x: 0, y: 0, z: 1 },
             frictionSlip: 0.9,
