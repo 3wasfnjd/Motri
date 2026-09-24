@@ -93,6 +93,7 @@ try{
       assert.ok(Object.values(measured.position).every(Number.isFinite));
       assert.deepEqual(errors,[]);assert.deepEqual(badResponses,[],'All production assets resolve under /Motri2/');
       await checkArabicInterface(page,viewport);
+      assert.deepEqual(errors,[],'No runtime errors after Arabic UI interactions');
       await page.screenshot({path:`artifacts/motri2-${viewport.width}.png`});
       results.push({viewport,start,forward,keyboardForward:true,reverse:true,brake:true,touchDrive:true,touchRelease:true,blurRelease:true,...measured});
       await client.detach();

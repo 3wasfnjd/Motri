@@ -31,7 +31,7 @@ await change('sources/index.html',s=>{
    const expression=new RegExp('<button\\b[^>]*class="[^"\\n]*\\b'+cls+'\\b[^"\\n]*"[^>]*>','g');
    s=s.replace(expression,tag=>tag.includes('aria-label=')?tag:tag.slice(0,-1)+` aria-label="${label}">`);
  }
- s=s.replace('contenteditable=""','contenteditable="" dir="auto" aria-label="رسالتك"');
+ s=s.replace(/contenteditable=""(?: dir="auto" aria-label="رسالتك")*/g,'contenteditable="" dir="auto" aria-label="رسالتك"');
  s=s.replaceAll('Motri2 — independent reference build based on Bruno Simon Folio 2025','موتري 2 — نسخة عربية مرجعية مبنية على مشروع برونو سايمون');
  return s;
 });
