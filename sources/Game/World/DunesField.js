@@ -1,15 +1,22 @@
 // One deterministic surface shared by rendering, collisions and the map.
-export const DUNES = Object.freeze({minX:56,maxX:94,minZ:25,maxZ:87,cell:.75});
+export const DUNES = Object.freeze({minX:30,maxX:94,minZ:25,maxZ:94,cell:.75});
 export const smooth = (a,b,v) => {const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
 const ridges = [
   [78.5,37,2.9,7.8,8.2],
   [81,50.5,4.0,8.5,9.2],
   [79.5,65,4.2,9.3,9.5],
-  [76,75,2.5,8,7]
+  [76,75,2.5,8,7],
+  [57,67,3.7,11,9],
+  [43,77,3.0,10,8],
+  [61,83,3.6,12,7.5],
+  [82,82,3.2,9,8]
 ];
 export function duneWeight(x,z,protectedZones=[]) {
-  const q=Math.hypot((x-77.5)/16,(z-56)/29);
-  let w=1-smooth(.66,1,q);
+  // Preserve the east-side entry and widen across the entire lower-right corner.
+  const east=1-smooth(.66,1,Math.hypot((x-77.5)/16,(z-56)/29));
+  const southRadius=(Math.abs((x-62)/32)**4+Math.abs((z-70)/24)**4)**.25;
+  const south=1-smooth(.72,1,southRadius);
+  let w=1-(1-east)*(1-south);
   if(!w)return 0;
   // Keep the existing inland lagoon open, not a rectangular sand cover.
   w*=smooth(1,1.27,Math.hypot((x-65.5)/7.2,(z-43)/16.5));
@@ -68,7 +75,7 @@ export function buildDunes(baseAt,zones=[]) {
         if(x+dx<0||x+dx>nx||z+dz<0||z+dz>nz)continue;
         const n=i+dx+dz*width;
         const distance=Math.hypot(dx*(b.maxX-b.minX)/nx,dz*(b.maxZ-b.minZ)/nz);
-        y=Math.min(y,positions[n*3+1]+distance*.52);
+        y=Math.min(y,positions[n*3+1]+distance*.50);
       }
       positions[i*3+1]=Math.max(baseAt(positions[i*3],positions[i*3+2]),y);
     }
