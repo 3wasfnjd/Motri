@@ -21,20 +21,22 @@ jobs:
           cache: npm
       - name: Apply localization and record source
         run: |
+          node scripts/motri2-ar-polish.mjs
           node --check scripts/motri2-localize.mjs
           node scripts/motri2-localize.mjs
           node scripts/motri2-localize.mjs
+          node scripts/motri2-ar-polish.mjs
           find sources scripts -name '*.js' -o -name '*.mjs' | while read file; do node --check "$file"; done
           git config user.name '3wasfnjd'
           git config user.email '44668762+3wasfnjd@users.noreply.github.com'
-          git add sources scripts/motri2-check.mjs readme.md
+          git add sources scripts readme.md
           if ! git diff --cached --quiet; then
-            git commit -m 'Localize Motri2 UI and in-world text to Arabic; preserve original driving'
+            git commit -m 'Polish Arabic controls, readable map labels and idempotent localization'
             git push origin HEAD:arabic-ui
           fi
           mkdir -p artifacts
           git rev-parse HEAD > artifacts/source-sha.txt
-          tar -czf artifacts/arabic-source.tgz sources scripts/motri2-check.mjs
+          tar -czf artifacts/arabic-source.tgz sources scripts
       - name: Install locked dependencies
         run: npm ci --force --ignore-scripts --no-audit --no-fund
       - name: Build Arabic game

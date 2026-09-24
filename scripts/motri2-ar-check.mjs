@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile,writeFile} from 'node:fs/promises';
 import achievements from '../sources/data/achievements.js';
 import {t,hasArabic} from '../sources/localization/ar.js';
-// Check content completeness without changing achievement IDs, targets or save keys.
+// Localization must never translate action IDs, URLs or stored progress keys.
 assert.equal(t('Controls'),'طريقة التحكم');
 assert.equal(t('Start race!'),'ابدأ السباق!');
 assert.equal(t('KeyW'),'KeyW');
@@ -31,8 +31,16 @@ export async function checkArabicInterface(page,viewport){
    const layout=await panel.evaluate(e=>({scroll:e.scrollWidth,width:e.clientWidth}));
    assert.ok(layout.scroll<=layout.width+2,name+' has horizontal overflow '+JSON.stringify(layout));
    if(name==='controls'){
-     const text=await panel.innerText();assert.ok(text.includes('إصبع واحد')&&text.includes('إصبعان'));
-     assert.ok(text.includes('WASD')&&text.includes('SHIFT'),'Actual hardware key names preserved');
+     for(const tab of ['mouse-keyboard','gamepad','touch']){
+       await panel.locator(`.js-tabs-navigation-item[data-tabs-name="${tab}"]`).click();
+       const content=panel.locator(`.js-tabs-content-item[data-tabs-name="${tab}"]`);
+       await page.waitForFunction(n=>document.querySelector(`.controls-content .js-tabs-content-item[data-tabs-name="${n}"]`).classList.contains('is-active'),tab);
+       const text=await content.innerText();
+       if(tab==='mouse-keyboard')assert.ok(text.includes('WASD')&&text.includes('SHIFT')&&text.includes('تحريك السيارة'),'Keyboard mappings preserved and explained in Arabic');
+       if(tab==='gamepad')assert.ok(text.includes('العصا اليسرى')&&text.includes('التقدم للأمام'),'Gamepad instructions translated');
+       if(tab==='touch')assert.ok(text.includes('إصبع واحد')&&text.includes('إصبعان'),'Touch instructions translated');
+     }
+     await page.waitForTimeout(350);
    }
    if(name==='options')assert.ok((await panel.innerText()).includes('غير متصل'));
    if(name==='achievements')assert.ok((await panel.innerText()).includes('حان وقت المغامرة!'));
@@ -48,11 +56,12 @@ export async function checkArabicInterface(page,viewport){
  await page.waitForFunction(()=>window.game.menu.state===3,null,{timeout:30000});
  await page.locator('.js-map-trigger').click();
  await page.waitForFunction(()=>window.game.map.initiated,null,{timeout:15000});
- const pins=await page.locator('.map .location .name').allTextContents();
- assert.ok(pins.includes('نقطة البداية')&&pins.includes('المختبر')&&pins.includes('المشاريع'));
+ const pins=(await page.locator('.map .location .name').allTextContents()).map(s=>s.trim());
+ assert.ok(pins.includes('نقطة البداية')&&pins.includes('المختبر')&&pins.includes('المشاريع'),'Map labels translated');
+ await page.waitForTimeout(450);
  await page.screenshot({path:`artifacts/ar-map-${viewport.width}.png`});
  await page.locator('.map .js-close').click();
  await page.waitForTimeout(500);
  await writeFile(`artifacts/ar-${viewport.width}.json`,JSON.stringify({viewport,lang:'ar',dir:'rtl',panels:panels.map(p=>p[0]),countries:country,pins,achievements:achievements.length,originalDrivingPreserved:true},null,2));
- console.log('ARABIC_UI_OK',JSON.stringify({viewport,achievements:achievements.length,pins: pins.length}));
+ console.log('ARABIC_UI_OK',JSON.stringify({viewport,achievements:achievements.length,pins:pins.length}));
 }
