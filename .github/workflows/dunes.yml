@@ -1,0 +1,25 @@
+name: Motri2 dunes
+on:
+  push:
+    branches: [dunes-trial]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  terrain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dunes-terrain-input
+          path: |
+            static/terrain/terrain.glb
+            static/terrain/terrain.png
+            static/ui/map/map-day.webp
+            static/ui/map/map-night.webp
+            static/respawns/respawnsReferences.glb
+            static/birchTrees/birchTreesReferences.glb
+            static/oakTrees/oakTreesReferences.glb
+            static/cherryTrees/cherryTreesReferences.glb
+          retention-days: 3
