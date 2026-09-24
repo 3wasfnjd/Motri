@@ -1,8 +1,9 @@
 import { clearGeometry } from './RestHouseClearing.js'
+import { styleRestHouse } from './RestHouseStyle.js'
 import * as THREE from 'three/webgpu'
 import { Fn, max, smoothstep } from 'three/tsl'
 import { Game } from '../Game.js'
-import { REST_HOUSE, siteRects, siteContains, flattenWeight } from './RestHouseSite.js'
+import { REST_HOUSE, siteRects, groundRects, landscapeRects, landscapeContains, flattenWeight } from './RestHouseSite.js'
 
 export class RestHouse {
     constructor() {
@@ -27,11 +28,11 @@ export class RestHouse {
         geometry.computeBoundingSphere()
         // Same plateau and feather for the GPU terrain and its physical heightfield.
         this.game.terrain.restHouseMaskNode = Fn(([p]) => {
-            const masks = siteRects.map(([x0, x1, z0, z1]) => {
+            const masks = groundRects.map(([x0, x1, z0, z1]) => {
                 const distance = max(max(p.x.negate().add(x0), p.x.sub(x1)), max(p.y.negate().add(z0), p.y.sub(z1)))
                 return smoothstep(0, REST_HOUSE.feather, distance).oneMinus()
             })
-            return max(masks[0], masks[1])
+            return masks.reduce((a, b) => max(a, b))
         })
     }
 
@@ -45,7 +46,7 @@ export class RestHouse {
                 const p = ref.getWorldPosition(new THREE.Vector3())
                 const scale = ref.getWorldScale(new THREE.Vector3())
                 const radius = (key.includes('Trees') ? 3.5 : key.includes('bushes') ? 1.5 : 0.5) * Math.max(scale.x, scale.z)
-                if(siteContains(p.x, p.z, radius)) { scene.remove(ref); this.cleared.vegetation++ }
+                if(landscapeContains(p.x, p.z, radius)) { scene.remove(ref); this.cleared.vegetation++ }
             }
         }
         for(const key of ['bricksModel', 'fencesModel', 'benchesModel', 'poleLightsModel', 'lanternsModel']) {
@@ -95,7 +96,8 @@ export class RestHouse {
             { center: [5.2, -0.15, 24.4], size: [40, 0.3, 48.8] },
             { center: [0, -0.15, -3.2], size: [6.8, 0.3, 6.4] }
         ]
-        this.game.objects.add({ model: scene })
+        styleRestHouse(scene)
+        this.game.objects.add({ model: scene, updateMaterials: false })
         this.physical = this.game.objects.add(null, {
             type: 'fixed', friction: 0.7, restitution: 0,
             colliders: [...this.shapes.map(s => collider(s, 'object')), ...ground.map(s => collider(s, 'floor'))]
@@ -117,14 +119,17 @@ export class RestHouse {
         ctx.save()
         ctx.translate(384, 384)
         ctx.scale(k, k)
-        ctx.fillStyle = night ? '#625a4a' : '#c6b99b'
+        // Replace stale pond/tree symbols on the original static map too.
+        ctx.fillStyle = night ? '#746039' : '#dbaa66'
+        for(const [x0, x1, z0, z1] of landscapeRects) ctx.fillRect(x0, z0, x1 - x0, z1 - z0)
+        ctx.fillStyle = night ? '#7f7050' : '#e7cd98'
         for(const [x0, x1, z0, z1] of siteRects) ctx.fillRect(x0, z0, x1 - x0, z1 - z0)
         for(const s of this.shapes) {
             const p = this.root.localToWorld(new THREE.Vector3().fromArray(s.center))
             ctx.save()
             ctx.translate(p.x, p.z)
             ctx.rotate(-REST_HOUSE.yaw - (s.rotationY || 0))
-            ctx.fillStyle = night ? '#92928d' : '#eeeeea'
+            ctx.fillStyle = night ? '#a3977c' : '#f5e6c5'
             ctx.fillRect(-s.size[0] * REST_HOUSE.scale / 2, -s.size[2] * REST_HOUSE.scale / 2, s.size[0] * REST_HOUSE.scale, s.size[2] * REST_HOUSE.scale)
             ctx.restore()
         }
