@@ -1,0 +1,78 @@
+name: Import Bruno baseline
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/bootstrap.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: motri2-import
+  cancel-in-progress: false
+jobs:
+  import:
+    if: github.repository == '3wasfnjd/Motri2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Import verified upstream snapshot once
+        env:
+          UPSTREAM_SHA: 41046b57eeed8d156d9c3fd7fa259900baef7816
+        run: |
+          set -euo pipefail
+          if [ -e .motri2/upstream.json ]; then
+            echo 'Baseline is already imported. No files overwritten.'
+            exit 0
+          fi
+          test ! -f package.json
+          upstream="$RUNNER_TEMP/bruno-source"
+          git init "$upstream"
+          git -C "$upstream" remote add origin https://github.com/brunosimon/folio-2025.git
+          git -C "$upstream" fetch --depth=1 origin "$UPSTREAM_SHA"
+          git -C "$upstream" checkout --detach FETCH_HEAD
+          test "$(git -C "$upstream" rev-parse HEAD)" = "$UPSTREAM_SHA"
+          rsync -a --exclude='.git' --exclude='.github' "$upstream/" ./
+          mkdir -p .motri2
+          python3 - <<'PY'
+          import pathlib,json,hashlib,os
+          root=pathlib.Path('.')
+          files={str(p):{'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in root.rglob('*') if p.is_file() and '.git' not in p.parts and '.github' not in p.parts and '.motri2' not in p.parts and p.name!='Text.text'}
+          manifest={'repository':'brunosimon/folio-2025','revision':os.environ['UPSTREAM_SHA'],'files':files,'note':'Exact source snapshot; local deployment changes are documented separately.'}
+          (root/'.motri2/upstream.json').write_text(json.dumps(manifest,indent=2)+'\n')
+          print('IMPORT_SUMMARY',json.dumps({'files':len(files),'bytes':sum(v['bytes'] for v in files.values()),'largest':sorted(files.items(),key=lambda x:x[1]['bytes'],reverse=True)[:5]}))
+          PY
+          git config user.name '3wasfnjd'
+          git config user.email '44668762+3wasfnjd@users.noreply.github.com'
+          git add sources static resources scripts vite.config.js package.json package-lock.json readme.md license.md .env.example .gitignore .motri2/upstream.json
+          git commit -m "Import folio-2025 baseline at $UPSTREAM_SHA with original license and assets"
+          git push origin HEAD:main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --force --ignore-scripts --no-audit --no-fund
+      - name: Build reference version
+        env:
+          VITE_GAME_PUBLIC: '1'
+          VITE_COMPRESSED: '1'
+          VITE_SERVER_URL: ''
+          VITE_ANALYTICS_TAG: ''
+          VITE_WHISPERS_COUNT: '30'
+          VITE_MUSIC: '1'
+          VITE_LOG: '1'
+        run: npm run build
+      - name: Prepare source inspection bundle
+        if: always()
+        run: |
+          mkdir -p inspection
+          tar -czf inspection/source-review.tgz sources scripts vite.config.js package.json package-lock.json .env.example .gitignore license.md readme.md .motri2/upstream.json
+          du -sh static resources dist 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: motri2-source-review
+          path: inspection/
+          retention-days: 3
