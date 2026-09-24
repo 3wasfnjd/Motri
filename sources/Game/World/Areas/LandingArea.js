@@ -1,3 +1,4 @@
+import { replaceLandingBrand } from './LandingBrand.js'
 import * as THREE from 'three/webgpu'
 import { color, float, Fn, instancedArray, mix, normalWorld, positionGeometry, step, texture, uniform, uv, vec2, vec3, vec4 } from 'three/tsl'
 import { Inputs } from '../../Inputs/Inputs.js'
@@ -10,7 +11,7 @@ export class LandingArea extends Area
 {
     constructor(model)
     {
-        super(model)
+        super(replaceLandingBrand(model))
 
         this.localTime = uniform(0)
 
