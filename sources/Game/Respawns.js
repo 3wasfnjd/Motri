@@ -14,6 +14,7 @@ export class Respawns
     setItems()
     {
         this.items = new Map()
+        const disabled = new Set([ 'behindTheScene', 'social', 'timeMachine' ])
 
         for(const child of this.game.resources.respawnsReferencesModel.scene.children)
         {
@@ -22,6 +23,9 @@ export class Respawns
             let name = child.name.replace(/^respawn(.+)$/i, '$1')
 
             name = name.charAt(0).toLowerCase() + name.slice(1)
+
+            if(disabled.has(name))
+                continue
 
             const item = {
                 name: name,

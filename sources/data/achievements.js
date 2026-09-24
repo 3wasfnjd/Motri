@@ -14,7 +14,7 @@ export default
         'areas',
         'Traveler',
         'Vist every area.',
-        13,
+        10,
         true // Unique
     ],
     [
@@ -201,21 +201,9 @@ export default
         1
     ],
     [
-        'fan',
-        'You’re my only fan',
-        'Spawn a fan.',
-        1
-    ],
-    [
         'reset',
         'Clean your room',
         'Put back everything as it was.',
-        1
-    ],
-    [
-        'statueDown',
-        'Revolution!',
-        'Tear that statue down.',
         1
     ],
     [
