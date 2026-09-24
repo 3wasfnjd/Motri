@@ -71,7 +71,7 @@ export function neutralizeIdentityModel(scene) {
     const materials=Array.isArray(child.material)?child.material:[child.material];
     for(const material of materials){
       if(material.name==='circuitBrand'){
-        material.map=presentationTexture('MOTRI 2',{width:512,height:128});banners++;
+        material.map=presentationTexture('ABODEN GAMES',{width:512,height:128});banners++;
       }
     }
   });
