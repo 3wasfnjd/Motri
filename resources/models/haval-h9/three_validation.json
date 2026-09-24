@@ -1,0 +1,98 @@
+{
+  "threejs_load": "PASS",
+  "triangles": 31900,
+  "render_primitives": 37,
+  "materials": [
+    "Mat_Body_MatteGrey",
+    "Mat_DarkTrim",
+    "Mat_Glass",
+    "Mat_Rim_Gunmetal",
+    "Mat_Headlight",
+    "Mat_LicensePlate",
+    "Mat_Taillight",
+    "Mat_Rubber"
+  ],
+  "body_color_isolation": "PASS",
+  "painted_primitives": 2,
+  "license_plate_texture_assignment": "PASS",
+  "license_plate_uvs": "PASS",
+  "pose_tests": 75,
+  "wheel_center_max_drift_m": 0,
+  "wheel_bounds": {
+    "FL": {
+      "min": [
+        0.70899997651577,
+        2.9802322387695312e-8,
+        1.0156800746917725
+      ],
+      "max": [
+        1.01699997484684,
+        0.8486399948596954,
+        1.8643200397491455
+      ],
+      "dimensions": [
+        0.30799999833106995,
+        0.848639965057373,
+        0.848639965057373
+      ]
+    },
+    "FR": {
+      "min": [
+        -1.01699997484684,
+        2.9802322387695312e-8,
+        1.0156800746917725
+      ],
+      "max": [
+        -0.70899997651577,
+        0.8486399948596954,
+        1.8643200397491455
+      ],
+      "dimensions": [
+        0.30799999833106995,
+        0.848639965057373,
+        0.848639965057373
+      ]
+    },
+    "RL": {
+      "min": [
+        0.70899997651577,
+        2.9802322387695312e-8,
+        -1.8343199491500854
+      ],
+      "max": [
+        1.01699997484684,
+        0.8486399948596954,
+        -0.9856799840927124
+      ],
+      "dimensions": [
+        0.30799999833106995,
+        0.848639965057373,
+        0.848639965057373
+      ]
+    },
+    "RR": {
+      "min": [
+        -1.01699997484684,
+        2.9802322387695312e-8,
+        -1.8343199491500854
+      ],
+      "max": [
+        -0.70899997651577,
+        0.8486399948596954,
+        -0.9856799840927124
+      ],
+      "dimensions": [
+        0.30799999833106995,
+        0.848639965057373,
+        0.848639965057373
+      ]
+    }
+  },
+  "suspension_offset_adapter": "PASS",
+  "animations": 0,
+  "limitations": [
+    "No WebGL rendering or on-device performance benchmark in this check.",
+    "Motri2 source repository was not supplied or modified.",
+    "Blender studio renders provide visual verification."
+  ]
+}

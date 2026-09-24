@@ -1,0 +1,493 @@
+{
+  "pose_tests": 104,
+  "pose_failures": [],
+  "geometry": {
+    "H9_BodyPaint": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "H9_Trim": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "H9_Glass": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "H9_SideSteps": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "H9_Chassis": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "H9_Headlights": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "H9_Grille": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "H9_Taillights": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "H9_SpareWheelCover": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "H9_RoofRails": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "H9_LicensePlate_Front": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "H9_LicensePlateFrame_Front": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "LicensePlateSurface_Front": {
+      "nonmanifold_edges": 4,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "H9_LicensePlate_Rear": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "H9_LicensePlateFrame_Rear": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "LicensePlateSurface_Rear": {
+      "nonmanifold_edges": 4,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "Wheel_FL": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "Wheel_FR": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "Wheel_RL": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "Wheel_RR": {
+      "nonmanifold_edges": 0,
+      "loose_vertices": 0,
+      "zero_area_faces": 0,
+      "modifiers": 0,
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "wheels": {
+    "Wheel_FL": {
+      "center": [
+        0.8579999804496765,
+        -1.440000057220459,
+        0.4243200123310089
+      ],
+      "ground_min": 2.9802322387695312e-08,
+      "max_radius": 0.4243200064601187
+    },
+    "Wheel_FR": {
+      "center": [
+        -0.8579999804496765,
+        -1.440000057220459,
+        0.4243200123310089
+      ],
+      "ground_min": 2.9802322387695312e-08,
+      "max_radius": 0.4243200064601187
+    },
+    "Wheel_RL": {
+      "center": [
+        0.8579999804496765,
+        1.409999966621399,
+        0.4243200123310089
+      ],
+      "ground_min": 2.9802322387695312e-08,
+      "max_radius": 0.4243200064601187
+    },
+    "Wheel_RR": {
+      "center": [
+        -0.8579999804496765,
+        1.409999966621399,
+        0.4243200123310089
+      ],
+      "ground_min": 2.9802322387695312e-08,
+      "max_radius": 0.4243200064601187
+    }
+  },
+  "bounds_blender": {
+    "min": [
+      -1.2010000944137573,
+      -2.5230000019073486,
+      2.9802322387695312e-08
+    ],
+    "max": [
+      1.2010000944137573,
+      2.63100004196167,
+      2.0149998664855957
+    ]
+  },
+  "plates": {
+    "LicensePlateSurface_Front": {
+      "uv": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "normals": [
+        [
+          0,
+          -1,
+          0
+        ]
+      ],
+      "triangles": 2,
+      "material": "Mat_LicensePlate"
+    },
+    "LicensePlateSurface_Rear": {
+      "uv": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "normals": [
+        [
+          0,
+          1,
+          0
+        ]
+      ],
+      "triangles": 2,
+      "material": "Mat_LicensePlate"
+    }
+  },
+  "eevee_properties": [
+    "rna_type",
+    "gi_diffuse_bounces",
+    "gi_cubemap_resolution",
+    "gi_visibility_resolution",
+    "gi_glossy_clamp",
+    "gi_irradiance_pool_size",
+    "taa_samples",
+    "taa_render_samples",
+    "use_taa_reprojection",
+    "ray_tracing_method",
+    "use_shadow_jitter_viewport",
+    "clamp_surface_direct",
+    "clamp_surface_indirect",
+    "clamp_volume_direct",
+    "clamp_volume_indirect",
+    "direct_light_intensity",
+    "indirect_light_intensity",
+    "volumetric_start",
+    "volumetric_end",
+    "volumetric_tile_size",
+    "volumetric_samples",
+    "volumetric_sample_distribution",
+    "volumetric_ray_depth",
+    "volumetric_light_clamp",
+    "use_volumetric_shadows",
+    "volumetric_shadow_samples",
+    "use_volume_custom_range",
+    "use_fast_gi",
+    "fast_gi_thickness_near",
+    "fast_gi_quality",
+    "fast_gi_step_count",
+    "fast_gi_ray_count",
+    "fast_gi_method",
+    "fast_gi_distance",
+    "fast_gi_bias",
+    "fast_gi_resolution",
+    "bokeh_max_size",
+    "bokeh_threshold",
+    "bokeh_neighbor_max",
+    "use_bokeh_jittered",
+    "bokeh_overblur",
+    "motion_blur_depth_scale",
+    "motion_blur_max",
+    "motion_blur_steps",
+    "use_shadows",
+    "shadow_pool_size",
+    "shadow_ray_count",
+    "shadow_step_count",
+    "light_threshold",
+    "use_overscan",
+    "overscan_size",
+    "ray_tracing_options",
+    "use_raytracing",
+    "shadow_resolution_scale"
+  ],
+  "samples": 24
+}
