@@ -8,18 +8,12 @@ permissions:
 jobs:
   terrain:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/upload-artifact@v4
+      - uses: actions/setup-node@v4
         with:
-          name: dunes-terrain-input
-          path: |
-            static/terrain/terrain.glb
-            static/terrain/terrain.png
-            static/ui/map/map-day.webp
-            static/ui/map/map-night.webp
-            static/respawns/respawnsReferences.glb
-            static/birchTrees/birchTreesReferences.glb
-            static/oakTrees/oakTreesReferences.glb
-            static/cherryTrees/cherryTreesReferences.glb
-          retention-days: 3
+          node-version: '22'
+          cache: npm
+      - run: npm ci --force --ignore-scripts --no-audit --no-fund
+      - run: npm run build
