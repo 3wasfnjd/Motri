@@ -228,7 +228,9 @@ export class VisualVehicle
             if(!material)
                 return false
 
-            this.parts.bodyPainted.material = material
+            // A fixed body finish does not change the existing wheel paint rewards.
+            if(!this.parts.bodyPainted.userData.fixedPaint)
+                this.parts.bodyPainted.material = material
 
             for(const wheel of this.wheels.items)
             {
