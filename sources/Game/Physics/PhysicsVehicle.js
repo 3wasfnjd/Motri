@@ -2,7 +2,7 @@ import * as THREE from 'three/webgpu'
 import { Game } from '../Game.js'
 import { Events } from '../Events.js'
 import { lerp, remap, remapClamp, smallestAngle } from '../utilities/maths.js'
-import { HAVAL_H9_FRONT_X, HAVAL_H9_HALF_TRACK, HAVAL_H9_REAR_X, HAVAL_H9_WHEEL_RADIUS } from '../World/HavalH9Adapter.js'
+import { HAVAL_H9_FRONT_X, HAVAL_H9_HALF_TRACK, HAVAL_H9_HIGH_SUSPENSION_REST, HAVAL_H9_LOW_SUSPENSION_REST, HAVAL_H9_MAX_SUSPENSION_TRAVEL, HAVAL_H9_MID_SUSPENSION_REST, HAVAL_H9_REAR_X, HAVAL_H9_WHEEL_RADIUS } from '../World/HavalH9Adapter.js'
 
 export class PhysicsVehicle
 {
@@ -30,12 +30,20 @@ export class PhysicsVehicle
         this.velocity = new THREE.Vector3()
         this.direction = this.forward.clone()
         this.speed = 0
-        this.suspensionsHeights = {
+        this.suspensionsHeights = this.isHaval ? {
+            low: HAVAL_H9_LOW_SUSPENSION_REST,
+            mid: HAVAL_H9_MID_SUSPENSION_REST,
+            high: HAVAL_H9_HIGH_SUSPENSION_REST
+        } : {
             low: 0.88,
             mid: 1.23,
             high: 1.63
         }
-        this.suspensionsStiffness = {
+        this.suspensionsStiffness = this.isHaval ? {
+            low: 34,
+            mid: 38,
+            high: 42
+        } : {
             low: 20,
             mid: 30,
             high: 40
@@ -95,11 +103,11 @@ export class PhysicsVehicle
             friction: 0.4,
             rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Euler(0, 1, 0), Math.PI * 0),
             colliders: this.isHaval ? [
-                // Raised underbody and shorter bumper envelope: the tyres meet ramps first
-                // instead of the collider catching on small dune lips or kerbs.
-                { shape: 'cuboid', mass: 2.5, parameters: [ 1.35, 0.27, 0.67 ], position: { x: -0.03, y: -0.50, z: 0 }, centerOfMass: { x: 0, y: -0.48, z: 0 } },
-                { shape: 'cuboid', mass: 0, parameters: [ 0.88, 0.30, 0.61 ], position: { x: -0.08, y: -0.16, z: 0 } },
-                { shape: 'cuboid', mass: 0, parameters: [ 1.46, 0.20, 0.70 ], position: { x: 0, y: -0.45, z: 0 }, category: 'bumper' },
+                // Arcade-friendly H9 envelope: higher and shorter than the visible body
+                // so wheels climb dune lips and kerbs before the body collides.
+                { shape: 'cuboid', mass: 2.5, parameters: [ 1.18, 0.24, 0.63 ], position: { x: -0.02, y: -0.42, z: 0 }, centerOfMass: { x: 0, y: -0.45, z: 0 } },
+                { shape: 'cuboid', mass: 0, parameters: [ 0.86, 0.30, 0.59 ], position: { x: -0.08, y: -0.05, z: 0 } },
+                { shape: 'cuboid', mass: 0, parameters: [ 1.22, 0.16, 0.66 ], position: { x: 0.05, y: -0.34, z: 0 }, category: 'bumper' },
             ] : [
                 { shape: 'cuboid', mass: 2.5, parameters: [ 1.3, 0.4, 0.85 ], position: { x: 0, y: -0.1, z: 0 }, centerOfMass: { x: 0, y: -0.5, z: 0 } }, // Main
                 { shape: 'cuboid', mass: 0, parameters: [ 0.5, 0.15, 0.65 ], position: { x: 0, y: 0.4, z: 0 } }, // Top
@@ -151,11 +159,11 @@ export class PhysicsVehicle
             directionCs: { x: 0, y: -1, z: 0 },
             axleCs: { x: 0, y: 0, z: 1 },
             frictionSlip: 0.9,
-            maxSuspensionForce: 150,
-            maxSuspensionTravel: 2,
+            maxSuspensionForce: this.isHaval ? 190 : 150,
+            maxSuspensionTravel: this.isHaval ? HAVAL_H9_MAX_SUSPENSION_TRAVEL : 2,
             sideFrictionStiffness: 3,
-            suspensionCompression: 10,
-            suspensionRelaxation: 2.7,
+            suspensionCompression: this.isHaval ? 12 : 10,
+            suspensionRelaxation: this.isHaval ? 4 : 2.7,
             suspensionStiffness: 25,
         }
 

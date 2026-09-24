@@ -1,5 +1,5 @@
 // One deterministic surface shared by rendering, collisions and the map.
-export const DUNES = Object.freeze({minX:8,maxX:116,minZ:4,maxZ:116,cell:.75});
+export const DUNES = Object.freeze({minX:8,maxX:128,minZ:4,maxZ:128,cell:1});
 const CHALLENGE_EDGE = 96;
 export const smooth = (a,b,v) => {const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
 
@@ -14,7 +14,8 @@ const boundary = [
   [88,28],
   [96,20],
   [108,14],
-  [116,10]
+  [116,10],
+  [128,6]
 ];
 
 const ridges = [
@@ -29,7 +30,11 @@ const ridges = [
   [86,88,6.2,10.0,8.0],
   [92,93,6.8,8.5,7.0],
   [101,101,4.8,12.0,10.0],
-  [109,111,4.2,11.0,9.0]
+  [109,111,4.2,11.0,9.0],
+  [42,96,3.3,12.0,9.0],
+  [58,108,3.8,13.0,10.0],
+  [78,116,4.4,13.0,10.0],
+  [104,118,4.6,12.0,10.0]
 ];
 
 function leftBoundary(z) {
@@ -48,11 +53,23 @@ export function duneWeight(x,z,protectedZones=[]) {
   if(z<DUNES.minZ||z>DUNES.maxZ||x<DUNES.minX||x>DUNES.maxX)return 0;
 
   const edge=leftBoundary(z);
-  // Soft transition only at the red boundary; everything deeper in the wedge is sand.
-  let w=smooth(edge-1.5,edge+4.5,x);
+
+  // The original selected wedge remains the main dune field.
+  const wedge=smooth(edge-2,edge+5,x);
+
+  // Broaden the lower half substantially so there is no single dune line with
+  // empty ground behind it.
+  const wideWedge=smooth(edge-18,edge-7,x)*smooth(48,66,z);
+
+  // Continuous perimeter aprons along the south and east sides of the corner.
+  // These overlap the wedge and each other, forming one connected sand area.
+  const southApron=smooth(12,24,x)*smooth(66,80,z);
+  const eastApron=smooth(62,76,x)*smooth(26,42,z);
+
+  let w=1-(1-wedge)*(1-wideWedge)*(1-southApron)*(1-eastApron);
   w*=smooth(DUNES.minZ,DUNES.minZ+5,z);
 
-  // Preserve actual activity/service pads if any reference overlaps the selected wedge.
+  // Preserve actual activity/service pads inside the original island.
   for(const p of protectedZones)
     w*=smooth(p.radius+1.25,p.radius+5.25,Math.hypot(x-p.x,z-p.z));
 
