@@ -19,19 +19,19 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Apply localization and record source
+      - name: Finish Arabic presentation and record tested source
         run: |
           node scripts/motri2-ar-polish.mjs
-          node --check scripts/motri2-localize.mjs
           node scripts/motri2-localize.mjs
-          node scripts/motri2-localize.mjs
-          node scripts/motri2-ar-polish.mjs
+          node scripts/motri2-ar-complete.mjs
+          node scripts/motri2-ar-complete.mjs
+          node scripts/motri2-ar-check.mjs
           find sources scripts -name '*.js' -o -name '*.mjs' | while read file; do node --check "$file"; done
           git config user.name '3wasfnjd'
           git config user.email '44668762+3wasfnjd@users.noreply.github.com'
           git add sources scripts readme.md
           if ! git diff --cached --quiet; then
-            git commit -m 'Polish Arabic controls, readable map labels and idempotent localization'
+            git commit -m 'Finish Arabic presentation and responsive menu/dialog layout'
             git push origin HEAD:arabic-ui
           fi
           mkdir -p artifacts
@@ -41,10 +41,11 @@ jobs:
         run: npm ci --force --ignore-scripts --no-audit --no-fund
       - name: Build Arabic game
         run: npm run build
-      - name: Install test browser
+      - name: Install isolated test browser without changing game dependencies
         run: |
-          npm install --no-save --package-lock=false --force --ignore-scripts --no-audit --no-fund playwright@1.55.0
-          npx playwright install --with-deps chromium
+          npm install --prefix "$RUNNER_TEMP/motri2-browser" --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          "$RUNNER_TEMP/motri2-browser/node_modules/.bin/playwright" install --with-deps chromium
+          echo "MOTRI2_PLAYWRIGHT_MODULE=$RUNNER_TEMP/motri2-browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
       - name: Verify Arabic menus and unchanged real driving
         run: node scripts/motri2-check.mjs
       - uses: actions/upload-artifact@v4

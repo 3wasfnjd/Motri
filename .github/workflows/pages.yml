@@ -14,8 +14,6 @@ jobs:
     if: github.repository == '3wasfnjd/Motri2'
     runs-on: ubuntu-latest
     timeout-minutes: 18
-    permissions:
-      contents: write
     outputs:
       source-sha: ${{ steps.source.outputs.sha }}
     steps:
@@ -24,39 +22,29 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Apply documented hosting-only changes
-        run: |
-          node --check scripts/motri2-prepare.mjs
-          node --check scripts/motri2-check.mjs
-          node scripts/motri2-prepare.mjs
-          git config user.name '3wasfnjd'
-          git config user.email '44668762+3wasfnjd@users.noreply.github.com'
-          git add sources/index.html sources/Game/Title.js readme.md
-          git add -f .env.production
-          if ! git diff --cached --quiet; then
-            git commit -m 'Configure Motri2 reference identity and independent static deployment'
-            git push origin HEAD:main
-          fi
-      - name: Record exact build source
+      - name: Check committed localization and record exact source
         id: source
         run: |
+          node --check scripts/motri2-check.mjs
+          node scripts/motri2-ar-check.mjs
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           mkdir -p artifacts
           git rev-parse HEAD > artifacts/source-sha.txt
       - name: Install locked application dependencies
         run: npm ci --force --ignore-scripts --no-audit --no-fund
-      - name: Build the reference world
+      - name: Build Arabic reference world
         run: |
           npm run build
           touch dist/.nojekyll
-          node --input-type=module -e "import{writeFileSync}from'node:fs';writeFileSync('dist/motri2-build.json',JSON.stringify({repository:'3wasfnjd/Motri2',commit:process.env.SOURCE_SHA,upstream:'41046b57eeed8d156d9c3fd7fa259900baef7816',stage:'reference-baseline'}))"
+          node --input-type=module -e "import{writeFileSync}from'node:fs';writeFileSync('dist/motri2-build.json',JSON.stringify({repository:'3wasfnjd/Motri2',commit:process.env.SOURCE_SHA,upstream:'41046b57eeed8d156d9c3fd7fa259900baef7816',stage:'arabic-reference',locale:'ar'}))"
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
-      - name: Install test browser
+      - name: Install isolated test browser
         run: |
-          npm install --no-save --package-lock=false --force --ignore-scripts --no-audit --no-fund playwright@1.55.0
-          npx playwright install --with-deps chromium
-      - name: Verify source and real keyboard/touch driving
+          npm install --prefix "$RUNNER_TEMP/motri2-browser" --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          "$RUNNER_TEMP/motri2-browser/node_modules/.bin/playwright" install --with-deps chromium
+          echo "MOTRI2_PLAYWRIGHT_MODULE=$RUNNER_TEMP/motri2-browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+      - name: Verify Arabic UI and real keyboard/touch driving
         run: node scripts/motri2-check.mjs
       - uses: actions/upload-artifact@v4
         if: always()
@@ -81,20 +69,22 @@ jobs:
       - name: Publish the checked build
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Verify published revision
+      - name: Verify published Arabic revision
         env:
           EXPECTED: ${{ needs.build.outputs.source-sha }}
         run: |
           python3 - <<'PY'
           import os,json,time,urllib.request
           expected=os.environ['EXPECTED']
-          url='https://3wasfnjd.github.io/Motri2/motri2-build.json?v='+expected
+          root='https://3wasfnjd.github.io/Motri2/'
           for attempt in range(18):
             try:
-              with urllib.request.urlopen(url,timeout=20) as r: data=json.load(r)
-              if data.get('commit')==expected:
-                print('LIVE_REVISION_VERIFIED',json.dumps(data));break
+              with urllib.request.urlopen(root+'motri2-build.json?v='+expected,timeout=20) as r: data=json.load(r)
+              if data.get('commit')==expected and data.get('locale')=='ar':
+                with urllib.request.urlopen(root+'?v='+expected,timeout=20) as r: html=r.read().decode('utf-8')
+                assert 'lang="ar"' in html and 'dir="rtl"' in html
+                print('LIVE_ARABIC_VERIFIED',json.dumps(data));break
             except Exception as e: print('Waiting for deployment:',type(e).__name__)
             time.sleep(5)
-          else: raise SystemExit('Published revision could not be verified')
+          else: raise SystemExit('Published Arabic revision could not be verified')
           PY
