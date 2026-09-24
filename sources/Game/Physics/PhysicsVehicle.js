@@ -2,14 +2,12 @@ import * as THREE from 'three/webgpu'
 import { Game } from '../Game.js'
 import { Events } from '../Events.js'
 import { lerp, remap, remapClamp, smallestAngle } from '../utilities/maths.js'
-import { HAVAL_H9_FRONT_X, HAVAL_H9_HALF_TRACK, HAVAL_H9_HIGH_SUSPENSION_REST, HAVAL_H9_LOW_SUSPENSION_REST, HAVAL_H9_MID_SUSPENSION_REST, HAVAL_H9_PHYSICS_SUSPENSION_TRAVEL, HAVAL_H9_REAR_X, HAVAL_H9_WHEEL_RADIUS } from '../World/HavalH9Adapter.js'
 
 export class PhysicsVehicle
 {
     constructor()
     {
         this.game = Game.getInstance()
-        this.isHaval = this.game.resources.vehicle?.scene?.userData.vehicleType === 'havalH9'
 
         this.events = new Events()
 
@@ -30,20 +28,12 @@ export class PhysicsVehicle
         this.velocity = new THREE.Vector3()
         this.direction = this.forward.clone()
         this.speed = 0
-        this.suspensionsHeights = this.isHaval ? {
-            low: HAVAL_H9_LOW_SUSPENSION_REST,
-            mid: HAVAL_H9_MID_SUSPENSION_REST,
-            high: HAVAL_H9_HIGH_SUSPENSION_REST
-        } : {
+        this.suspensionsHeights = {
             low: 0.88,
             mid: 1.23,
             high: 1.63
         }
-        this.suspensionsStiffness = this.isHaval ? {
-            low: 70,
-            mid: 78,
-            high: 86
-        } : {
+        this.suspensionsStiffness = {
             low: 20,
             mid: 30,
             high: 40
@@ -102,13 +92,7 @@ export class PhysicsVehicle
             position: this.position,
             friction: 0.4,
             rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Euler(0, 1, 0), Math.PI * 0),
-            colliders: this.isHaval ? [
-                // Arcade-friendly H9 envelope: higher and shorter than the visible body
-                // so wheels climb dune lips and kerbs before the body collides.
-                { shape: 'cuboid', mass: 2.5, parameters: [ 1.18, 0.24, 0.63 ], position: { x: -0.02, y: -0.42, z: 0 }, centerOfMass: { x: 0, y: -0.45, z: 0 } },
-                { shape: 'cuboid', mass: 0, parameters: [ 0.86, 0.30, 0.59 ], position: { x: -0.08, y: -0.05, z: 0 } },
-                { shape: 'cuboid', mass: 0, parameters: [ 1.22, 0.16, 0.66 ], position: { x: 0.05, y: -0.34, z: 0 }, category: 'bumper' },
-            ] : [
+            colliders: [
                 { shape: 'cuboid', mass: 2.5, parameters: [ 1.3, 0.4, 0.85 ], position: { x: 0, y: -0.1, z: 0 }, centerOfMass: { x: 0, y: -0.5, z: 0 } }, // Main
                 { shape: 'cuboid', mass: 0, parameters: [ 0.5, 0.15, 0.65 ], position: { x: 0, y: 0.4, z: 0 } }, // Top
                 { shape: 'cuboid', mass: 0, parameters: [ 1.5, 0.5, 0.9 ], position: { x: 0.1, y: -0.2, z: 0 }, category: 'bumper' }, // Bumper
@@ -154,16 +138,16 @@ export class PhysicsVehicle
 
         // Settings
         this.wheels.settings = {
-            offset: { x: 0.90, y: 0, z: this.isHaval ? HAVAL_H9_HALF_TRACK : 0.75 },
-            radius: this.isHaval ? HAVAL_H9_WHEEL_RADIUS : 0.4,
+            offset: { x: 0.90, y: 0, z: 0.75 },
+            radius: 0.4,
             directionCs: { x: 0, y: -1, z: 0 },
             axleCs: { x: 0, y: 0, z: 1 },
             frictionSlip: 0.9,
-            maxSuspensionForce: this.isHaval ? 320 : 150,
-            maxSuspensionTravel: this.isHaval ? HAVAL_H9_PHYSICS_SUSPENSION_TRAVEL : 2,
+            maxSuspensionForce: 150,
+            maxSuspensionTravel: 2,
             sideFrictionStiffness: 3,
-            suspensionCompression: this.isHaval ? 14 : 10,
-            suspensionRelaxation: this.isHaval ? 5 : 2.7,
+            suspensionCompression: 10,
+            suspensionRelaxation: 2.7,
             suspensionStiffness: 25,
         }
 
@@ -171,13 +155,11 @@ export class PhysicsVehicle
         {
             this.wheels.perimeter = this.wheels.settings.radius * Math.PI * 2
 
-            const frontX = this.isHaval ? HAVAL_H9_FRONT_X : this.wheels.settings.offset.x
-            const rearX = this.isHaval ? HAVAL_H9_REAR_X : - this.wheels.settings.offset.x
             const wheelsPositions = [
-                new THREE.Vector3(frontX, this.wheels.settings.offset.y,   this.wheels.settings.offset.z),
-                new THREE.Vector3(frontX, this.wheels.settings.offset.y, - this.wheels.settings.offset.z),
-                new THREE.Vector3(rearX,  this.wheels.settings.offset.y,   this.wheels.settings.offset.z),
-                new THREE.Vector3(rearX,  this.wheels.settings.offset.y, - this.wheels.settings.offset.z),
+                new THREE.Vector3(  this.wheels.settings.offset.x, this.wheels.settings.offset.y,   this.wheels.settings.offset.z),
+                new THREE.Vector3(  this.wheels.settings.offset.x, this.wheels.settings.offset.y, - this.wheels.settings.offset.z),
+                new THREE.Vector3(- this.wheels.settings.offset.x, this.wheels.settings.offset.y,   this.wheels.settings.offset.z),
+                new THREE.Vector3(- this.wheels.settings.offset.x, this.wheels.settings.offset.y, - this.wheels.settings.offset.z),
             ]
             
             let i = 0
