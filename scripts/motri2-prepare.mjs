@@ -7,7 +7,6 @@ let html=await read('sources/index.html');
 if(!html.includes('MOTRI2_REFERENCE_BASELINE')) {
   assert.ok(html.includes('<title>Bruno\'s</title>'));
   let [head,...body]=html.split('</head>');
-  // Do not send visits to the original author's Google Analytics property.
   head=head.replace(/\s*<!-- Analytics -->[\s\S]*$/,'\n');
   assert.ok(!head.includes('googletagmanager.com'));
   head=head.replace('<title>Bruno\'s</title>','<title>موتري 2 — نسخة مرجعية</title>')
@@ -26,43 +25,28 @@ if(!html.includes('MOTRI2_REFERENCE_BASELINE')) {
 let title=await read('sources/Game/Title.js');
 title=title.replace("document.title = 'Bruno' + title.join('')","document.title = 'Motri2' + title.join('')");
 await writeFile('sources/Game/Title.js',title);
-// All values below are public build settings, not credentials.
+// Public build settings only. No credentials, analytics or multiplayer server.
 await writeFile('.env.production',`VITE_SERVER_URL=\nVITE_ANALYTICS_TAG=\nVITE_GAME_PUBLIC=1\nVITE_COMPRESSED=1\nVITE_DAY_CYCLE_PROGRESS=\nVITE_YEAR_CYCLE_PROGRESS=\nVITE_WHISPERS_COUNT=30\nVITE_MUSIC=1\nVITE_LOG=1\nVITE_PLAYER_SPAWN=\n`);
 let readme=await read('readme.md');
 if(!readme.includes('# موتري 2')) {
-  readme=`# موتري 2 — Motri2
-
-نسخة مستقلة مرجعية مبنية على مستودع Bruno Simon \\`brunosimon/folio-2025\\` عند الإصدار \\`41046b57eeed8d156d9c3fd7fa259900baef7816\\`.
-
-**مستودع موتري السابق لم يتغير.** لا تعتمد هذه النسخة عليه ولا تحمل سيارتي GMC منه.
-
-## نطاق هذه المرحلة
-
-نقل المصدر وأصوله وملفات Blender، وتشغيل سيارة سايمون وقيادتها وكاميرتها والعالم الأصلي أولًا. هذه ليست غرفة المغامرة الجديدة أو النسخة النهائية للعبة. أبقينا محتوى العالم الأصلي للمرجعية؛ لا ننسب تصميمه إلى موتري.
-
-تحكم الجوال الأصلي: إصبع واحد حول السيارة لتحديد الاتجاه والدعسة، وإصبعان للكاميرا. لم نُدخل المقود والدعسة المنفصلين بعد. الكيبورد: WASD أو الأسهم، B فرامل، Shift تعزيز، R إعادة، Space تعليق/قفز بحسب كود المصدر.
-
-الفيزياء: Rapier، وأربع عجلات Raycast. لا تغييرات على إعدادات القيادة أو الفيزياء أو موديل السيارة أو توقيت تحديثها. يحتفظ الملف \\`.motri2/upstream.json\\` ببصمات SHA-256 لكل ملفات المصدر المستوردة للتحقق من ذلك.
-
-## تغييرات الاستضافة فقط
-
-تحديد هوية النسخة في عنوان الصفحة وشريط مرجعي صغير، وتصحيح روابط تهيئة الصفحة للعمل داخل مسار Motri2، وإزالة تحليلات الموقع الأصلي. تُترك وصلة السيرفر فارغة؛ اللعب المحلي مستقل عن سيرفر برونو، والخدمات الشبكية المشتركة ليست مفعلة. أصول العالم موجودة محليًا؛ الخطوط الخارجية في المصدر ما زالت تطلب Google Fonts.
-
-البناء والنشر والاختبارات في \\`.github/workflows/pages.yml\\`. يجب الحكم على الأداء وإحساس القيادة بعد التجربة على آيفون فعلي؛ اختبار Chromium الآلي ليس اختبار Safari أو WebGPU على الهاتف.
-
-## التشغيل
-
-\\`npm ci --force --ignore-scripts\\` ثم \\`npm run dev\\`؛ وللبناء \\`npm run build\\`. إعدادات النشر العامة في \\`.env.production\\`. للتطوير بنفس الخيارات يمكن نسخها إلى \\`.env.local\\` دون إضافة مفاتيح خاصة.
-
-## المصدر والحقوق
-
-الترخيص الأصلي \\`license.md\\` محفوظ باسم Bruno Simon، وحقوق الأصول والمكتبات لا تُحذف. هذه قاعدة اختبار وليست تصريحًا بإعادة ترخيص جميع أصول الأطراف الأخرى. لا شراء ولا توليد أصول ضمن هذه الخطوة.
-
----
-
-## توثيق المصدر الأصلي
-
-` .replaceAll('\\`','`')+readme;
-  await writeFile('readme.md',readme);
+  const intro=[
+    '# موتري 2 — Motri2',
+    'نسخة مستقلة مرجعية من **brunosimon/folio-2025** عند الإصدار **41046b57eeed8d156d9c3fd7fa259900baef7816**. مستودع موتري السابق لم يتغير ولا تعتمد هذه النسخة عليه.',
+    '## نطاق المرحلة الحالية',
+    'نقل المصدر وأصوله وملفات Blender، وتشغيل سيارة سايمون وقيادتها وكاميرتها والعالم الأصلي أولًا. هذه ليست غرفة المغامرة الجديدة أو النسخة النهائية. أبقينا العالم الأصلي للمرجعية ولا ننسب تصميمه إلى موتري.',
+    'تحكم الجوال الأصلي: إصبع واحد حول السيارة لتحديد الاتجاه والدعسة، وإصبعان للكاميرا. لم نضف المقود والدعسة المنفصلين بعد. الكيبورد: WASD أو الأسهم، B فرامل، Shift تعزيز، R إعادة، Space تعليق/قفز.',
+    'الفيزياء Rapier وأربع عجلات Raycast. لا تغيير في إعدادات القيادة أو الفيزياء أو موديل السيارة أو توقيت تحديثها. يحتفظ **.motri2/upstream.json** ببصمات SHA-256 لجميع ملفات المصدر المستوردة للتحقق من ذلك.',
+    '## تغييرات الاستضافة فقط',
+    'عنوان وشريط مرجعي باسم موتري 2، وتصحيح روابط تهيئة الصفحة لمسار Motri2، وإزالة تحليلات الموقع الأصلي. وصلة السيرفر فارغة؛ اللعب المحلي مستقل عن سيرفر برونو والخدمات الشبكية المشتركة ليست مفعلة. الأصول محلية، لكن الخطوط الخارجية الأصلية ما زالت تطلب Google Fonts.',
+    'البناء والاختبارات والنشر في **.github/workflows/pages.yml**. اختبار Chromium الآلي لا يثبت أداء Safari أو WebGPU على آيفون فعلي.',
+    '## التشغيل',
+    'شغّل **npm ci --force --ignore-scripts** ثم **npm run dev**، وللبناء **npm run build**. إعدادات النشر العامة في **.env.production**. للتطوير بنفس الخيارات انسخها إلى **.env.local**؛ لا تتضمن مفاتيح خاصة.',
+    '## المصدر والحقوق',
+    'ملف **license.md** محفوظ باسم Bruno Simon. حقوق الأصول والمكتبات لا تحذف ولا يعاد نسبتها إلى موتري. لا شراء أو توليد أصول ضمن هذه الخطوة.',
+    '---',
+    '## توثيق المصدر الأصلي',
+    readme,
+  ];
+  await writeFile('readme.md',intro.join('\n\n'));
 }
 console.log('MOTRI2_PREPARE: public identity, relative paths and no original analytics/server. Vehicle code unchanged.');
