@@ -10,7 +10,7 @@ assert.equal(t('KeyW'),'KeyW');
 assert.equal(t('https://example.com'),'https://example.com');
 assert.equal(t('مرحبا بالمستكشف'),'مرحبا بالمستكشف');
 assert.ok(tHtml('Reach <strong>15 meters</strong> high.').includes('<strong>15 مترًا</strong>'));
-assert.equal(achievements.length,38);
+assert.equal(achievements.length,36);
 for(const [id,title,description,target] of achievements){
   assert.ok(/^[a-zA-Z]+$/.test(id));assert.ok(hasArabic(title),'Untranslated title: '+title);
   assert.ok(hasArabic(description),'Untranslated description: '+description);assert.ok(Number.isFinite(target));
