@@ -6,6 +6,7 @@ import gsap from 'gsap'
 import { Bubble } from './Bubble.js'
 import emojiRegex from 'emoji-regex'
 import { InputFlag } from '../InputFlag.js'
+import { subscribeToWhispers, publishWhisper } from '../../FirebaseWhispers.js'
 
 export class Whispers
 {
@@ -13,6 +14,7 @@ export class Whispers
     {
         this.game = Game.getInstance()
 
+        this.firebase = { ready: false, sending: false, unsubscribe: null }
         this.count = parseInt(import.meta.env.VITE_WHISPERS_COUNT)
 
         this.setSounds()
@@ -21,6 +23,7 @@ export class Whispers
         this.setBubble()
         this.setMenu()
         this.setInputs()
+        this.setFirebase()
 
         this.game.ticker.events.on('tick', () =>
         {
@@ -264,6 +267,52 @@ export class Whispers
         }
     }
 
+    async setFirebase()
+    {
+        this.menu.setServiceStatus('connecting')
+
+        try
+        {
+            this.firebase.unsubscribe = await subscribeToWhispers(
+                this.count,
+                (change) =>
+                {
+                    const input = {
+                        id: change.id,
+                        message: change.data.message,
+                        countrycode: change.data.countryCode || '',
+                        x: change.data.x,
+                        y: change.data.y,
+                        z: change.data.z
+                    }
+
+                    if(change.type === 'removed')
+                        this.data.delete(input)
+                    else
+                        this.data.insert(input)
+                },
+                (error) =>
+                {
+                    console.error('Firebase whispers listener error', error)
+                    this.firebase.ready = false
+                    this.menu.setServiceStatus('error')
+                    this.menu.updateGroup()
+                }
+            )
+
+            this.firebase.ready = true
+            this.menu.setServiceStatus('online')
+            this.menu.updateGroup()
+        }
+        catch(error)
+        {
+            console.error('Firebase whispers connection error', error)
+            this.firebase.ready = false
+            this.menu.setServiceStatus('error')
+            this.menu.updateGroup()
+        }
+    }
+
     setBubble()
     {
         this.bubble = {}
@@ -283,6 +332,25 @@ export class Whispers
         this.menu.previewMessage = this.menu.instance.previewElement.querySelector('.js-preview-message')
         this.menu.previewMessageText = this.menu.previewMessage.querySelector('.js-text')
         this.menu.previewMessageFlag = this.menu.previewMessage.querySelector('.js-flag')
+        this.menu.serviceStatus = this.menu.container.querySelector('.js-whispers-status')
+        this.menu.setServiceStatus = (status) =>
+        {
+            if(!this.menu.serviceStatus)
+                return
+
+            if(status === 'online')
+            {
+                this.menu.serviceStatus.hidden = true
+                this.menu.serviceStatus.textContent = ''
+            }
+            else
+            {
+                this.menu.serviceStatus.hidden = false
+                this.menu.serviceStatus.textContent = status === 'connecting'
+                    ? 'جارٍ الاتصال بخدمة الرسائل…'
+                    : 'تعذّر الاتصال بخدمة الرسائل. جرّب مرة أخرى بعد قليل.'
+            }
+        }
 
         const sanatize = (text = '', trim = false, limit = false, stripEmojis = false) =>
         {
@@ -299,43 +367,59 @@ export class Whispers
             return sanatized
         }
 
-        const submit = () =>
+        const submit = async () =>
         {
             const sanatized = sanatize(this.menu.input.value, true, true, true)
             
-            if(sanatized.length && this.game.server.connected)
+            if(sanatized.length && this.firebase.ready && !this.firebase.sending)
             {
-                // Insert
-                this.game.server.send({
-                    type: 'whispersInsert',
-                    message: sanatized,
-                    countryCode: this.menu.inputFlag.country ? this.menu.inputFlag.country.code : '',
-                    x: this.game.player.position.x,
-                    y: this.game.player.position.y,
-                    z: this.game.player.position.z
-                })
+                this.firebase.sending = true
+                this.menu.updateGroup()
 
-                // Close menu
-                this.game.menu.close()
-
-                // Achievement
-                this.game.achievements.setProgress('whisper', 1)
-
-                // Sound
-                gsap.delayedCall(0.3, () =>
+                try
                 {
-                    this.sounds.ignite.play()
-                })
+                    await publishWhisper({
+                        message: sanatized,
+                        countryCode: this.menu.inputFlag.country ? this.menu.inputFlag.country.code : '',
+                        x: this.game.player.position.x,
+                        y: this.game.player.position.y,
+                        z: this.game.player.position.z
+                    })
+
+                    // Close menu
+                    this.game.menu.close()
+
+                    // Achievement
+                    this.game.achievements.setProgress('whisper', 1)
+
+                    // Sound
+                    gsap.delayedCall(0.3, () =>
+                    {
+                        this.sounds.ignite.play()
+                    })
+                }
+                catch(error)
+                {
+                    console.error('Firebase whisper send error', error)
+                    this.menu.setServiceStatus('error')
+                }
+                finally
+                {
+                    this.firebase.sending = false
+                    this.menu.updateGroup()
+                }
             }
         }
 
-        const updateGroup = () =>
+        this.menu.updateGroup = () =>
         {
-            if(this.menu.input.value.length && this.game.server.connected)
+            if(this.menu.input.value.length && this.firebase.ready && !this.firebase.sending)
                 this.menu.inputGroup.classList.add('is-valide')
             else
                 this.menu.inputGroup.classList.remove('is-valide')
         }
+
+        const updateGroup = this.menu.updateGroup
 
         this.menu.input.addEventListener('input', () =>
         {
