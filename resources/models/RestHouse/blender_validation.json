@@ -1,0 +1,65 @@
+{
+  "triangles": 10636,
+  "mesh_objects": 17,
+  "names": [
+    "RH_Ground",
+    "RH_Paving",
+    "RH_Walls",
+    "RH_Roofs",
+    "RH_Terraces",
+    "RH_WindowFrames",
+    "RH_Glass",
+    "RH_BlueRailings",
+    "RH_DoorPanels",
+    "RH_Tent",
+    "RH_Pergola",
+    "RH_Basins",
+    "RH_TreeTrunks",
+    "RH_Foliage",
+    "RH_RoofTanks",
+    "RH_Gate_Left",
+    "RH_Gate_Right"
+  ],
+  "zero_area_triangles": 0,
+  "modifiers": [],
+  "nonunit_scales": [],
+  "vehicle_envelope_m": {
+    "length": 5.2,
+    "width": 2.24,
+    "height": 2.05
+  },
+  "route_samples": 532,
+  "route_clearance": "PASS",
+  "collisions": [],
+  "collision_sample_count": 0,
+  "mesh_clearance_poses": 712,
+  "mesh_clearance": "PASS",
+  "mesh_hits": [],
+  "gate": {
+    "RH_Gate_Left": {
+      "blender_hinge": [
+        2.5999999046325684,
+        0.009999999776482582,
+        0
+      ],
+      "open_angle_degrees": -109.99999850756943,
+      "world_x_min": 2.5271737575531006,
+      "world_x_max": 3.521036148071289
+    },
+    "RH_Gate_Right": {
+      "blender_hinge": [
+        -2.5999999046325684,
+        0.009999999776482582,
+        0
+      ],
+      "open_angle_degrees": 109.99999850756943,
+      "world_x_min": -3.521036148071289,
+      "world_x_max": -2.5271737575531006
+    }
+  },
+  "limitations": [
+    "Static sampled envelope only; not Motri2 runtime physics.",
+    "Route is a clearance example, not a steering-feasible AI trajectory.",
+    "All real-site dimensions are estimated."
+  ]
+}

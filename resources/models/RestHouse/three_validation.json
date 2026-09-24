@@ -1,0 +1,30 @@
+{
+  "threejs_structural_load": "PASS",
+  "bytes": 968940,
+  "triangles": 10636,
+  "render_primitives": 17,
+  "materials": [
+    "Mat_ExteriorPalette",
+    "Mat_MetalPalette",
+    "Mat_FoliagePalette",
+    "Mat_OpaqueTintedGlass",
+    "Mat_StonePaving"
+  ],
+  "textures": 1,
+  "embedded_image_resolution": [
+    512,
+    512
+  ],
+  "entrance_clearance_m": 5.054347508586966,
+  "gate_collision_alignment": "PASS",
+  "placement_helper": "PASS",
+  "opaque_materials": "PASS",
+  "export_cameras": 0,
+  "export_lights": 0,
+  "animations": 0,
+  "limitations": [
+    "Node bitmap shim verifies texture wiring; PNG pixels are separately decoded by Pillow.",
+    "No WebGL, mobile frame-rate or Motri2 driving test performed.",
+    "Collider data needs connecting to the game physics engine."
+  ]
+}
