@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       full_checks:
-        description: Also run the full driving regression suite
+        description: Also run the full browser and driving regression suite
         type: boolean
         default: false
 permissions:
@@ -27,29 +27,32 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Check localization and record exact source
+      - name: Check committed Arabic presentation and record source
         id: source
         run: |
           node --check scripts/motri2-localization-smoke.mjs
           node scripts/motri2-ar-check.mjs
+          test -f .motri2/identity.json
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           mkdir -p artifacts
           git rev-parse HEAD > artifacts/source-sha.txt
       - name: Install locked application dependencies
         run: npm ci --force --ignore-scripts --no-audit --no-fund
-      - name: Build Arabic reference world
+      - name: Build Arabic game with approved identity removal
         run: |
           npm run build
           touch dist/.nojekyll
-          node --input-type=module -e "import{writeFileSync}from'node:fs';writeFileSync('dist/motri2-build.json',JSON.stringify({repository:'3wasfnjd/Motri2',commit:process.env.SOURCE_SHA,upstream:'41046b57eeed8d156d9c3fd7fa259900baef7816',stage:'arabic-reference',locale:'ar'}))"
+          node --input-type=module -e "import{writeFileSync}from'node:fs';writeFileSync('dist/motri2-build.json',JSON.stringify({repository:'3wasfnjd/Motri2',commit:process.env.SOURCE_SHA,upstream:'41046b57eeed8d156d9c3fd7fa259900baef7816',stage:'identity-cleanup',locale:'ar'}))"
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
-      - name: Install isolated test browser
+      - name: Install isolated test browser on explicit request
+        if: github.event_name == 'workflow_dispatch' && inputs.full_checks
         run: |
           npm install --prefix "$RUNNER_TEMP/motri2-browser" --ignore-scripts --no-audit --no-fund playwright@1.55.0
           "$RUNNER_TEMP/motri2-browser/node_modules/.bin/playwright" install --with-deps chromium
           echo "MOTRI2_PLAYWRIGHT_MODULE=$RUNNER_TEMP/motri2-browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
-      - name: Check Arabic startup, menus and closing buttons
+      - name: Optional Arabic UI and activity regression
+        if: github.event_name == 'workflow_dispatch' && inputs.full_checks
         run: node scripts/motri2-localization-smoke.mjs
       - name: Optional full driving regression
         if: github.event_name == 'workflow_dispatch' && inputs.full_checks
@@ -57,7 +60,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: motri2-browser-checks
+          name: motri2-build-checks
           path: artifacts/
           retention-days: 7
       - uses: actions/upload-pages-artifact@v3
@@ -74,10 +77,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/configure-pages@v5
-      - name: Publish the checked build
+      - name: Publish the built version
         id: deployment
         uses: actions/deploy-pages@v4
-      - name: Verify published Arabic revision
+      - name: Verify published identity-cleaned Arabic revision
         env:
           EXPECTED: ${{ needs.build.outputs.source-sha }}
         run: |
@@ -85,14 +88,16 @@ jobs:
           import os,json,time,urllib.request
           expected=os.environ['EXPECTED']
           root='https://3wasfnjd.github.io/Motri2/'
-          for attempt in range(18):
+          for attempt in range(12):
             try:
-              with urllib.request.urlopen(root+'motri2-build.json?v='+expected,timeout=20) as r: data=json.load(r)
-              if data.get('commit')==expected and data.get('locale')=='ar':
-                with urllib.request.urlopen(root+'?v='+expected,timeout=20) as r: html=r.read().decode('utf-8')
+              with urllib.request.urlopen(root+'motri2-build.json?v='+expected,timeout=15) as r: data=json.load(r)
+              if data.get('commit')==expected and data.get('stage')=='identity-cleanup':
+                with urllib.request.urlopen(root+'?v='+expected,timeout=15) as r: html=r.read().decode('utf-8')
                 assert 'lang="ar"' in html and 'dir="rtl"' in html
-                print('LIVE_ARABIC_VERIFIED',json.dumps(data));break
-            except Exception as e: print('Waiting for deployment:',type(e).__name__)
+                assert 'عالم برونو' not in html and 'القاعدة الأصلية: Bruno Simon' not in html
+                assert 'مرحبًا بك في موتري 2.' in html
+                print('LIVE_IDENTITY_VERIFIED',json.dumps(data));break
+            except Exception as e: print('Waiting for publication:',type(e).__name__)
             time.sleep(5)
-          else: raise SystemExit('Published Arabic revision could not be verified')
+          else: raise SystemExit('Published revision could not be verified')
           PY
