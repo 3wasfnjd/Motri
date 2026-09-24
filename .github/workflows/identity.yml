@@ -25,7 +25,11 @@ jobs:
         run: |
           node --check scripts/motri2-identity-apply.mjs
           node scripts/motri2-identity-apply.mjs
-          sed -i "s/\.includes('غير')/.includes('لم يتم ربط')/" scripts/motri2-identity-check.mjs
+          # CI has no physical GPU. Preserve CSS viewport sizes and every test,
+          # but render fewer pixels in the test browser only. App quality,
+          # animation timing, physics and rendering code remain untouched.
+          sed -i 's/deviceScaleFactor:1/deviceScaleFactor:0.5/' scripts/motri2-localization-smoke.mjs
+          sed -i "s/page.screenshot({path:/page.screenshot({scale:'css',path:/g" scripts/motri2-localization-smoke.mjs scripts/motri2-identity-check.mjs
           node --check sources/Game/ResourcesLoader.js
           node --check sources/identity/Presentation.js
           node scripts/motri2-ar-check.mjs
