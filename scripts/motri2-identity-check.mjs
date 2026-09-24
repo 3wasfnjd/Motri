@@ -48,7 +48,6 @@ export async function verifyIdentity(page) {
   assert.ok(state.links.every(url=>url==='./credits.html'));
   await page.screenshot({path:'artifacts/identity-world.png'});
 
-  // Actual driving still runs; this is not merely a DOM-only translation check.
   await page.waitForFunction(()=>window.game.physicalVehicle.wheels.inContactCount>=2,null,{timeout:20000});
   const origin=await page.evaluate(()=>{const p=window.game.physicalVehicle.position;return{x:p.x,z:p.z};});
   await page.keyboard.down('KeyW');
@@ -57,25 +56,56 @@ export async function verifyIdentity(page) {
   await page.keyboard.down('KeyB');
   try{await page.waitForFunction(()=>window.game.physicalVehicle.xzSpeed<.4,null,{timeout:20000});}
   finally{await page.keyboard.up('KeyB');}
+  console.log('IDENTITY_DRIVING_OK');
 
-  // Both galleries retain open/next/close and texture transitions, but cannot open external work.
+  // Use the real map respawn mechanism before opening a gallery. Opening it at
+  // the distant landing point unnecessarily compiles an entire unseen region
+  // during the animation, and does not reproduce the visitor interaction.
+  const galleryReports=[];
+  const snapshot=n=>page.evaluate(name=>{
+    const g=window.game,a=g.world.areas[name];
+    return {name,state:a.state,openState:a.constructor.STATE_OPEN,closedState:a.constructor.STATE_CLOSED,
+      transition:a.stateTransition?{time:a.stateTransition.time(),delay:a.stateTransition.delay(),paused:a.stateTransition.paused(),scale:a.stateTransition.timeScale()}:null,
+      timeScale:g.time.scale,filters:[...g.inputs.filters],inArea:a.isIn,frustum:a.frustum?.isIn,
+      loaded:a.images.initiated,position:{x:g.player.position.x,y:g.player.position.y,z:g.player.position.z}};
+  },n);
+  const waitState=async(name,opened)=>{
+    try{
+      await page.waitForFunction(({name,opened})=>{
+        const a=window.game.world.areas[name];
+        return a.state===(opened?a.constructor.STATE_OPEN:a.constructor.STATE_CLOSED);
+      },{name,opened},{timeout:30000,polling:100});
+    }catch(error){
+      const details=await snapshot(name);
+      console.error('GALLERY_TRANSITION_FAILURE',JSON.stringify(details));
+      await writeFile('artifacts/gallery-failure.json',JSON.stringify(details,null,2));
+      throw error;
+    }
+  };
   for(const name of ['projects','lab']){
+    await page.evaluate(n=>{window.__identityRespawnReady=false;window.game.player.respawn(n,()=>{window.__identityRespawnReady=true;});},name);
+    await page.waitForFunction(()=>window.__identityRespawnReady,null,{timeout:30000});
+    await page.waitForTimeout(1500);
+    console.log('GALLERY_BEFORE_OPEN',JSON.stringify(await snapshot(name)));
     await page.evaluate(n=>window.game.world.areas[n].open(),name);
-    await page.waitForFunction(n=>window.game.world.areas[n].state===3,name,{timeout:12000});
+    await waitState(name,true);
     await page.evaluate(n=>{const a=window.game.world.areas[n];a.next();a.url.open();},name);
+    await page.waitForFunction(n=>window.game.world.areas[n].images.initiated,name,{timeout:20000});
     await page.waitForTimeout(1700);
     const view=await page.evaluate(n=>{const a=window.game.world.areas[n];return{url:a.navigation.current.url,empty:a.navigation.current.title.startsWith('لوحة فارغة'),urlHit:a.url.intersect.active,loaded:a.images.initiated};},name);
     assert.ok(view.empty&&view.loaded);assert.equal(view.url,'');assert.equal(view.urlHit,false);
     await page.screenshot({path:`artifacts/identity-${name}.png`});
     await page.evaluate(n=>window.game.world.areas[n].close(),name);
-    await page.waitForFunction(n=>window.game.world.areas[n].state===5,name,{timeout:12000});
+    await waitState(name,false);
+    galleryReports.push({name,opened:true,loaded:true,navigated:true,closed:true,noExternalUrl:true});
+    console.log('GALLERY_OK',name);
   }
   await page.evaluate(()=>window.game.modals.open('discord'));
-  assert.ok((await page.locator('.js-modal.discord').innerText()).includes('غير'));
+  assert.ok((await page.locator('.js-modal.discord').innerText()).includes('لم يتم ربط'));
   assert.equal(await page.locator('.js-modal.discord a').count(),0);
   await page.locator('.js-modal.discord .js-close').click();
   await page.waitForTimeout(450);
-  const report={protectedFiles:protectedFiles.length,areas:state.areas,visualReplacements:state.visual,unchangedWheelCount:state.wheels,achievements:state.achievements,carMoved:true,brakeWorked:true,galleriesNavigated:true,personalOutboundLinks:0,licenseRetained:true,serviceConfigurationUnchanged:true};
+  const report={protectedFiles:protectedFiles.length,areas:state.areas,visualReplacements:state.visual,unchangedWheelCount:state.wheels,achievements:state.achievements,carMoved:true,brakeWorked:true,galleryReports,personalOutboundLinks:0,licenseRetained:true,serviceConfigurationUnchanged:true};
   await writeFile('artifacts/identity-check.json',JSON.stringify(report,null,2));
   console.log('IDENTITY_CHECK_OK',JSON.stringify(report));
 }
