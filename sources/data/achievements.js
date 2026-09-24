@@ -68,6 +68,12 @@ export default
         1
     ],
     [
+        'restHouseVisit',
+        'Rest house welcome',
+        'Welcome, our guest - coffee please.',
+        1
+    ],
+    [
         'upsideDown',
         'Turtle',
         'Get upside down.',

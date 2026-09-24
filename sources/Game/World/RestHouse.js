@@ -15,6 +15,21 @@ export class RestHouse {
         this.clearScenery(this.game.resources.sceneryModel.scene)
         this.clearScenery(this.game.resources.areasModel.scene)
         this.addModel()
+        this.setVisitAchievement()
+    }
+
+    setVisitAchievement() {
+        this.wasInsideAchievementZone = false
+        this.game.ticker.events.on('tick', () => {
+            const { x, z } = this.game.player.position
+            const [x0, x1, z0, z1] = REST_HOUSE.bounds
+            const isInside = x >= x0 && x <= x1 && z >= z0 && z <= z1
+
+            if(isInside && !this.wasInsideAchievementZone)
+                this.game.achievements.setProgress('restHouseVisit', 1)
+
+            this.wasInsideAchievementZone = isInside
+        })
     }
 
     prepareTerrain() {
