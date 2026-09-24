@@ -46,7 +46,8 @@ jobs:
           PY
           git config user.name '3wasfnjd'
           git config user.email '44668762+3wasfnjd@users.noreply.github.com'
-          git add sources static resources scripts vite.config.js package.json package-lock.json readme.md license.md .env.example .gitignore .motri2/upstream.json
+          # These are exactly the requested public upstream files, not local secrets.
+          git add -f sources static resources scripts vite.config.js package.json package-lock.json readme.md license.md .env.example .gitignore .motri2/upstream.json
           git commit -m "Import folio-2025 baseline at $UPSTREAM_SHA with original license and assets"
           git push origin HEAD:main
       - uses: actions/setup-node@v4
