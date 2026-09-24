@@ -51,11 +51,7 @@ export class Dunes {
     this.physical=this.game.objects.add(null,{
       type:'fixed',friction:.2,restitution:.15,
       colliders:[
-        {shape:'trimesh',parameters:[f.positions,f.indices],category:'floor'},
-        // Far outside the visible island: stop the car before it can fall behind
-        // the safety apron and enter underneath the dune mesh.
-        {shape:'cuboid',parameters:[.6,5,52],position:{x:DUNES.maxX-.4,y:0,z:78},category:'floor'},
-        {shape:'cuboid',parameters:[60,5,.6],position:{x:68,y:0,z:DUNES.maxZ-.4},category:'floor'}
+        {shape:'trimesh',parameters:[f.positions,f.indices],category:'floor'}
       ]
     }).physical;
     this.clearCoveredVegetation();
