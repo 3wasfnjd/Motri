@@ -24,7 +24,8 @@ let browser;
 const errors=[],badResponses=[],sockets=[],reports=[];
 try{
   browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
-  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'});
+  // Test-browser raster density only; CSS viewports and production graphics stay unchanged.
+  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:0.5,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'});
   const page=await context.newPage();
   page.on('pageerror',e=>errors.push(e.message));
   page.on('response',r=>{if(r.url().startsWith('http://127.0.0.1')&&r.status()>=400)badResponses.push(r.url());});
@@ -37,7 +38,26 @@ try{
     await page.keyboard.press('Enter');
     await page.waitForFunction(()=>window.game.reveal.step===2,null,{timeout:60000});
     const close=page.locator('.js-menu .inner > .js-close');
-    const checkHit=async loc=>assert.ok(await loc.evaluate(e=>{const b=e.getBoundingClientRect();const h=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);return b.y>=0&&b.bottom<=innerHeight+1&&(e===h||e.contains(h));}),'Close button is blocked or outside screen');
+    // Changing tabs starts an animated height adjustment. Check the settled control,
+    // without forcing a click, changing game timing, or bypassing hit testing.
+    const checkHit=async loc=>{
+      const element=await loc.elementHandle();
+      assert.ok(element,'Missing close control');
+      try{
+        await page.waitForFunction(e=>{
+          const b=e.getBoundingClientRect();
+          const h=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);
+          return b.width>0&&b.height>0&&b.x>=-0.5&&b.y>=-0.5&&b.right<=innerWidth+0.5&&b.bottom<=innerHeight+0.5&&(e===h||e.contains(h));
+        },element,{polling:100,timeout:10000});
+        await loc.click({trial:true,timeout:10000});
+      }catch(error){
+        console.error('CLOSE_HIT_FAILURE',JSON.stringify(await loc.evaluate(e=>{
+          const b=e.getBoundingClientRect(),h=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);
+          return {panel:window.game.menu.current?.name,rect:b.toJSON(),viewport:[innerWidth,innerHeight],hit:h?.outerHTML?.slice(0,300),menuState:window.game.menu.state,modalState:window.game.modals.state};
+        })));
+        throw error;
+      }finally{await element.dispose();}
+    };
     const panels=[['home','عالم برونو'],['options','الإعدادات'],['controls','طريقة التحكم'],['achievements','الإنجازات'],['circuit','حلبة السباق'],['whispers','اترك رسالة'],['behindTheScene','خلف الكواليس']];
     for(const viewport of [{width:390,height:844},{width:844,height:390}]){
       await page.setViewportSize(viewport);
@@ -52,22 +72,23 @@ try{
         await checkHit(close);
       }
       await page.locator('.js-menu .js-navigation-item[data-name="options"]').click();
-      await page.waitForTimeout(350);
-      await page.screenshot({path:`artifacts/ar-options-${viewport.width}.png`});
+      await checkHit(close);
+      await page.screenshot({scale:'css',path:`artifacts/ar-options-${viewport.width}.png`});
       await close.click();await page.waitForFunction(()=>window.game.menu.state===3);
       await page.locator('.js-map-trigger').click();
       await page.waitForFunction(()=>window.game.map.initiated);
-      await page.waitForTimeout(350);
       const pins=await page.locator('.map .location .name').allTextContents();
       assert.equal(pins.length,12);assert.ok(pins.every(hasArabic));
       await checkHit(page.locator('.map .js-close'));
-      await page.locator('.map .js-close').click();await page.waitForTimeout(400);
+      await page.locator('.map .js-close').click();
+      await page.waitForFunction(()=>window.game.modals.state===window.game.modals.constructor.CLOSED,null,{timeout:10000});
       reports.push({viewport,panels:panels.length,mapPins:pins.length,closeButtons:true});
+      console.log('MENU_VIEWPORT_OK',JSON.stringify(viewport));
     }
     assert.deepEqual(errors,[]);assert.deepEqual(badResponses,[]);assert.deepEqual(sockets,[]);
     const report={locale:'ar',direction:'rtl',reports,errors,badResponses,serverConnections:sockets.length,originalDrivingPreserved:true,scope:'startup, Arabic menus/map, close buttons, source integrity; not a repeated physics benchmark'};
     await writeFile('artifacts/localization-smoke.json',JSON.stringify(report,null,2));
     console.log('LOCALIZATION_SMOKE_OK',JSON.stringify(report));
-  }catch(e){await page.screenshot({path:'artifacts/localization-failure.png'}).catch(()=>{});console.error('LOCALIZATION_FAILURE',JSON.stringify({error:String(e),errors,badResponses}));throw e;}
+  }catch(e){await page.screenshot({scale:'css',path:'artifacts/localization-failure.png'}).catch(()=>{});console.error('LOCALIZATION_FAILURE',JSON.stringify({error:String(e),errors,badResponses}));throw e;}
   await context.close();
 }finally{await browser?.close();await new Promise(r=>server.close(r));}
