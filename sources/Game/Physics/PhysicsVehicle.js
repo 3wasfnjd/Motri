@@ -2,7 +2,7 @@ import * as THREE from 'three/webgpu'
 import { Game } from '../Game.js'
 import { Events } from '../Events.js'
 import { lerp, remap, remapClamp, smallestAngle } from '../utilities/maths.js'
-import { HAVAL_H9_FRONT_X, HAVAL_H9_HALF_TRACK, HAVAL_H9_HIGH_SUSPENSION_REST, HAVAL_H9_LOW_SUSPENSION_REST, HAVAL_H9_MAX_SUSPENSION_TRAVEL, HAVAL_H9_MID_SUSPENSION_REST, HAVAL_H9_REAR_X, HAVAL_H9_WHEEL_RADIUS } from '../World/HavalH9Adapter.js'
+import { HAVAL_H9_FRONT_X, HAVAL_H9_HALF_TRACK, HAVAL_H9_HIGH_SUSPENSION_REST, HAVAL_H9_LOW_SUSPENSION_REST, HAVAL_H9_MID_SUSPENSION_REST, HAVAL_H9_PHYSICS_SUSPENSION_TRAVEL, HAVAL_H9_REAR_X, HAVAL_H9_WHEEL_RADIUS } from '../World/HavalH9Adapter.js'
 
 export class PhysicsVehicle
 {
@@ -40,9 +40,9 @@ export class PhysicsVehicle
             high: 1.63
         }
         this.suspensionsStiffness = this.isHaval ? {
-            low: 34,
-            mid: 38,
-            high: 42
+            low: 70,
+            mid: 78,
+            high: 86
         } : {
             low: 20,
             mid: 30,
@@ -159,11 +159,11 @@ export class PhysicsVehicle
             directionCs: { x: 0, y: -1, z: 0 },
             axleCs: { x: 0, y: 0, z: 1 },
             frictionSlip: 0.9,
-            maxSuspensionForce: this.isHaval ? 190 : 150,
-            maxSuspensionTravel: this.isHaval ? HAVAL_H9_MAX_SUSPENSION_TRAVEL : 2,
+            maxSuspensionForce: this.isHaval ? 320 : 150,
+            maxSuspensionTravel: this.isHaval ? HAVAL_H9_PHYSICS_SUSPENSION_TRAVEL : 2,
             sideFrictionStiffness: 3,
-            suspensionCompression: this.isHaval ? 12 : 10,
-            suspensionRelaxation: this.isHaval ? 4 : 2.7,
+            suspensionCompression: this.isHaval ? 14 : 10,
+            suspensionRelaxation: this.isHaval ? 5 : 2.7,
             suspensionStiffness: 25,
         }
 

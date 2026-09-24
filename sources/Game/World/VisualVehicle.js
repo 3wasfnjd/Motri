@@ -505,8 +505,8 @@ export class VisualVehicle
                 const suspensionLength = physicalWheel.suspensionLength ?? this.haval.restSuspension
                 const targetOffset = clamp(
                     (this.haval.restSuspension - suspensionLength) / this.haval.scale,
-                    -0.06,
-                    0.06
+                    -0.10,
+                    0.025
                 )
 
                 visualWheel.verticalOffset += (targetOffset - visualWheel.verticalOffset) * 25 * this.game.ticker.deltaScaled
