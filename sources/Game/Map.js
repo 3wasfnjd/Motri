@@ -51,6 +51,7 @@ export class Map
             { name: 'Lab', respawnName: 'lab', offset: { x: -0.03, y: 0 } },
             { name: 'Landing', respawnName: 'landing', offset: { x: 0.02, y: 0 } },
             { name: 'Projects', respawnName: 'projects', offset: { x: 0, y: -0.02 } },
+            { name: 'الاستراحة', respawnName: 'restHouse', offset: { x: 0, y: 0 } },
             { name: 'النفود', respawnName: 'dunes', offset: { x: .005, y: 0 } },
         ]
 
@@ -115,6 +116,7 @@ export class Map
                 this.texture.previousUrl = url
                 this.texture.element.src = url
                 this.game.world.dunes?.drawMap(this.element, url.includes('night'))
+                this.game.world.restHouse?.drawMap(this.element, url.includes('night'))
             }
         }
     }
@@ -191,3 +193,4 @@ export class Map
         }
     }
 }
+

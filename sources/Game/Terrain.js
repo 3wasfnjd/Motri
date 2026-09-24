@@ -101,6 +101,12 @@ export class Terrain
                 position.sub(- this.game.tracks.halfSize).sub(this.tracksDelta).div(this.game.tracks.size)
             )
             data.g.mulAssign(groundDataColor.r.oneMinus())
+            if(this.restHouseMaskNode)
+            {
+                const keep = this.restHouseMaskNode(position).oneMinus()
+                data.g.mulAssign(keep)
+                data.b.mulAssign(keep)
+            }
             if(this.dunesMaskNode) data.g.mulAssign(this.dunesMaskNode(position).oneMinus())
 
             return data
@@ -132,3 +138,4 @@ export class Terrain
         )
     }
 }
+
