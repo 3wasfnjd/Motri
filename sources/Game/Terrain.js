@@ -66,7 +66,7 @@ export class Terrain
         // canvas.style.zIndex = 999
         // canvas.style.top = 0
         // canvas.style.left = 0
-        // canvas.style.width = '128px'
+        // canvas.style.width = `128px`
         // canvas.style.height = `256px`
         // document.body.append(canvas)
         
@@ -101,6 +101,7 @@ export class Terrain
                 position.sub(- this.game.tracks.halfSize).sub(this.tracksDelta).div(this.game.tracks.size)
             )
             data.g.mulAssign(groundDataColor.r.oneMinus())
+            if(this.dunesMaskNode) data.g.mulAssign(this.dunesMaskNode(position).oneMinus())
 
             return data
         })

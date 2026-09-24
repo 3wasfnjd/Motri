@@ -1,3 +1,4 @@
+import { Dunes } from './Dunes.js'
 import * as THREE from 'three/webgpu'
 import { Game } from '../Game.js'
 import { Floor } from './Floor.js'
@@ -28,7 +29,6 @@ import { Lanterns } from './Lanterns.js'
 import { Fences } from './Fences.js'
 import { Benches } from './Benches.js'
 import { Scenery } from './Scenery.js'
-import { Dunes } from './Dunes.js'
 
 export class World
 {
@@ -55,6 +55,7 @@ export class World
         else if(step === 1)
         {
             this.visualVehicle = new VisualVehicle(this.game.resources.vehicle.scene)
+            this.dunes = new Dunes()
             this.floor = new Floor()
             this.waterSurface = new WaterSurface()
             this.grass = new Grass()
@@ -78,7 +79,6 @@ export class World
             this.poleLights = new PoleLights()
             this.lanterns = new Lanterns()
             this.scenery = new Scenery()
-            this.dunes = new Dunes()
             this.areas = new Areas()
         }
         else if(step === 2)

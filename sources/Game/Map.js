@@ -53,6 +53,7 @@ export class Map
             { name: 'Landing', respawnName: 'landing', offset: { x: 0.02, y: 0 } },
             { name: 'Projects', respawnName: 'projects', offset: { x: 0, y: -0.02 } },
             { name: 'Social', respawnName: 'social', offset: { x: -0.01, y: -0.04 } },
+            { name: 'الكثبان الرملية', respawnName: 'dunes', offset: { x: .005, y: 0 } },
             { name: 'Time Machine', respawnName: 'timeMachine', offset: { x: 0, y: 0 } },
         ]
 
@@ -116,6 +117,7 @@ export class Map
                 this.texture.element.classList.remove('is-visible')
                 this.texture.previousUrl = url
                 this.texture.element.src = url
+                this.game.world.dunes?.drawMap(this.element, url.includes('night'))
             }
         }
     }
