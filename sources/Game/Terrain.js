@@ -63,10 +63,9 @@ export class Terrain
 
         // // Debug
         // canvas.style.position = 'fixed'
-        // canvas.style.zIndex = 999
         // canvas.style.top = 0
         // canvas.style.left = 0
-        // canvas.style.width = '128px'
+        // canvas.style.width = `128px`
         // canvas.style.height = `256px`
         // document.body.append(canvas)
         
@@ -75,7 +74,7 @@ export class Terrain
             for(const color of this.colors)
             {
                 this.debugPanel.addBinding(color, 'stop', { min: 0, max: 1, step: 0.001 }).on('change', update)
-                this.debugPanel.addBinding(color, 'value', { view: 'color' }).on('change', update)
+                this.debugPanel.addBinding(color, 'value').on('change', update)
             }
         }
     }
@@ -101,6 +100,7 @@ export class Terrain
                 position.sub(- this.game.tracks.halfSize).sub(this.tracksDelta).div(this.game.tracks.size)
             )
             data.g.mulAssign(groundDataColor.r.oneMinus())
+            if(this.dunesMaskNode) data.g.mulAssign(this.dunesMaskNode(position).oneMinus())
 
             return data
         })

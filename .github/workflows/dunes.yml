@@ -6,20 +6,27 @@ on:
 permissions:
   contents: read
 jobs:
-  terrain:
+  dunes:
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/upload-artifact@v4
+      - uses: actions/setup-node@v4
         with:
-          name: dunes-terrain-input
-          path: |
-            static/terrain/terrain.glb
-            static/terrain/terrain.png
-            static/ui/map/map-day.webp
-            static/ui/map/map-night.webp
-            static/respawns/respawnsReferences.glb
-            static/birchTrees/birchTreesReferences.glb
-            static/oakTrees/oakTreesReferences.glb
-            static/cherryTrees/cherryTreesReferences.glb
+          node-version: '22'
+          cache: npm
+      - run: npm ci --force --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - name: Install isolated browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/browser" --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          "$RUNNER_TEMP/browser/node_modules/.bin/playwright" install --with-deps chromium
+          echo "MOTRI2_PLAYWRIGHT_MODULE=$RUNNER_TEMP/browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+      - name: Test only dune surface, collisions, climbing and location
+        run: node scripts/dunes-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dunes-checks
+          path: artifacts/
           retention-days: 3
