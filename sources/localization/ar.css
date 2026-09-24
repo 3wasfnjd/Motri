@@ -1,0 +1,33 @@
+/* Arabic UI. World coordinates, gestures, key bindings and camera stay LTR. */
+html[lang="ar"],html[lang="ar"] body,html[lang="ar"] .game,html[lang="ar"] .menu,html[lang="ar"] .modals{font-family:Tahoma,Arial,sans-serif;}
+html[lang="ar"] .experience{direction:ltr;}
+html[lang="ar"] .title{font-family:Tahoma,Arial,sans-serif;font-size:1.55rem;line-height:1.55;letter-spacing:normal;}
+html[lang="ar"] .menu .container,html[lang="ar"] .menu .navigation,html[lang="ar"] .previews,html[lang="ar"] .map .container{direction:ltr;}
+html[lang="ar"] .menu .contents,html[lang="ar"] .modal .content,html[lang="ar"] .notifications,html[lang="ar"] .tooltip{direction:rtl;text-align:right;}
+html[lang="ar"] .menu .contents .content{width:100%;overflow-x:hidden;}
+html[lang="ar"] .menu .content-inner{width:100%;max-width:100%;}
+html[lang="ar"] .text,html[lang="ar"] .description,html[lang="ar"] .tooltip{line-height:1.8;overflow-wrap:break-word;}
+html[lang="ar"] ul,html[lang="ar"] ol{padding-left:0;padding-right:25px;}
+html[lang="ar"] .controls table{direction:rtl;width:100%;table-layout:auto;}
+html[lang="ar"] .controls td{white-space:normal;line-height:1.7;}
+html[lang="ar"] .controls .key{direction:ltr;unicode-bidi:isolate;display:inline-block;}
+html[lang="ar"] .controls-content td:first-child{direction:ltr;unicode-bidi:isolate;}
+html[lang="ar"] .controls-content td{padding-block:8px;}
+html[lang="ar"] .options-content table{width:100%;}
+html[lang="ar"] .options-content td{white-space:normal;line-height:1.6;}
+html[lang="ar"] .notification .title{font-size:1.12rem;text-align:right;line-height:1.65;}
+html[lang="ar"] .notification .description{font-size:.8rem;line-height:1.7;}
+html[lang="ar"] .achievements-content .title{font-size:1.3rem;line-height:1.7;}
+html[lang="ar"] .achievements-content .item .title{font-size:1.03rem;}
+html[lang="ar"] .progress,html[lang="ar"] .time,html[lang="ar"] .score,html[lang="ar"] .song-name{direction:ltr;unicode-bidi:isolate;}
+html[lang="ar"] .map .location .name{direction:rtl;font-family:Tahoma,Arial,sans-serif;line-height:1.4;font-size:15px;white-space:nowrap;}
+html[lang="ar"] .input-flag .label{direction:rtl;text-align:right;}
+html[lang="ar"] input,html[lang="ar"] textarea,html[lang="ar"] [contenteditable]{font-family:Tahoma,Arial,sans-serif;}
+html[lang="ar"] .js-flag-search,html[lang="ar"] .whispers-content input{direction:rtl;text-align:right;}
+html[lang="ar"] .js-preview-message .js-text{font-size:1.15rem;line-height:1.8;unicode-bidi:plaintext;}
+html[lang="ar"] .touch-buttons button{font-family:Tahoma,Arial,sans-serif;font-size:16px;line-height:1.5;}
+html[lang="ar"] .behindTheScene-content h2{font-family:Tahoma,Arial,sans-serif;line-height:1.65;}
+html[lang="ar"] .behindTheScene-content a{unicode-bidi:isolate;}
+html[lang="ar"] .js-reset-time,html[lang="ar"] .js-time{unicode-bidi:isolate;}
+@media(max-width:440px){html[lang="ar"] .menu .content-inner{padding:14px 16px 28px;}html[lang="ar"] .title{font-size:1.35rem;}html[lang="ar"] .controls-content table{font-size:.8rem;}html[lang="ar"] .map .location .name{font-size:11px;}html[lang="ar"] .notification .title{font-size:1rem;}}
+@media(max-height:440px){html[lang="ar"] .menu .content-inner{padding:12px 18px 28px;}html[lang="ar"] .menu .title{font-size:1.15rem;}html[lang="ar"] .map .location .name{font-size:11px;}}

@@ -1,0 +1,53 @@
+name: Arabic localization checks
+on:
+  push:
+    branches: [arabic-ui]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: motri2-arabic-checks
+  cancel-in-progress: true
+jobs:
+  arabic:
+    if: github.repository == '3wasfnjd/Motri2' && github.ref == 'refs/heads/arabic-ui'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Apply localization and record source
+        run: |
+          node --check scripts/motri2-localize.mjs
+          node scripts/motri2-localize.mjs
+          node scripts/motri2-localize.mjs
+          find sources scripts -name '*.js' -o -name '*.mjs' | while read file; do node --check "$file"; done
+          git config user.name '3wasfnjd'
+          git config user.email '44668762+3wasfnjd@users.noreply.github.com'
+          git add sources scripts/motri2-check.mjs readme.md
+          if ! git diff --cached --quiet; then
+            git commit -m 'Localize Motri2 UI and in-world text to Arabic; preserve original driving'
+            git push origin HEAD:arabic-ui
+          fi
+          mkdir -p artifacts
+          git rev-parse HEAD > artifacts/source-sha.txt
+          tar -czf artifacts/arabic-source.tgz sources scripts/motri2-check.mjs
+      - name: Install locked dependencies
+        run: npm ci --force --ignore-scripts --no-audit --no-fund
+      - name: Build Arabic game
+        run: npm run build
+      - name: Install test browser
+        run: |
+          npm install --no-save --package-lock=false --force --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Verify Arabic menus and unchanged real driving
+        run: node scripts/motri2-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: motri2-arabic-checks
+          path: artifacts/
+          retention-days: 7
