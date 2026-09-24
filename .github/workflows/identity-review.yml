@@ -1,0 +1,33 @@
+name: Motri2 identity review
+on:
+  push:
+    branches: [identity-cleanup]
+    paths: ['.github/workflows/identity-review.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export presentation sources and mesh metadata
+        run: |
+          mkdir -p review/meshes review/previews
+          python3 - <<'PY'
+          import json,struct,pathlib,shutil
+          for name in ['areas/areas.glb','scenery/scenery.glb','vehicle/default.glb']:
+            p=pathlib.Path('static')/name
+            b=p.read_bytes();size=struct.unpack_from('<I',b,12)[0]
+            j=json.loads(b[20:20+size]);j.pop('buffers',None)
+            pathlib.Path('review/meshes',p.stem+'.json').write_text(json.dumps(j,indent=2))
+          for p in pathlib.Path('static/ui/previews').glob('*.webp'):
+            shutil.copyfile(p,pathlib.Path('review/previews')/p.name)
+          PY
+          tar -czf review/source.tgz sources scripts .env.production package.json package-lock.json vite.config.js readme.md license.md .motri2 .github/workflows/pages.yml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: motri2-identity-inspection
+          path: review/
+          retention-days: 3
