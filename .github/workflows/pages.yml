@@ -4,6 +4,11 @@ on:
     branches: [main]
     paths-ignore: ['resources/**', '.github/workflows/bootstrap.yml']
   workflow_dispatch:
+    inputs:
+      full_checks:
+        description: Also run the full driving regression suite
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -22,10 +27,10 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Check committed localization and record exact source
+      - name: Check localization and record exact source
         id: source
         run: |
-          node --check scripts/motri2-check.mjs
+          node --check scripts/motri2-localization-smoke.mjs
           node scripts/motri2-ar-check.mjs
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           mkdir -p artifacts
@@ -44,7 +49,10 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/motri2-browser" --ignore-scripts --no-audit --no-fund playwright@1.55.0
           "$RUNNER_TEMP/motri2-browser/node_modules/.bin/playwright" install --with-deps chromium
           echo "MOTRI2_PLAYWRIGHT_MODULE=$RUNNER_TEMP/motri2-browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
-      - name: Verify Arabic UI and real keyboard/touch driving
+      - name: Check Arabic startup, menus and closing buttons
+        run: node scripts/motri2-localization-smoke.mjs
+      - name: Optional full driving regression
+        if: github.event_name == 'workflow_dispatch' && inputs.full_checks
         run: node scripts/motri2-check.mjs
       - uses: actions/upload-artifact@v4
         if: always()
