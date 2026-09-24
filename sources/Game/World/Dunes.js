@@ -36,9 +36,13 @@ export class Dunes {
     const ripples=positionWorld.x.mul(9).add(positionWorld.z.mul(1.5)).add(grain.mul(5)).sin().mul(.025).add(.975);
     const sand=mix(color('#d9a65e'),color('#f4d397'),positionWorld.y.mul(.12).add(grain.mul(.16)).clamp(.1,.85)).mul(ripples);
     const material=new MeshDefaultMaterial({
-      colorNode:mix(this.game.terrain.colorNode(land),sand,attribute('sandCoverage','float').smoothstep(.002,.16)),
+      colorNode:mix(this.game.terrain.colorNode(land),sand,attribute('sandCoverage','float').smoothstep(0,.55)),
       hasWater:true,hasLightBounce:false
     });
+    // Resolve coplanar contact at the blend without lifting render/collision geometry.
+    material.polygonOffset=true;
+    material.polygonOffsetFactor=-1;
+    material.polygonOffsetUnits=-1;
     this.mesh=new THREE.Mesh(this.geometry,material);
     this.mesh.name='Motri2_Southeast_Dunes';
     this.mesh.receiveShadow=true;this.mesh.castShadow=true;

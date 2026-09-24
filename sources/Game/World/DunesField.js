@@ -1,5 +1,5 @@
 // One deterministic surface shared by rendering, collisions and the map.
-export const DUNES = Object.freeze({minX:8,maxX:128,minZ:4,maxZ:128,cell:1});
+export const DUNES = Object.freeze({minX:8,maxX:128,minZ:4,maxZ:128,cell:1,edgeBlend:18});
 const CHALLENGE_EDGE = 96;
 export const smooth = (a,b,v) => {const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
 
@@ -55,11 +55,11 @@ export function duneWeight(x,z,protectedZones=[]) {
   const edge=leftBoundary(z);
 
   // The original selected wedge remains the main dune field.
-  const wedge=smooth(edge-2,edge+5,x);
+  const wedge=smooth(edge-6,edge+10,x);
 
   // Broaden the lower half substantially so there is no single dune line with
   // empty ground behind it.
-  const wideWedge=smooth(edge-18,edge-7,x)*smooth(48,66,z);
+  const wideWedge=smooth(edge-22,edge-6,x)*smooth(48,68,z);
 
   // Continuous perimeter aprons along the south and east sides of the corner.
   // These overlap the wedge and each other, forming one connected sand area.
@@ -67,11 +67,17 @@ export function duneWeight(x,z,protectedZones=[]) {
   const eastApron=smooth(62,76,x)*smooth(26,42,z);
 
   let w=1-(1-wedge)*(1-wideWedge)*(1-southApron)*(1-eastApron);
-  w*=smooth(DUNES.minZ,DUNES.minZ+5,z);
+  // Return to the underlying ground on ALL four sides. Previously the east,
+  // south and part of the west edge ended at full height, exposing a raised lip.
+  // Smoothstep also gives a horizontal lift tangent at the perimeter.
+  w*=smooth(0,DUNES.edgeBlend,x-DUNES.minX);
+  w*=smooth(0,DUNES.edgeBlend,DUNES.maxX-x);
+  w*=smooth(0,DUNES.edgeBlend,z-DUNES.minZ);
+  w*=smooth(0,DUNES.edgeBlend,DUNES.maxZ-z);
 
   // Preserve actual activity/service pads inside the original island.
   for(const p of protectedZones)
-    w*=smooth(p.radius+1.25,p.radius+5.25,Math.hypot(x-p.x,z-p.z));
+    w*=smooth(p.radius+1.25,p.radius+11.25,Math.hypot(x-p.x,z-p.z));
 
   return w;
 }
@@ -100,7 +106,8 @@ export function duneHeight(x,z,base,protectedZones=[]) {
   }
 
   // Fill shallow water inside the selected red wedge so the whole marked area becomes sand.
-  const fill=Math.max(0,-base)+.12;
+  // Fill water depressions without adding a raised slab above dry ground.
+  const fill=Math.max(0,-base);
   return base+weight*(fill+sum**.25);
 }
 
@@ -131,7 +138,7 @@ export function buildDunes(baseAt,zones=[]) {
     const i=iz*width+ix,x=b.minX+ix/nx*(b.maxX-b.minX),z=b.minZ+iz/nz*(b.maxZ-b.minZ);
     const base=baseAt(x,z),w=duneWeight(x,z,zones);
     positions[i*3]=x;
-    positions[i*3+1]=duneHeight(x,z,base,zones)+(w>0?.009:0);
+    positions[i*3+1]=duneHeight(x,z,base,zones);
     positions[i*3+2]=z;
     coverage[i]=w;
   }
@@ -140,7 +147,7 @@ export function buildDunes(baseAt,zones=[]) {
   for(let pass=0;pass<12;pass++){
     for(const direction of [1,-1])for(let k=0;k<count;k++){
       const i=direction>0?k:count-1-k;
-      if(coverage[i]<=.002)continue;
+      if(coverage[i]===0)continue;
       const x=i%width,z=Math.floor(i/width);
       let y=positions[i*3+1];
       for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]]){
@@ -155,8 +162,10 @@ export function buildDunes(baseAt,zones=[]) {
 
   for(let z=0;z<nz;z++)for(let x=0;x<nx;x++){
     const a=z*width+x,b=a+1,c=a+width,d=c+1;
-    if(Math.min(coverage[a],coverage[b],coverage[c])>.002)indices.push(a,c,b);
-    if(Math.min(coverage[b],coverage[c],coverage[d])>.002)indices.push(b,c,d);
+    // Include the full transition triangle down to zero-coverage vertices.
+    // Trimming by minimum weight used to cut the blend short of the ground.
+    if(Math.max(coverage[a],coverage[b],coverage[c])>0)indices.push(a,c,b);
+    if(Math.max(coverage[b],coverage[c],coverage[d])>0)indices.push(b,c,d);
   }
 
   return {positions,coverage,indices:new Uint32Array(indices),width,depth,nx,nz};
