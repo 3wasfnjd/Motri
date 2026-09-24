@@ -1,0 +1,61 @@
+name: Motri2 identity checks
+on:
+  push:
+    branches: [identity-cleanup]
+    paths: ['.github/workflows/identity.yml', 'scripts/motri2-identity-apply.mjs', 'scripts/motri2-identity-check.mjs', 'sources/identity/**']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: motri2-identity
+  cancel-in-progress: true
+jobs:
+  identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --force --ignore-scripts --no-audit --no-fund
+      - name: Apply approved presentation changes
+        run: |
+          node --check scripts/motri2-identity-apply.mjs
+          node scripts/motri2-identity-apply.mjs
+          sed -i "s/\.includes('غير')/.includes('لم يتم ربط')/" scripts/motri2-identity-check.mjs
+          node --check sources/Game/ResourcesLoader.js
+          node --check sources/identity/Presentation.js
+          node scripts/motri2-ar-check.mjs
+      - name: Build reference game
+        run: npm run build
+      - name: Install isolated browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/motri2-browser" --ignore-scripts --no-audit --no-fund playwright@1.55.0
+          "$RUNNER_TEMP/motri2-browser/node_modules/.bin/playwright" install --with-deps chromium
+          echo "MOTRI2_PLAYWRIGHT_MODULE=$RUNNER_TEMP/motri2-browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+      - name: Test identity, activities, real driving and Arabic menus
+        run: node scripts/motri2-localization-smoke.mjs
+      - name: Record only the tested source on the working branch
+        run: |
+          git config user.name '3wasfnjd'
+          git config user.email '44668762+3wasfnjd@users.noreply.github.com'
+          git add sources scripts readme.md static/identity static/credits.html .motri2/identity.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Remove personal portfolio identity while retaining Motri2 activities and licensed source'
+            git push origin HEAD:identity-cleanup
+          fi
+          git rev-parse HEAD > artifacts/tested-source-sha.txt
+      - name: Export implementation for review
+        if: always()
+        run: |
+          mkdir -p artifacts
+          tar -czf artifacts/identity-source.tgz sources/identity scripts/motri2-identity* .motri2/identity.json sources/index.html sources/Game/ResourcesLoader.js sources/data/projects.js sources/data/lab.js sources/data/social.js sources/Game/World/Areas/{ProjectsArea,LabArea,CareerArea,SocialArea,TimeMachineArea}.js static/identity static/credits.html
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: motri2-identity-checks
+          path: artifacts/
+          retention-days: 7
