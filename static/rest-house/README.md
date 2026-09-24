@@ -1,30 +1,32 @@
-# Motri2 rest house
+# Motri rest house
 
-The revised placement moves the gate 0.8 units inward and 2.1 units north, with a 3.3% size reduction to increase clearance from the jump ramp and the time-machine area. The ramp resource is now untouched by the clearing pass.
+Exterior-only rest house with an open vehicle entrance. Placement stays at (-72.8, 0.03, -49.1), scale 0.58 and yaw +90 degrees; the gate faces the western circuit straight. Real-world dimensions are estimated from the reference images.
 
-Style: `RestHouseStyle.js` supplies two shared materials using Motri2's MeshDefaultMaterial. Vertex colours are explicitly connected to its shader; this avoids the generic material conversion dropping the model's original colour attributes. Ivory walls, warm sand, teal trim and bright green foliage use the game's lighting, shadows and fog. Paving uses a clean solid colour instead of the original stone texture. The original embedded PNG remains in the small GLB but is not sampled at runtime.
+## Marked layout update
 
-The surrounding infield's pond depressions are filled to Y=0 in the physical heightfield and terrain shader (water remains at Y=-0.3). Vegetation in that clearing is removed before instancing. Functional area props remain. The map overlay also replaces old pond/tree symbols.
+The layout follows the user's annotated overhead image, `C93B4B99-4B78-4CE5-A748-56EF24D39BAF.jpeg`:
 
-Exterior rest-house asset from the approved reference-based model, exported with its gates open. Embedded texture: 512 x 512. Draco GLB: 83,164 bytes, 10,636 triangles, 17 primitives, 5 materials. The existing game Draco loader handles this asset.
+- Blue: connected stone paths around the gardens, pergola, front courtyard and rear-right corner. The paving is a triangulated planar union, avoiding overlapping strips. Existing shallow terraces retain their textured tops.
+- Dark green: a flat lawn beside the tent seating, using `RH_Lawn` and the shared game palette material.
+- Light green: additional world-oak planting. There are 46 shared oak instances; trees conflicting with the new paths were moved into adjacent planting areas.
+- Red: the separate rear-right building, its roof/window details and `rear_right_block` collider are removed. Boundary walls remain.
 
-Placement is defined in `sources/Game/World/RestHouseSite.js`: uniform scale 0.58, gate at (-72.8, 0.03, -49.1), yaw +90 degrees. The gate faces the western circuit straight. Final footprint: 28.304 x 23.2 world units. Clear gate opening is approximately 2.93 units; the existing vehicle is approximately 2.04 units wide. Vehicle dimensions and mechanics are unchanged.
+The obsolete baked garden foliage/trunk meshes are removed from the asset. Trees are instantiated by `RestHousePlanting.js` from the retained planting metadata. The GLB has 6,471 triangles, 16 mesh primitives and 4 source materials; its compressed size is 72,392 bytes. Oak geometry is shared with the world and is not duplicated into this GLB.
 
-`RestHouse` runs before terrain physics and instanced scenery construction. It flattens both the terrain heightfield and shader height, masks grass, removes overlapping vegetation/prop references, and clips combined scenery/circuit geometry only inside the site and entrance. This also opens the invisible circuit rail at the entrance. Asphalt road geometry is preserved. Cleanup runs once at loading, not per frame.
+`RestHouseStyle.js` supplies two shared game materials using the world's lighting, shadows and fog. The paving and terraces use `stone-paving.webp` (512 x 512, 44,628 bytes); the small original embedded stone tile is a standalone fallback. The lawn reuses the vertex-colour material, with no new texture or grass-blade geometry. The GLB resource URL is versioned as `rest-house-layout-v2` to invalidate the previous model cache.
 
-Collision: 64 exported wall/building/gate/landscaping cuboids plus two ground slabs, transformed with the asset. No full-site solid box blocking the courtyard. Map label: الاستراحة. Respawn: `restHouse`, on the entrance apron facing inward.
+## Placement and collision
 
-Validation performed against main b9258ee:
+`RestHouse` runs before terrain physics and instanced scenery construction. It flattens terrain, clears overlapping vegetation/props and clips intersecting combined scenery inside the established site/apron. Surrounding pond depressions are dry. The existing circuit asphalt, jump ramp, functional area props and vehicle mechanics are preserved.
 
-- Three.js GLTFLoader with actual Draco decoding: successful.
-- glTF validator: zero errors or warnings (Draco produces informational unsupported-extension notices; decoded separately).
-- 534 terrain vertices on the plateau have zero height.
-- 15 existing vegetation references removed; no separate bench/fence/brick/light instances overlap the footprint.
-- 54 intersecting triangles clipped while retaining their portions outside the clearing.
-- 3,384 remaining triangles from combined overlapping scene bounds checked: none intersect the site or entrance.
-- Asphalt road geometry remains the identical resource object.
-- 66 collision descriptions created and entrance respawn transformed correctly.
-- Existing 3.0 x 2.04 vehicle envelope sampled at 532 positions along the suggested interior route: no exported obstacle intersections. This is geometric clearance, not steering-radius validation.
-- Modified JavaScript passes syntax checks.
+The model metadata contains 33 static obstacle descriptions and 46 tree planting references. After planting, runtime physics uses the 33 obstacles, two existing ground slabs and the oak system's scaled trunk cylinders. The main gate opening is approximately 2.93 world units; the existing vehicle is approximately 2.04 units wide. The `restHouseVisit` achievement remains active. Respawn is `restHouse` on the entrance apron.
 
-Not performed: browser/WebGPU rendering, live driving, or mobile frame-rate measurement. Real-world building dimensions are estimated from the supplied references.
+## Verification
+
+- Three.js GLTFLoader decoded the actual Draco asset successfully; all attributes are finite, indices valid and new ground faces point upward.
+- All static collision descriptions except the removed building are unchanged.
+- 201 samples of the existing 3.0 x 2.04 world-unit vehicle envelope clear the gate and central drive.
+- Marked paving connections were checked geometrically, including the shallow raised terraces. This does not assert that every pedestrian path accommodates the car.
+- No triangles from the removed building remain in its former volume.
+- glTF validation: zero errors or warnings; Draco extension information is checked separately by decoding.
+- Changed JavaScript passes syntax checks. No browser/WebGPU drive test or mobile frame-rate measurement was performed.

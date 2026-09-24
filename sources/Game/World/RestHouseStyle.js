@@ -6,7 +6,7 @@ import { MeshDefaultMaterial } from '../Materials/MeshDefaultMaterial.js'
 // the same diffuse light, coloured shadows, fog and reveal as the rest of Motri2.
 export const restHousePalette = {
     RH_Walls: ['#f5e6c5'], RH_Pergola: ['#f5e6c5'],
-    RH_Roofs: ['#c9ac7d'], RH_Ground: ['#dbaa66'],
+    RH_Roofs: ['#c9ac7d'], RH_Ground: ['#dbaa66'], RH_Lawn: ['#769543'],
     RH_BlueRailings: ['#42888f'], RH_DoorPanels: ['#394d55'],
     RH_Gate_Left: ['#38484e', '#53696c'], RH_Gate_Right: ['#38484e', '#53696c'],
     RH_Glass: ['#344c59'], RH_WindowFrames: ['#3e555d', '#d3c5a8'],
