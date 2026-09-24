@@ -19,7 +19,10 @@ export class VisualVehicle
 
         this.setParts()
         this.setMainGroundTrack()
-        this.setWheels()
+        if(this.isHaval)
+            this.setHavalWheels()
+        else
+            this.setWheels()
         this.setBlinkers()
         this.setBackLights()
         this.setAntenna()
@@ -62,6 +65,28 @@ export class VisualVehicle
     setParts()
     {
         this.parts = {}
+
+        if(this.isHaval)
+        {
+            this.haval = this.model.userData.havalH9
+            this.parts.chassis = this.haval.chassis
+
+            this.parts.chassis.traverse((child) =>
+            {
+                if(child.isMesh)
+                {
+                    child.receiveShadow = true
+                    child.castShadow = true
+                    const materials = Array.isArray(child.material) ? child.material : [ child.material ]
+                    for(const material of materials)
+                        material.shadowSide = THREE.BackSide
+                }
+            })
+
+            this.parts.chassis.rotation.reorder('YXZ')
+            this.game.scene.add(this.parts.chassis)
+            return
+        }
 
         const searchList = [
             'bodyPainted',
@@ -264,6 +289,26 @@ export class VisualVehicle
         this.mainGroundTrack = this.game.tracks.add(new Track(1.5, 'g'))
     }
 
+    setHavalWheels()
+    {
+        this.wheels = {}
+        this.wheels.items = []
+        this.wheels.steering = 0
+        this.wheels.travel = 0
+
+        // Rapier order after the H9 +Z-to-Motri2 +X wrapper rotation:
+        // front-right, front-left, rear-right, rear-left.
+        const corners = [ 'FR', 'FL', 'RR', 'RL' ]
+        for(const corner of corners)
+        {
+            this.wheels.items.push({
+                corner,
+                verticalOffset: 0,
+                groundTrack: this.game.tracks.add(new Track(0.5, 'r'))
+            })
+        }
+    }
+
     setWheels()
     {
         // Setup
@@ -442,45 +487,68 @@ export class VisualVehicle
         // Wheels
         this.wheels.steering += ((this.game.player.steering * physicalVehicle.steeringAmplitude) - this.wheels.steering) * this.game.ticker.deltaScaled * 16
 
-        const wheelsRotation = (physicalVehicle.forwardSpeed) / physicalVehicle.wheels.settings.radius * 0.006
-
-        for(let i = 0; i < 4; i++)
+        if(this.isHaval)
         {
-            const visualWheel = this.wheels.items[i]
-            const physicalWheel = physicalVehicle.wheels.items[i]
-
-            // visualWheel.container.position.copy(physicalWheel.basePosition)
+            const h9 = this.haval.adapter
+            h9.setSteeringRadians(this.wheels.steering)
 
             if(!this.game.inputs.actions.get('brake').active || this.game.inputs.actions.get('forward').active || this.game.inputs.actions.get('backward').active)
             {
-                if(i === 0 || i === 2)
-                    visualWheel.cylinder.rotation.z += wheelsRotation
-                else
-                    visualWheel.cylinder.rotation.z -= wheelsRotation
+                this.wheels.travel += physicalVehicle.forwardSpeed * 0.006 / this.haval.scale
+                h9.setTravelMeters(this.wheels.travel)
             }
 
-            if(i === 0)
-                visualWheel.container.rotation.y = Math.PI + this.wheels.steering
-
-            if(i === 1)
-                visualWheel.container.rotation.y = this.wheels.steering
-  
-            const suspensionLength = physicalWheel.suspensionLength
-            let wheelY = physicalWheel.basePosition.y - suspensionLength
-            wheelY = Math.min(wheelY, -0.5)
-
-            visualWheel.container.position.x = physicalWheel.basePosition.x
-            visualWheel.container.position.y += (wheelY - visualWheel.container.position.y) * 25 * this.game.ticker.deltaScaled
-            visualWheel.container.position.z = physicalWheel.basePosition.z
-
-            if(visualWheel.suspension)
+            for(let i = 0; i < 4; i++)
             {
-                const suspensionScale = Math.abs(visualWheel.container.position.y) - 0.5
-                visualWheel.suspension.scale.y = suspensionScale
-            }
+                const visualWheel = this.wheels.items[i]
+                const physicalWheel = physicalVehicle.wheels.items[i]
+                const suspensionLength = physicalWheel.suspensionLength ?? this.haval.restSuspension
+                const targetOffset = (this.haval.restSuspension - suspensionLength) / this.haval.scale
 
-            // Ground tracks
-            visualWheel.groundTrack.update(physicalWheel.contactPoint, physicalWheel.inContact)
+                visualWheel.verticalOffset += (targetOffset - visualWheel.verticalOffset) * 25 * this.game.ticker.deltaScaled
+                h9.setWheelVerticalOffset(visualWheel.corner, visualWheel.verticalOffset)
+                visualWheel.groundTrack.update(physicalWheel.contactPoint, physicalWheel.inContact)
+            }
+        }
+        else
+        {
+            const wheelsRotation = (physicalVehicle.forwardSpeed) / physicalVehicle.wheels.settings.radius * 0.006
+
+            for(let i = 0; i < 4; i++)
+            {
+                const visualWheel = this.wheels.items[i]
+                const physicalWheel = physicalVehicle.wheels.items[i]
+
+                if(!this.game.inputs.actions.get('brake').active || this.game.inputs.actions.get('forward').active || this.game.inputs.actions.get('backward').active)
+                {
+                    if(i === 0 || i === 2)
+                        visualWheel.cylinder.rotation.z += wheelsRotation
+                    else
+                        visualWheel.cylinder.rotation.z -= wheelsRotation
+                }
+
+                if(i === 0)
+                    visualWheel.container.rotation.y = Math.PI + this.wheels.steering
+
+                if(i === 1)
+                    visualWheel.container.rotation.y = this.wheels.steering
+      
+                const suspensionLength = physicalWheel.suspensionLength
+                let wheelY = physicalWheel.basePosition.y - suspensionLength
+                wheelY = Math.min(wheelY, -0.5)
+
+                visualWheel.container.position.x = physicalWheel.basePosition.x
+                visualWheel.container.position.y += (wheelY - visualWheel.container.position.y) * 25 * this.game.ticker.deltaScaled
+                visualWheel.container.position.z = physicalWheel.basePosition.z
+
+                if(visualWheel.suspension)
+                {
+                    const suspensionScale = Math.abs(visualWheel.container.position.y) - 0.5
+                    visualWheel.suspension.scale.y = suspensionScale
+                }
+
+                visualWheel.groundTrack.update(physicalWheel.contactPoint, physicalWheel.inContact)
+            }
         }
 
         // Main ground track

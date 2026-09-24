@@ -2,7 +2,7 @@ import * as THREE from 'three/webgpu'
 import { Game } from '../Game.js'
 import { Events } from '../Events.js'
 import { lerp, remap, remapClamp, smallestAngle } from '../utilities/maths.js'
-import { HAVAL_H9_HALF_TRACK, HAVAL_H9_WHEEL_RADIUS } from '../World/HavalH9Adapter.js'
+import { HAVAL_H9_FRONT_X, HAVAL_H9_HALF_TRACK, HAVAL_H9_REAR_X, HAVAL_H9_WHEEL_RADIUS } from '../World/HavalH9Adapter.js'
 
 export class PhysicsVehicle
 {
@@ -95,9 +95,11 @@ export class PhysicsVehicle
             friction: 0.4,
             rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Euler(0, 1, 0), Math.PI * 0),
             colliders: this.isHaval ? [
-                { shape: 'cuboid', mass: 2.5, parameters: [ 1.52, 0.34, 0.76 ], position: { x: 0, y: -0.55, z: 0 }, centerOfMass: { x: 0, y: -0.55, z: 0 } },
-                { shape: 'cuboid', mass: 0, parameters: [ 0.95, 0.28, 0.64 ], position: { x: -0.05, y: -0.15, z: 0 } },
-                { shape: 'cuboid', mass: 0, parameters: [ 1.62, 0.38, 0.82 ], position: { x: 0, y: -0.52, z: 0 }, category: 'bumper' },
+                // Raised underbody and shorter bumper envelope: the tyres meet ramps first
+                // instead of the collider catching on small dune lips or kerbs.
+                { shape: 'cuboid', mass: 2.5, parameters: [ 1.35, 0.27, 0.67 ], position: { x: -0.03, y: -0.50, z: 0 }, centerOfMass: { x: 0, y: -0.48, z: 0 } },
+                { shape: 'cuboid', mass: 0, parameters: [ 0.88, 0.30, 0.61 ], position: { x: -0.08, y: -0.16, z: 0 } },
+                { shape: 'cuboid', mass: 0, parameters: [ 1.46, 0.20, 0.70 ], position: { x: 0, y: -0.45, z: 0 }, category: 'bumper' },
             ] : [
                 { shape: 'cuboid', mass: 2.5, parameters: [ 1.3, 0.4, 0.85 ], position: { x: 0, y: -0.1, z: 0 }, centerOfMass: { x: 0, y: -0.5, z: 0 } }, // Main
                 { shape: 'cuboid', mass: 0, parameters: [ 0.5, 0.15, 0.65 ], position: { x: 0, y: 0.4, z: 0 } }, // Top
@@ -161,11 +163,13 @@ export class PhysicsVehicle
         {
             this.wheels.perimeter = this.wheels.settings.radius * Math.PI * 2
 
+            const frontX = this.isHaval ? HAVAL_H9_FRONT_X : this.wheels.settings.offset.x
+            const rearX = this.isHaval ? HAVAL_H9_REAR_X : - this.wheels.settings.offset.x
             const wheelsPositions = [
-                new THREE.Vector3(  this.wheels.settings.offset.x, this.wheels.settings.offset.y,   this.wheels.settings.offset.z),
-                new THREE.Vector3(  this.wheels.settings.offset.x, this.wheels.settings.offset.y, - this.wheels.settings.offset.z),
-                new THREE.Vector3(- this.wheels.settings.offset.x, this.wheels.settings.offset.y,   this.wheels.settings.offset.z),
-                new THREE.Vector3(- this.wheels.settings.offset.x, this.wheels.settings.offset.y, - this.wheels.settings.offset.z),
+                new THREE.Vector3(frontX, this.wheels.settings.offset.y,   this.wheels.settings.offset.z),
+                new THREE.Vector3(frontX, this.wheels.settings.offset.y, - this.wheels.settings.offset.z),
+                new THREE.Vector3(rearX,  this.wheels.settings.offset.y,   this.wheels.settings.offset.z),
+                new THREE.Vector3(rearX,  this.wheels.settings.offset.y, - this.wheels.settings.offset.z),
             ]
             
             let i = 0

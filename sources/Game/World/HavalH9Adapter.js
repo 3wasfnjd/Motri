@@ -1,68 +1,46 @@
 import * as THREE from 'three/webgpu'
+import { createH9Adapter } from '../../../resources/models/haval-h9/motri2_h9.js'
 
 export const HAVAL_H9_SCALE = 1.8 / 2.85
 export const HAVAL_H9_WHEEL_RADIUS = 0.42432 * HAVAL_H9_SCALE
 export const HAVAL_H9_HALF_TRACK = 0.858 * HAVAL_H9_SCALE
-const LOW_SUSPENSION_REST = 0.88
-const BODY_GROUND_OFFSET = - (LOW_SUSPENSION_REST + HAVAL_H9_WHEEL_RADIUS)
+export const HAVAL_H9_FRONT_X = 1.440 * HAVAL_H9_SCALE
+export const HAVAL_H9_REAR_X = -1.410 * HAVAL_H9_SCALE
+export const HAVAL_H9_LOW_SUSPENSION_REST = 0.88
+
+const BODY_GROUND_OFFSET = - (HAVAL_H9_LOW_SUSPENSION_REST + HAVAL_H9_WHEEL_RADIUS)
 
 export function prepareHavalH9(scene)
 {
-    const root = scene.getObjectByName('H9_Root')
-    if(!root)
-        throw new Error('Haval H9 root not found')
-
-    const wheelNames = [ 'Wheel_FL', 'Wheel_FR', 'Wheel_RL', 'Wheel_RR' ]
-    const wheels = wheelNames.map(name => scene.getObjectByName(name))
-    if(wheels.some(wheel => !wheel))
-        throw new Error('Haval H9 requires four separate wheel meshes')
-
-    const bodyPainted = scene.getObjectByName('H9_BodyPaint')
-    if(!bodyPainted)
-        throw new Error('Haval H9 body paint mesh not found')
-
-    const taillights = scene.getObjectByName('H9_Taillights')
-
-    for(const wheel of wheels)
-        wheel.removeFromParent()
+    const adapter = createH9Adapter(scene)
 
     const chassis = new THREE.Group()
     chassis.name = 'chassisH9'
 
-    const body = new THREE.Group()
-    body.name = 'havalH9Body'
-    body.rotation.y = Math.PI * 0.5
-    body.scale.setScalar(HAVAL_H9_SCALE)
-    body.position.y = BODY_GROUND_OFFSET
-    body.add(root)
-    chassis.add(body)
+    const visualRoot = new THREE.Group()
+    visualRoot.name = 'havalH9VisualRoot'
+    visualRoot.rotation.y = Math.PI * 0.5
+    visualRoot.scale.setScalar(HAVAL_H9_SCALE)
+    visualRoot.position.y = BODY_GROUND_OFFSET
 
-    bodyPainted.name = 'bodyPaintedH9'
-    if(taillights)
-        taillights.name = 'stopLightsH9'
-
-    const wheelContainer = new THREE.Group()
-    wheelContainer.name = 'wheelContainerH9'
-
-    const wheelCylinder = new THREE.Group()
-    wheelCylinder.name = 'wheelCylinderH9'
-
-    const wheelVisual = wheels[0]
-    wheelVisual.position.set(0, 0, 0)
-    wheelVisual.rotation.set(0, Math.PI * 0.5, 0)
-    wheelVisual.scale.setScalar(HAVAL_H9_SCALE)
-    wheelCylinder.add(wheelVisual)
-    wheelContainer.add(wheelCylinder)
-
+    // Keep the complete authored hierarchy intact: four original wheels,
+    // front steering pivots and body stay together exactly as validated.
+    visualRoot.add(adapter.root)
+    chassis.add(visualRoot)
     scene.add(chassis)
-    scene.add(wheelContainer)
 
     scene.userData.vehicleType = 'havalH9'
     scene.userData.havalH9 = {
+        adapter,
+        chassis,
+        visualRoot,
         scale: HAVAL_H9_SCALE,
         wheelRadius: HAVAL_H9_WHEEL_RADIUS,
         halfTrack: HAVAL_H9_HALF_TRACK,
-        wheelbase: 1.8,
+        frontX: HAVAL_H9_FRONT_X,
+        rearX: HAVAL_H9_REAR_X,
+        restSuspension: HAVAL_H9_LOW_SUSPENSION_REST,
+        wheelbase: HAVAL_H9_FRONT_X - HAVAL_H9_REAR_X,
         sourceWheelbase: 2.85
     }
 }
