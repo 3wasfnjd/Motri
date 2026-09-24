@@ -38,7 +38,7 @@ export async function checkArabicInterface(page,viewport){
   await page.locator('.js-menu-trigger').click();
   await page.waitForFunction(()=>window.game.menu.state===1,null,{timeout:30000});
   const close=page.locator('.js-menu .inner > .js-close');
-  const panels=[['home','عالم برونو'],['options','الإعدادات'],['controls','طريقة التحكم'],['achievements','الإنجازات'],['circuit','حلبة السباق'],['behindTheScene','خلف الكواليس'],['whispers','اترك رسالة']];
+  const panels=[['home','موتري 2'],['options','الإعدادات'],['controls','طريقة التحكم'],['achievements','الإنجازات'],['circuit','حلبة السباق'],['behindTheScene','خلف الكواليس'],['whispers','اترك رسالة']];
   for(const [name,title] of panels){
     const button=page.locator(`.js-menu .js-navigation-item[data-name="${name}"]`);
     await reachable(button,viewport,name+' tab');await button.click();

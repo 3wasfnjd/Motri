@@ -7,6 +7,8 @@ import path from 'node:path';
 await mkdir('artifacts',{recursive:true});
 const baseline=JSON.parse(await readFile('.motri2/upstream.json','utf8'));
 const allowed=new Set(["sources/index.html","sources/Game/Title.js","readme.md","sources/Game/Options.js","sources/Game/Achievements.js","sources/data/achievements.js","sources/Game/Map.js","sources/Game/Audio.js","sources/Game/Server.js","sources/Game/World/Whispers.js","sources/Game/utilities/time.js","sources/Game/InputFlag.js","sources/Game/TextCanvas.js","sources/Game/InteractivePoints.js","sources/Game/World/Bubble.js","sources/Game/World/Areas/CircuitArea.js","sources/Game/World/Intro.js"]);
+// MOTRI2_IDENTITY_ALLOWLIST: reviewed presentation and outbound-link changes only.
+["sources/index.js","sources/Game/ResourcesLoader.js","sources/data/projects.js","sources/data/lab.js","sources/data/social.js","sources/Game/World/Areas/ProjectsArea.js","sources/Game/World/Areas/LabArea.js","sources/Game/World/Areas/SocialArea.js","sources/Game/World/Areas/CareerArea.js","sources/Game/World/Areas/TimeMachineArea.js"].forEach(p=>allowed.add(p));
 const changed=[],missing=[];
 for(const [file,expected] of Object.entries(baseline.files)) {
   let data;try{data=await readFile(file);}catch{missing.push(file);continue;}

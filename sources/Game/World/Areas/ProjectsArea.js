@@ -1,3 +1,4 @@
+import {placeholderImageLoader} from '../../../identity/Presentation.js' // MOTRI2_EMPTY_GALLERY
 import * as THREE from 'three/webgpu'
 import { Game } from '../../Game.js'
 import { InteractivePoints } from '../../InteractivePoints.js'
@@ -479,7 +480,7 @@ export class ProjectsArea extends Area
                 resource = {}
                 resource.loaded = false
 
-                const loader = this.game.resourcesLoader.getLoader('textureKtx')
+                const loader = placeholderImageLoader
 
                 loader.load(
                     path,
@@ -934,6 +935,7 @@ export class ProjectsArea extends Area
         this.url = {}
         this.url.status = 'hidden'
         this.url.group = this.references.items.get('url')[0]
+        this.url.group.visible = false // No misleading link panel for an empty slot
         this.url.inner = this.url.group.children[0]
 
         // Text
@@ -1019,7 +1021,7 @@ export class ProjectsArea extends Area
 
                 gsap.to(this.url.inner.rotation, { x: Math.PI * 2 * rotationDirection, duration: 1, delay: 0, ease: 'back.out(2)', overwrite: true })
 
-                this.url.textCanvas.updateText(this.navigation.current.url.replace(/https?:\/\//, ''))
+                this.url.textCanvas.updateText((this.navigation.current.url || '').replace(/https?:\/\//, ''))
 
                 const ratio = this.url.textCanvas.getMeasure().width / this.texts.density
                 this.url.panel.scale.x = ratio + 0.2
@@ -1339,14 +1341,14 @@ export class ProjectsArea extends Area
         this.adjacents.previous.intersect.active = true
         this.pagination.previousIntersect.active = true
         this.pagination.nextIntersect.active = true
-        this.url.intersect.active = true
+        this.url.intersect.active = Boolean(this.navigation.current.url)
 
         // Deactivate physical vehicle
         this.game.physicalVehicle.deactivate()
 
         // Buttons
         this.game.inputs.interactiveButtons.clearItems()
-        this.game.inputs.interactiveButtons.addItems(['previous', 'next', 'open', 'close'])
+        this.game.inputs.interactiveButtons.addItems(['previous', 'next', 'close'])
 
         // Sound
         const sound = this.game.audio.groups.get('click')

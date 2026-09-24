@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 const read=p=>readFile(p,'utf8');
 const origin='https://3wasfnjd.github.io/Motri2/';
 let html=await read('sources/index.html');
+if(html.includes('MOTRI2_IDENTITY_APPLIED')) process.exit(0); // Do not restore retired identity.
 if(!html.includes('MOTRI2_REFERENCE_BASELINE')) {
   assert.ok(html.includes('<title>Bruno\'s</title>'));
   let [head,...body]=html.split('</head>');

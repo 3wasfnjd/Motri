@@ -1,3 +1,4 @@
+import {verifyIdentity} from './motri2-identity-check.mjs';
 // Focused localization release check. Full driving regression remains in motri2-check.mjs.
 import assert from 'node:assert/strict';
 import {readFile,writeFile,mkdir,stat} from 'node:fs/promises';
@@ -9,6 +10,8 @@ import './motri2-ar-check.mjs';
 await mkdir('artifacts',{recursive:true});
 const baseline=JSON.parse(await readFile('.motri2/upstream.json','utf8'));
 const allowed=new Set(['sources/index.html','sources/Game/Title.js','readme.md','sources/Game/Options.js','sources/Game/Achievements.js','sources/data/achievements.js','sources/Game/Map.js','sources/Game/Audio.js','sources/Game/Server.js','sources/Game/World/Whispers.js','sources/Game/utilities/time.js','sources/Game/InputFlag.js','sources/Game/TextCanvas.js','sources/Game/InteractivePoints.js','sources/Game/World/Bubble.js','sources/Game/World/Areas/CircuitArea.js','sources/Game/World/Intro.js']);
+// MOTRI2_IDENTITY_ALLOWLIST: reviewed presentation and outbound-link changes only.
+["sources/index.js","sources/Game/ResourcesLoader.js","sources/data/projects.js","sources/data/lab.js","sources/data/social.js","sources/Game/World/Areas/ProjectsArea.js","sources/Game/World/Areas/LabArea.js","sources/Game/World/Areas/SocialArea.js","sources/Game/World/Areas/CareerArea.js","sources/Game/World/Areas/TimeMachineArea.js"].forEach(p=>allowed.add(p));
 const changed=[];
 for(const [file,expected] of Object.entries(baseline.files)){
   const actual=createHash('sha256').update(await readFile(file)).digest('hex');
@@ -37,6 +40,7 @@ try{
     assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
     await page.keyboard.press('Enter');
     await page.waitForFunction(()=>window.game.reveal.step===2,null,{timeout:60000});
+    await verifyIdentity(page);
     const close=page.locator('.js-menu .inner > .js-close');
     // Changing tabs starts an animated height adjustment. Check the settled control,
     // without forcing a click, changing game timing, or bypassing hit testing.
@@ -58,7 +62,7 @@ try{
         throw error;
       }finally{await element.dispose();}
     };
-    const panels=[['home','عالم برونو'],['options','الإعدادات'],['controls','طريقة التحكم'],['achievements','الإنجازات'],['circuit','حلبة السباق'],['whispers','اترك رسالة'],['behindTheScene','خلف الكواليس']];
+    const panels=[['home','موتري 2'],['options','الإعدادات'],['controls','طريقة التحكم'],['achievements','الإنجازات'],['circuit','حلبة السباق'],['whispers','اترك رسالة'],['behindTheScene','خلف الكواليس']];
     for(const viewport of [{width:390,height:844},{width:844,height:390}]){
       await page.setViewportSize(viewport);
       await page.locator('.js-menu-trigger').click();

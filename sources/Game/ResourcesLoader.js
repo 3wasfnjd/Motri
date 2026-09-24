@@ -1,3 +1,4 @@
+import {identityResourceTexture,neutralizeIdentityModel} from '../identity/Presentation.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js'
@@ -74,6 +75,7 @@ export class ResourcesLoader
             // Save
             const save = (_file, _resource) =>
             {
+                if(_file[2] === 'gltf' && _resource.scene) neutralizeIdentityModel(_resource.scene)
                 // Apply modifier
                 if(typeof _file[3] !== 'undefined')
                     _file[3](_resource)
@@ -95,6 +97,10 @@ export class ResourcesLoader
             // Each file
             for(const _file of _files)
             {
+                // Replace presentation textures before fetching any personal content.
+                const identityTexture = identityResourceTexture(_file[1])
+                if(identityTexture) { save(_file, identityTexture); progress(); continue }
+
                 // In cache
                 if(this.cache.has(_file[1]))
                 {

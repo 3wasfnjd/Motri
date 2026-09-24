@@ -23,6 +23,8 @@ export class CareerArea extends Area
         this.setSounds()
         this.setLines()
         this.setYears()
+        // Hide personal timeline dates; keep the panel movement and all area interactions.
+        for(const digit of this.year.digits) digit.mesh.visible = false
         this.setAchievement()
     }
 

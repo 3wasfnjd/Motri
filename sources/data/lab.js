@@ -1,80 +1,81 @@
+// No personal portfolio content or external destination is configured.
 export default [
-    {
-        title: 'Black Hole',
-        url: 'https://awwwards-2022-workshop.vercel.app',
-        image: 'black-hole.ktx',
-        imageMini: 'black-hole-mini.ktx'
-    },
-    {
-        title: 'Infinite World',
-        url: 'https://infinite-world.vercel.app',
-        image: 'infinite-world.ktx',
-        imageMini: 'infinite-world-mini.ktx'
-    },
-    {
-        title: 'My Room in 3D',
-        url: 'https://my-room-in-3d.vercel.app',
-        image: 'my-room-in-3d.ktx',
-        imageMini: 'my-room-in-3d-mini.ktx',
-    },
-    {
-        title: 'Particles System',
-        url: 'https://three-js-tsl-particles-system.vercel.app',
-        image: 'particles-system.ktx',
-        imageMini: 'particles-system-mini.ktx'
-    },
-    {
-        title: 'Stylized Low Poly',
-        url: 'https://stylized-low-poly.vercel.app',
-        image: 'stylized-low-poly.ktx',
-        imageMini: 'stylized-low-poly-mini.ktx'
-    },
-    {
-        title: 'Holographic terrain',
-        url: 'https://experiment-holographic-terrain.vercel.app',
-        image: 'holographic-terrain.ktx',
-        imageMini: 'holographic-terrain-mini.ktx'
-    },
-    {
-        title: 'Woodkid Volcano Robot',
-        url: 'https://experiment-woodkid-volcano-robot.vercel.app',
-        image: 'woodkid-volcano-robot.ktx',
-        imageMini: 'woodkid-volcano-robot-mini.ktx'
-    },
-    {
-        title: 'Bounce Friday',
-        url: 'https://threejs-journey.com/apps/bounce-friday/',
-        image: 'bounce-friday.ktx',
-        imageMini: 'bounce-friday-mini.ktx'
-    },
-    {
-        title: 'VFX flames',
-        url: 'https://threejs.org/examples/webgpu_tsl_vfx_flames.html',
-        image: 'vfx-flames.ktx',
-        imageMini: 'vfx-flames-mini.ktx'
-    },
-    {
-        title: 'VFX tornado',
-        url: 'https://threejs.org/examples/webgpu_tsl_vfx_tornado.html',
-        image: 'vfx-tornado.ktx',
-        imageMini: 'vfx-tornado-mini.ktx'
-    },
-    {
-        title: 'DOOM Portal',
-        url: 'https://doom-portal-in-webgl.vercel.app',
-        image: 'doom-portal.ktx',
-        imageMini: 'doom-portal-mini.ktx'
-    },
-    {
-        title: 'Organic Sphere',
-        url: 'https://organic-sphere.vercel.app',
-        image: 'organic-sphere.ktx',
-        imageMini: 'organic-sphere-mini.ktx'
-    },
-    {
-        title: 'Attractors',
-        url: 'https://threejs.org/examples/webgpu_tsl_compute_attractors_particles.html',
-        image: 'attractors.ktx',
-        imageMini: 'attractors-mini.ktx'
-    }
-]
+  {
+    "title": "لوحة فارغة 1",
+    "url": "",
+    "image": "motri2-empty-1.png",
+    "imageMini": "motri2-empty-1-mini.png"
+  },
+  {
+    "title": "لوحة فارغة 2",
+    "url": "",
+    "image": "motri2-empty-2.png",
+    "imageMini": "motri2-empty-2-mini.png"
+  },
+  {
+    "title": "لوحة فارغة 3",
+    "url": "",
+    "image": "motri2-empty-3.png",
+    "imageMini": "motri2-empty-3-mini.png"
+  },
+  {
+    "title": "لوحة فارغة 4",
+    "url": "",
+    "image": "motri2-empty-4.png",
+    "imageMini": "motri2-empty-4-mini.png"
+  },
+  {
+    "title": "لوحة فارغة 5",
+    "url": "",
+    "image": "motri2-empty-5.png",
+    "imageMini": "motri2-empty-5-mini.png"
+  },
+  {
+    "title": "لوحة فارغة 6",
+    "url": "",
+    "image": "motri2-empty-6.png",
+    "imageMini": "motri2-empty-6-mini.png"
+  },
+  {
+    "title": "لوحة فارغة 7",
+    "url": "",
+    "image": "motri2-empty-7.png",
+    "imageMini": "motri2-empty-7-mini.png"
+  },
+  {
+    "title": "لوحة فارغة 8",
+    "url": "",
+    "image": "motri2-empty-8.png",
+    "imageMini": "motri2-empty-8-mini.png"
+  },
+  {
+    "title": "لوحة فارغة 9",
+    "url": "",
+    "image": "motri2-empty-9.png",
+    "imageMini": "motri2-empty-9-mini.png"
+  },
+  {
+    "title": "لوحة فارغة 10",
+    "url": "",
+    "image": "motri2-empty-10.png",
+    "imageMini": "motri2-empty-10-mini.png"
+  },
+  {
+    "title": "لوحة فارغة 11",
+    "url": "",
+    "image": "motri2-empty-11.png",
+    "imageMini": "motri2-empty-11-mini.png"
+  },
+  {
+    "title": "لوحة فارغة 12",
+    "url": "",
+    "image": "motri2-empty-12.png",
+    "imageMini": "motri2-empty-12-mini.png"
+  },
+  {
+    "title": "لوحة فارغة 13",
+    "url": "",
+    "image": "motri2-empty-13.png",
+    "imageMini": "motri2-empty-13-mini.png"
+  }
+];

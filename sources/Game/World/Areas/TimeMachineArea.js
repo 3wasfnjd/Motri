@@ -24,7 +24,7 @@ export class TimeMachineArea extends Area
             InteractivePoints.STATE_CONCEALED,
             () =>
             {
-                window.open('https://2019.bruno-simon.com')
+                this.game.notifications.show('<div class="top"><div class="title">الانتقال الخارجي غير مفعّل</div></div>', 'motri2-link-disabled', 3, null, 'motri2-link-disabled')
             },
             () =>
             {
