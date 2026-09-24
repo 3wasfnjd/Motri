@@ -1,5 +1,6 @@
 // One deterministic surface shared by rendering, collisions and the map.
-export const DUNES = Object.freeze({minX:18,maxX:96,minZ:4,maxZ:96,cell:.75});
+export const DUNES = Object.freeze({minX:8,maxX:116,minZ:4,maxZ:116,cell:.75});
+const CHALLENGE_EDGE = 96;
 export const smooth = (a,b,v) => {const t=Math.max(0,Math.min(1,(v-a)/(b-a)));return t*t*(3-2*t);};
 
 // The user-marked south-east wedge: moderate dunes near the entry,
@@ -11,7 +12,9 @@ const boundary = [
   [56,64],
   [72,46],
   [88,28],
-  [96,20]
+  [96,20],
+  [108,14],
+  [116,10]
 ];
 
 const ridges = [
@@ -24,7 +27,9 @@ const ridges = [
   [45,87,3.7,10.0,7.5],
   [67,89,4.6,11.0,7.5],
   [86,88,6.2,10.0,8.0],
-  [92,93,6.8,8.5,7.0]
+  [92,93,6.8,8.5,7.0],
+  [101,101,4.8,12.0,10.0],
+  [109,111,4.2,11.0,9.0]
 ];
 
 function leftBoundary(z) {
@@ -59,8 +64,10 @@ export function duneHeight(x,z,base,protectedZones=[]) {
   if(!weight)return base;
 
   const edge=leftBoundary(z);
-  const xDepth=Math.max(0,Math.min(1,(x-edge)/Math.max(1,DUNES.maxX-edge)));
-  const zDepth=Math.max(0,Math.min(1,(z-DUNES.minZ)/(DUNES.maxZ-DUNES.minZ)));
+  // Keep the intended challenge peak at the visible map corner (96,96).
+  // The extra outer apron is a safety extension, not a reduction of dune height.
+  const xDepth=Math.max(0,Math.min(1,(x-edge)/Math.max(1,CHALLENGE_EDGE-edge)));
+  const zDepth=Math.max(0,Math.min(1,(z-DUNES.minZ)/(CHALLENGE_EDGE-DUNES.minZ)));
   const depth=Math.max(0,Math.min(1,xDepth*.42+zDepth*.58));
 
   // Moderate at the entry, progressively stronger toward the challenge corner.

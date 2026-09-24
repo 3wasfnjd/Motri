@@ -40,7 +40,7 @@ try{
   }
   return {triangles:f.indices.length/3,highest,maxSlope,raySamples:hits,maxCollisionError:error,areas:Object.keys(g.world.areas).filter(n=>g.world.areas[n]?.references).length,wheels:g.physicalVehicle.wheels.items.length,clearedVegetation:d.clearedVegetation};
  });
- assert.ok(report.triangles<16000);assert.ok(report.highest>3&&report.highest<7.5);assert.ok(report.maxSlope<38);
+ assert.ok(report.triangles<30000);assert.ok(report.highest>3&&report.highest<7.5);assert.ok(report.maxSlope<38);
  assert.ok(report.raySamples>50&&report.maxCollisionError<.002);assert.equal(report.areas,13);assert.equal(report.wheels,4);
  console.log('DUNES_SURFACE_OK',JSON.stringify(report));
  await page.evaluate(()=>{window.__ready=false;window.game.player.respawn('dunes',()=>{window.__ready=true;});});
