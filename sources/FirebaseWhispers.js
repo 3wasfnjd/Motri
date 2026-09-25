@@ -52,6 +52,8 @@ export function firebaseErrorText(error)
     const code = error?.code || ''
     if(code === 'auth/operation-not-allowed')
         return 'الدخول المجهول غير مفعّل في Firebase'
+    if(code === 'auth/admin-restricted-operation')
+        return 'إنشاء حسابات الزوار معطّل في Authentication > Settings > User actions'
     if(code === 'auth/unauthorized-domain')
         return 'نطاق GitHub Pages غير مضاف في Authorized domains'
     if(code === 'permission-denied' || code === 'firestore/permission-denied')
