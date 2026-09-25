@@ -44,7 +44,7 @@ export class SheepPen {
         // Local sheep-pen ambience. Independent from the world playlist/music.
         this.ambientSound = this.game.audio.register({
             group: 'sheepPenAmbient',
-            path: 'sounds/sheepPen/sheep-pen-ambient.mp3',
+            path: 'sheep-pen/sheep-pen-ambient.mp3',
             autoplay: true,
             loop: true,
             volume: .14,
