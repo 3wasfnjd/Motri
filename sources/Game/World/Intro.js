@@ -160,11 +160,11 @@ export class Intro
                 context.textAlign = 'center'
                 context.textBaseline = 'middle'
                 context.direction = 'rtl'
-                context.font = '700 76px Tahoma, Arial, sans-serif'
-                context.fillText('ابدأ القيادة', 512, 178, 960)
+                context.font = '700 112px Tahoma, Arial, sans-serif'
+                context.fillText('ابدأ القيادة', 512, 170, 960)
                 context.font = '500 48px Tahoma, Arial, sans-serif'
                 const hint = name === 'touch' ? 'المس للبدء' : name === 'mouseKeyboard' ? 'اضغط Enter أو انقر للبدء' : 'اضغط زر التأكيد للبدء'
-                context.fillText(hint, 512, 285, 960)
+                context.fillText(hint, 512, 310, 960)
                 cachedTexture = new THREE.CanvasTexture(canvas)
                 cachedTexture.flipY = false
                 cachedTexture.minFilter = THREE.LinearFilter
