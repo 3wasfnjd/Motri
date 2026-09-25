@@ -3,6 +3,7 @@ import { getAuth, signInAnonymously } from 'firebase/auth'
 import {
     collection,
     doc,
+    getDoc,
     getFirestore,
     limit,
     onSnapshot,
@@ -82,6 +83,68 @@ export async function subscribeToWhispers(count, onChange, onError)
         },
         onError
     )
+}
+
+export function getCircuitDayInfo(now = Date.now())
+{
+    const shifted = new Date(now + 3 * 60 * 60 * 1000)
+    const dayKey = shifted.toISOString().slice(0, 10)
+    const [year, month, day] = dayKey.split('-').map(Number)
+    const startTime = Date.UTC(year, month - 1, day) - 3 * 60 * 60 * 1000
+
+    return { dayKey, startTime }
+}
+
+export async function subscribeToCircuitLeaderboard(maxScores, onScores, onError)
+{
+    const { db } = await getClient()
+    const { dayKey } = getCircuitDayInfo()
+    const scoresQuery = query(
+        collection(db, 'circuitLeaderboard', dayKey, 'scores'),
+        orderBy('duration', 'asc'),
+        limit(maxScores)
+    )
+
+    return {
+        dayKey,
+        unsubscribe: onSnapshot(
+            scoresQuery,
+            (snapshot) =>
+            {
+                onScores(snapshot.docs.map(item =>
+                {
+                    const data = item.data()
+                    return [ data.tag, data.countryCode || '', data.duration ]
+                }))
+            },
+            onError
+        )
+    }
+}
+
+export async function publishCircuitScore({ tag, countryCode, duration })
+{
+    const { auth, db } = await getClient()
+    const user = auth.currentUser
+
+    if(!user)
+        throw new Error('Anonymous Firebase user is not available')
+
+    const { dayKey } = getCircuitDayInfo()
+    const scoreRef = doc(db, 'circuitLeaderboard', dayKey, 'scores', user.uid)
+    const current = await getDoc(scoreRef)
+
+    if(current.exists() && Number(current.data().duration) <= duration)
+        return { updated: false, dayKey }
+
+    await setDoc(scoreRef, {
+        tag,
+        countryCode,
+        duration,
+        createdAt: serverTimestamp()
+    })
+
+    return { updated: true, dayKey }
 }
 
 export async function publishWhisper({ message, countryCode, x, y, z })

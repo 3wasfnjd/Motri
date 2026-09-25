@@ -10,6 +10,7 @@ import { alea } from 'seedrandom'
 import { InputFlag } from '../../InputFlag.js'
 import { Area } from './Area.js'
 import { timeToRaceString, timeToReadableString } from '../../utilities/time.js'
+import { firebaseErrorText, getCircuitDayInfo, publishCircuitScore, subscribeToCircuitLeaderboard } from '../../../FirebaseWhispers.js'
 
 export class CircuitArea extends Area
 {
@@ -32,6 +33,7 @@ export class CircuitArea extends Area
         }
 
         this.state = CircuitArea.STATE_PENDING
+        this.firebase = { ready: false, sending: false, unsubscribe: null, dayKey: null, dayCheckInterval: null }
 
         this.setSounds()
         this.setStartPosition()
@@ -1155,7 +1157,26 @@ export class CircuitArea extends Area
         this.menu.leaderboardContainerElement = this.menu.instance.contentElement.querySelector('.js-leaderboard-container')
         this.menu.leaderboardElement = this.menu.leaderboardContainerElement.querySelector('.js-leaderboard tbody')
         this.menu.racingButtons = this.menu.instance.contentElement.querySelector('.js-racing-buttons')
+        this.menu.serviceStatus = this.menu.instance.contentElement.querySelector('.js-circuit-status')
         this.menu.leaderboardNeedsUpdate = false
+        this.menu.setServiceStatus = (status, details = '') =>
+        {
+            if(!this.menu.serviceStatus)
+                return
+
+            if(status === 'online')
+            {
+                this.menu.serviceStatus.hidden = true
+                this.menu.serviceStatus.textContent = ''
+            }
+            else
+            {
+                this.menu.serviceStatus.hidden = false
+                this.menu.serviceStatus.textContent = status === 'connecting'
+                    ? 'جارٍ الاتصال بلوحة المتصدرين…'
+                    : `تعذّر الاتصال بلوحة المتصدرين: ${details || 'تحقق من إعدادات Firebase'}`
+            }
+        }
 
         this.menu.instance.events.on('open', () =>
         {
@@ -1165,6 +1186,8 @@ export class CircuitArea extends Area
 
         this.menu.updateLeaderboard = (scores = null) =>
         {
+            scores = scores ?? []
+
             // Menu not open => Set flag
             if(!this.menu.instance.isOpen)
             {
@@ -1252,6 +1275,25 @@ export class CircuitArea extends Area
         this.endModal = {}
         this.endModal.instance = this.game.modals.items.get('circuit-end')
         this.endModal.timeElement = this.endModal.instance.element.querySelector('.js-time')
+        this.endModal.serviceStatus = this.endModal.instance.element.querySelector('.js-circuit-submit-status')
+        this.endModal.setServiceStatus = (status, details = '') =>
+        {
+            if(!this.endModal.serviceStatus)
+                return
+
+            if(status === 'online')
+            {
+                this.endModal.serviceStatus.hidden = true
+                this.endModal.serviceStatus.textContent = ''
+            }
+            else
+            {
+                this.endModal.serviceStatus.hidden = false
+                this.endModal.serviceStatus.textContent = status === 'connecting'
+                    ? 'جارٍ الاتصال بلوحة المتصدرين…'
+                    : `تعذّر الاتصال بلوحة المتصدرين: ${details || 'تحقق من إعدادات Firebase'}`
+            }
+        }
         
         // Restart button
         const restartElement = this.endModal.instance.element.querySelector('.js-button-restart')
@@ -1284,36 +1326,47 @@ export class CircuitArea extends Area
             return sanatized
         }
 
-        const submit = () =>
+        const submit = async () =>
         {
             const sanatized = sanatize(this.menu.input.value, true, true, true, true)
-            
-            if(sanatized.length === 3 && this.game.server.connected)
+
+            if(sanatized.length === 3 && this.firebase.ready && !this.firebase.sending)
             {
-                // Insert
-                this.game.server.send({
-                    type: 'circuitInsert',
-                    countryCode: this.menu.inputFlag.country ? this.menu.inputFlag.country.code : '',
-                    tag: sanatized,
-                    duration: Math.round(this.timer.elapsedTime * 1000),
-                    checkpointTimings: this.checkpoints.timings
-                })
+                this.firebase.sending = true
+                this.menu.updateSubmitGroup()
 
-                // Achievement
-                this.game.achievements.setProgress('circuitLeaderboard', 1)
+                try
+                {
+                    await publishCircuitScore({
+                        tag: sanatized,
+                        countryCode: this.menu.inputFlag.country ? this.menu.inputFlag.country.code : '',
+                        duration: Math.round(this.timer.elapsedTime * 1000)
+                    })
 
-                // Close modal
-                this.game.modals.close()
+                    this.game.achievements.setProgress('circuitLeaderboard', 1)
+                    this.game.modals.close()
+                }
+                catch(error)
+                {
+                    console.error('Firebase circuit score error', error)
+                    this.endModal.setServiceStatus('error', firebaseErrorText(error))
+                }
+                finally
+                {
+                    this.firebase.sending = false
+                    this.menu.updateSubmitGroup()
+                }
             }
         }
 
         const updateGroup = () =>
         {
-            if(this.menu.input.value.length === 3 && this.game.server.connected)
+            if(this.menu.input.value.length === 3 && this.firebase.ready && !this.firebase.sending)
                 this.menu.inputGroup.classList.add('is-valide')
             else
                 this.menu.inputGroup.classList.remove('is-valide')
         }
+        this.menu.updateSubmitGroup = updateGroup
 
         this.menu.input.addEventListener('input', () =>
         {
@@ -1325,7 +1378,6 @@ export class CircuitArea extends Area
         this.menu.inputGroup.addEventListener('submit', (event) =>
         {
             event.preventDefault()
-
             submit()
         })
 
@@ -1334,16 +1386,6 @@ export class CircuitArea extends Area
             this.menu.input.value = ''
             updateGroup()
             this.menu.inputFlag.close()
-        })
-            
-        this.game.server.events.on('connected', () =>
-        {
-            updateGroup()
-        })
-
-        this.game.server.events.on('disconnected', () =>
-        {
-            updateGroup()
         })
 
         /**
@@ -1469,38 +1511,74 @@ export class CircuitArea extends Area
 
     setData()
     {
-        // Server message event
-        this.game.server.events.on('message', (data) =>
+        const connect = async () =>
         {
-            // Init and insert
-            if(data.type === 'init')
-            {
-                this.resetTime.activate(data.circuitResetTime)
-                this.leaderboard.update(data.circuitLeaderboard)
-                this.menu.updateLeaderboard(data.circuitLeaderboard)
-            }
-            else if(data.type === 'circuitUpdate')
-            {
-                this.leaderboard.update(data.circuitLeaderboard)
-                this.menu.updateLeaderboard(data.circuitLeaderboard)
-            }
-        })
+            const day = getCircuitDayInfo()
 
-        // Server disconnected
-        this.game.server.events.on('disconnected', () =>
-        {
-            this.resetTime.deactivate()
-            this.leaderboard.update(null)
-            this.menu.updateLeaderboard(null)
-        })
+            if(this.firebase.dayKey === day.dayKey && this.firebase.unsubscribe)
+                return
 
-        // Message already received
-        if(this.game.server.initData)
-        {
-            this.resetTime.activate(this.game.server.initData.circuitResetTime)
-            this.leaderboard.update(this.game.server.initData.circuitLeaderboard)
-            this.menu.updateLeaderboard(this.game.server.initData.circuitLeaderboard)
+            if(this.firebase.unsubscribe)
+            {
+                this.firebase.unsubscribe()
+                this.firebase.unsubscribe = null
+            }
+
+            this.firebase.ready = false
+            this.menu.setServiceStatus('connecting')
+            this.endModal.setServiceStatus('connecting')
+            this.menu.updateSubmitGroup?.()
+            this.resetTime.activate(day.startTime)
+
+            try
+            {
+                const subscription = await subscribeToCircuitLeaderboard(
+                    10,
+                    (scores) =>
+                    {
+                        this.firebase.ready = true
+                        this.menu.setServiceStatus('online')
+                        this.endModal.setServiceStatus('online')
+                        this.leaderboard.update(scores)
+                        this.menu.updateLeaderboard(scores)
+                        this.menu.updateSubmitGroup?.()
+                    },
+                    (error) =>
+                    {
+                        console.error('Firebase circuit leaderboard error', error)
+                        this.firebase.ready = false
+                        const details = firebaseErrorText(error)
+                        this.menu.setServiceStatus('error', details)
+                        this.endModal.setServiceStatus('error', details)
+                        this.leaderboard.update(null)
+                        this.menu.updateLeaderboard([])
+                        this.menu.updateSubmitGroup?.()
+                    }
+                )
+
+                this.firebase.unsubscribe = subscription.unsubscribe
+                this.firebase.dayKey = subscription.dayKey
+            }
+            catch(error)
+            {
+                console.error('Firebase circuit connection error', error)
+                this.firebase.ready = false
+                const details = firebaseErrorText(error)
+                this.menu.setServiceStatus('error', details)
+                this.endModal.setServiceStatus('error', details)
+                this.leaderboard.update(null)
+                this.menu.updateLeaderboard([])
+                this.menu.updateSubmitGroup?.()
+            }
         }
+
+        connect()
+
+        this.firebase.dayCheckInterval = setInterval(() =>
+        {
+            if(getCircuitDayInfo().dayKey !== this.firebase.dayKey)
+                connect()
+        }, 30000)
     }
 
     setAchievement()
@@ -1606,8 +1684,8 @@ export class CircuitArea extends Area
                     })
                 }
 
-                // Circuit en modal (if server connected)
-                if(this.game.server.connected && !forced)
+                // Circuit end modal (if Firebase leaderboard is available)
+                if(this.firebase.ready && !forced)
                 {
                     gsap.delayedCall(1, () =>
                     {
