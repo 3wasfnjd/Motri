@@ -1,55 +1,41 @@
-// User-supplied gallery artwork; one lightweight image per board.
+// Game billboards: full-width 16:9 artwork and direct play links.
 export default [
   {
-    "title": "معرض الصور 1",
+    "title": "هجولة",
     "titleSmall": [
-      "معرض الصور",
-      "1"
+      "هجولة"
     ],
-    "url": "",
+    "url": "https://3wasfnjd.github.io/hajwala/",
     "attributes": {},
     "distinctions": [],
     "images": [
-      "aboden-gallery-1.webp"
+      "hajwala-card.webp"
     ]
   },
   {
-    "title": "معرض الصور 2",
+    "title": "عبودين هيرو — المرحلة الأولى",
     "titleSmall": [
-      "معرض الصور",
-      "2"
+      "عبودين هيرو",
+      "المرحلة الأولى"
     ],
-    "url": "",
+    "url": "https://3wasfnjd.github.io/Aboden-Hero/",
     "attributes": {},
     "distinctions": [],
     "images": [
-      "aboden-gallery-2.webp"
+      "hero-chapter-1-card.webp"
     ]
   },
   {
-    "title": "معرض الصور 3",
+    "title": "عبودين هيرو — المرحلة الثانية",
     "titleSmall": [
-      "معرض الصور",
-      "3"
+      "عبودين هيرو",
+      "المرحلة الثانية"
     ],
-    "url": "",
+    "url": "https://3wasfnjd.github.io/Aboden-Hero/stage2.html",
     "attributes": {},
     "distinctions": [],
     "images": [
-      "aboden-gallery-3.webp"
-    ]
-  },
-  {
-    "title": "معرض الصور 4",
-    "titleSmall": [
-      "معرض الصور",
-      "4"
-    ],
-    "url": "",
-    "attributes": {},
-    "distinctions": [],
-    "images": [
-      "aboden-gallery-4.webp"
+      "hero-chapter-2-card.webp"
     ]
   }
 ];

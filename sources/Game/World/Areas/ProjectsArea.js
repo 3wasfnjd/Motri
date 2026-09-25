@@ -934,7 +934,7 @@ export class ProjectsArea extends Area
         this.url = {}
         this.url.status = 'hidden'
         this.url.group = this.references.items.get('url')[0]
-        this.url.group.visible = false // No misleading link panel for an empty slot
+        this.url.group.visible = false // Updated according to the selected project's URL
         this.url.inner = this.url.group.children[0]
 
         // Text
@@ -1006,6 +1006,10 @@ export class ProjectsArea extends Area
         // Update
         this.url.update = (direction) =>
         {
+            const hasUrl = Boolean(this.navigation.current.url)
+            this.url.group.visible = hasUrl
+            this.url.intersect.active = hasUrl && this.state === ProjectsArea.STATE_OPEN
+
             if(this.url.status === 'hiding')
                 return
 
@@ -1033,7 +1037,7 @@ export class ProjectsArea extends Area
         {
             if(this.navigation.current.url)
             {
-                window.open(this.navigation.current.url, '_blank')
+                window.open(this.navigation.current.url, '_blank', 'noopener,noreferrer')
             }
         }
     }
@@ -1348,6 +1352,8 @@ export class ProjectsArea extends Area
         // Buttons
         this.game.inputs.interactiveButtons.clearItems()
         this.game.inputs.interactiveButtons.addItems(['previous', 'next', 'close'])
+        if(this.navigation.current.url)
+            this.game.inputs.interactiveButtons.addItems(['open'])
 
         // Sound
         const sound = this.game.audio.groups.get('click')
@@ -1554,3 +1560,4 @@ export class ProjectsArea extends Area
         this.anvil.loopTime = loopTime
     }
 }
+
