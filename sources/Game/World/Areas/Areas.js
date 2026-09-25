@@ -1,5 +1,6 @@
 import { Game } from '../../Game.js'
 import { AltarArea } from './AltarArea.js'
+import { BehindTheSceneArea } from './BehindTheSceneArea.js'
 import { CookieArea } from './CookieArea.js'
 import { LandingArea } from './LandingArea.js'
 import { ProjectsArea } from './ProjectsArea.js'
@@ -20,6 +21,7 @@ export class Areas
         const list = [
             [ 'achievements', AchievementsArea ],
             [ 'altar', AltarArea ],
+            [ 'behindTheScene', BehindTheSceneArea ],
             [ 'bowling', BowlingArea ],
             [ 'career', CareerArea ],
             [ 'circuit', CircuitArea ],

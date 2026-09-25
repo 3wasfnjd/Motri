@@ -118,7 +118,7 @@ export class BehindTheSceneArea extends Area
     {
         this.interactivePoint = this.game.interactivePoints.create(
             this.references.items.get('interactivePoint')[0].position,
-            'Behind the scene',
+            'خلف الكواليس',
             InteractivePoints.ALIGN_RIGHT,
             InteractivePoints.STATE_CONCEALED,
             () =>
@@ -141,7 +141,8 @@ export class BehindTheSceneArea extends Area
             }
         )
 
-        this.game.menu.items.get('behindTheScene').events.on('close', () =>
+        // Restore the world prompt even if the player changes tabs before closing.
+        this.game.menu.events.on('close', () =>
         {
             this.interactivePoint.show()
         })

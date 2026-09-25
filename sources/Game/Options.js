@@ -15,6 +15,15 @@ export class Options
         this.setReset()
         this.setRenderer()
         this.setServer()
+        this.setBehindTheScene()
+    }
+
+    setBehindTheScene()
+    {
+        this.element.querySelector('.js-behind-the-scene').addEventListener('click', () =>
+        {
+            this.game.menu.open('behindTheScene')
+        })
     }
 
     setSound()
