@@ -6,10 +6,17 @@
         --max-width @css{ min(350px, calc(100% - 88px)) }
 
     position absolute
-    top 20px
-    left calc(50% - var(--max-width) / 2)
-    right 0
+    top @css{ max(20px, env(safe-area-inset-top, 0px)) }
+    left 50%
+    right auto
+    transform translateX(-50%)
     width var(--max-width)
+
+    &:has(.notification.is-achievement)
+        --max-width @css{ min(310px, calc(100% - 40px)) }
+
+        html.is-mode-touch &
+            --max-width @css{ min(310px, calc(100% - 88px)) }
 
     .items
         position absolute
@@ -54,7 +61,14 @@
             will-change transform
 
         &.is-achievement
-            // padding 12px 20px 15px 15px
+            padding 10px 14px 12px
+
+            .top .progress
+                flex-shrink 0
+                font-size 13px
+
+            .bottom .open-icon
+                flex-shrink 0
 
             .top
                 display flex
