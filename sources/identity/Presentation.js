@@ -35,7 +35,7 @@ export const placeholderImageLoader={load(path,onLoad,onProgress,onError){
 export function identityResourceTexture(path) {
   const clean=String(path).split('?')[0];
   if(/^career\/career[^/]+\.(?:ktx|png)$/.test(clean))
-    return presentationTexture('لوحة فارغة',{width:512,height:64,mask:true});
+    return presentationTexture('ABODEN GAMES',{width:512,height:64,mask:true});
   if(/^timeMachine\/timeMachineScreen(?:Folio|MGS)\.(?:ktx|png)$/.test(clean))
     return presentationTexture(clean.includes('MGS')?'—':'MOTRI 2',{width:256,height:144});
   return null;
