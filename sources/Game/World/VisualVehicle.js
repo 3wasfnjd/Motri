@@ -131,12 +131,12 @@ export class VisualVehicle
 
     setBodyStyles()
     {
-        this.bodyStyles = new VehicleBodyStyles(this.parts.chassis, this.parts.bodyPainted, () =>
+        this.bodyStyles = new VehicleBodyStyles(this.parts.chassis, this.parts.bodyPainted, (style) =>
         {
-            const paint = new MeshDefaultMaterial({ colorNode: color('#c9b58d') })
+            const paint = new MeshDefaultMaterial({ colorNode: color(style.color) })
             const details = new MeshDefaultMaterial({ colorNode: attribute('color', 'vec3') })
-            paint.name = 'Shas_MatteBeige'
-            details.name = 'Shas_BodyDetails'
+            paint.name = `${style.id}_BodyPaint`
+            details.name = `${style.id}_BodyDetails`
             return { paint, details }
         })
         this.bodyStyles.changeTo(readVehicleBodyStyle(), false)

@@ -7,6 +7,7 @@ import { InteractiveButtons } from './InteractiveButtons.js'
 import { Wheel } from './Wheel.js'
 import { Nipple } from './Nipple.js'
 import ObservableSet from '../utilities/ObservableSet.js'
+import { MobileBoostButton } from './MobileBoostButton.js'
 
 export class Inputs
 {
@@ -37,6 +38,7 @@ export class Inputs
                     document.documentElement.classList.remove(`input-filter-${previousValue}`)
                 }
             }
+            this.events.trigger('filtersChange')
         })
         this.mode = Inputs.MODE_MOUSEKEYBOARD
 
@@ -48,6 +50,7 @@ export class Inputs
         this.setNipple()
 
         this.addActions(actions)
+        this.mobileBoost = new MobileBoostButton(this, Inputs.MODE_TOUCH)
         
         for(const filter of filters)
             this.filters.add(filter)
@@ -178,6 +181,7 @@ export class Inputs
 
             this.actions.set(action.name, formatedAction)
         }
+        this.mobileBoost?.sync()
     }
 
     checkCategory(action)

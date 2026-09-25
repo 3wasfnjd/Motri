@@ -40,6 +40,7 @@
     <link rel="preload" href="./intro/sound.ktx" as="fetch" crossorigin>
     <link rel="preload" href="./palette.ktx" as="fetch" crossorigin>
     <link rel="stylesheet" href="./localization/ar.css">
+    <link rel="stylesheet" href="./style/mobileBoost.css">
 </head>
 <body>
     <!-- MOTRI2_REFERENCE_BASELINE: the world and driving remain upstream. -->
@@ -67,6 +68,15 @@
                 <button data-name="close" class="js-button close"></button>
             </div>
         </div>
+
+        <!-- Mobile hold-to-boost: independent of the steering touch. -->
+        <button class="js-mobile-boost mobile-boost" type="button" hidden
+            aria-label="السرعة الفائقة، اضغط باستمرار" aria-pressed="false" title="السرعة الفائقة — اضغط باستمرار">
+            <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+                <path class="boost-bolt" d="M18.5 3 7.8 17.5h7L13.5 29l10.7-15h-7.1L18.5 3Z"/>
+                <path class="boost-trail" d="M5.5 9.5h4M3 13h4M23 23h4M25 19.5h4"/>
+            </svg>
+        </button>
 
         <!-- Menu trigger -->
         <button class="js-menu-trigger menu-trigger" aria-label="فتح القائمة">
@@ -255,7 +265,7 @@
                                             </td>
                                             <td>
                                                 <button class="js-vehicle-body button is-small has-tooltip" type="button" aria-label="تغيير شكل السيارة">
-                                                    <div class="tooltip">التبديل بين الهافال والشاص</div>
+                                                    <div class="tooltip">التبديل بين الهافال والشاص والددسن</div>
                                                     <span>هافال H9</span>
                                                 </button>
                                             </td>

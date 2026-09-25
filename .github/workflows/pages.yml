@@ -38,6 +38,10 @@ jobs:
           git rev-parse HEAD > artifacts/source-sha.txt
       - name: Install locked application dependencies
         run: npm ci --force --ignore-scripts --no-audit --no-fund
+      - name: Check body skins and mobile boost inputs
+        run: |
+          node scripts/test-vehicle-body-styles.mjs
+          node --experimental-vm-modules scripts/test-mobile-boost.mjs
       - name: Install Firebase SDK for web build
         run: |
           rm -rf "$RUNNER_TEMP/firebase-sdk"

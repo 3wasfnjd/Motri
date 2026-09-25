@@ -64,7 +64,7 @@ export class Pointer
             // _event.preventDefault()
 
             this.mode = Pointer.MODE_TOUCH
-            this.upcomingTouches = [ ..._event.touches ]
+            this.upcomingTouches = [ ..._event.targetTouches ]
             
             // Calculate average
             let x = 0
@@ -88,7 +88,7 @@ export class Pointer
 
             this.mode = Pointer.MODE_TOUCH
             this.upcomingDown = true
-            this.upcomingTouches = [ ..._event.touches ]
+            this.upcomingTouches = [ ..._event.targetTouches ]
 
             // Calculate average
             let x = 0
@@ -112,11 +112,18 @@ export class Pointer
         {
             _event.preventDefault()
 
-            this.upcomingTouches = [ ..._event.touches ]
+            this.upcomingTouches = [ ..._event.targetTouches ]
 
             if(this.upcomingTouches.length === 0 || this.upcomingTouches.length === 1)
                 this.upcomingDown = false
         })
+
+        // Ignore touches on UI controls; only cancelled canvas touches end steering.
+        this.element.addEventListener('touchcancel', (_event) =>
+        {
+            this.upcomingTouches = [ ..._event.targetTouches ]
+            this.upcomingDown = false
+        }, { passive: true })
 
         this.element.addEventListener('contextmenu', (_event) =>
         {

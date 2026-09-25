@@ -34,10 +34,10 @@ const digest = geometry =>
     return hash.digest('hex')
 }
 let builds=0
-const styles = new VehicleBodyStyles(chassis,painted,()=>
+const styles = new VehicleBodyStyles(chassis,painted,(style)=>
 {
     builds++
-    return { paint:new THREE.MeshBasicMaterial({color:'#c9b58d'}), details:new THREE.MeshBasicMaterial({vertexColors:true}) }
+    return { paint:new THREE.MeshBasicMaterial({color:style.color}), details:new THREE.MeshBasicMaterial({vertexColors:true}) }
 })
 const hidden=new Set(styles.h9.map(item=>item.object))
 const protectedObjects=[]
@@ -49,18 +49,18 @@ chassis.traverse(object=>
 })
 const baselineBox=new THREE.Box3().setFromObject(chassis)
 assert.equal(styles.changeTo('unknown'),false)
-assert.equal(styles.shas,null)
+assert.equal(styles.bodies.size,0)
 assert.equal(readVehicleBodyStyle(),'h9')
 const saved=new Map()
 globalThis.localStorage={getItem:key=>saved.get(key)??null,setItem:(key,value)=>saved.set(key,value)}
-for(let i=0;i<80;i++)
+for(let i=0;i<120;i++)
 {
-    const id=i%2===0?'shas':'h9'
+    const id=['shas','datsun','h9'][i%3]
     assert(styles.changeTo(id))
     assert.equal(styles.current,id)
     assert.equal(readVehicleBodyStyle(),id)
     for(const {object,visible} of styles.h9) assert.equal(object.visible,id==='h9'&&visible)
-    assert.equal(styles.shas.visible,id==='shas')
+    for(const [bodyId,body] of styles.bodies)assert.equal(body.visible,id===bodyId)
     for(const entry of protectedObjects)
     {
         const o=entry.object
@@ -71,9 +71,12 @@ for(let i=0;i<80;i++)
         if(o.isMesh)assert.equal(digest(o.geometry),entry.digest,o.name)
     }
 }
-assert.equal(builds,1,'reuse one body and two materials across repeated selections')
+assert.equal(builds,2,'build each body once; reuse geometry/materials across repeated selections')
+const reports=[]
+for(const [id,body] of styles.bodies)
+{
 let triangles=0
-styles.shas.traverse(child=>
+body.traverse(child=>
 {
     if(!child.isMesh)return
     const p=child.geometry.attributes.position,n=child.geometry.attributes.normal
@@ -83,14 +86,14 @@ styles.shas.traverse(child=>
     assert.equal(child.geometry.groups.length,0)
 })
 assert(triangles<5000,`lightweight body: ${triangles}`)
-assert.equal(styles.shas.children.length,2)
+assert.equal(body.children.length,2)
 chassis.updateMatrixWorld(true)
-const bodyBox=new THREE.Box3().setFromObject(styles.shas)
+const bodyBox=new THREE.Box3().setFromObject(body)
 assert(baselineBox.containsBox(bodyBox),'new body stays within existing vehicle bounds')
 
 // Rays from the emitting surfaces must reach outside without the new body
 // covering any of the unchanged lamps (including the roof brake light).
-styles.changeTo('shas')
+styles.changeTo(id)
 let lampRays=0
 const raycaster=new THREE.Raycaster()
 for(const {object} of protectedObjects)
@@ -106,18 +109,21 @@ for(const {object} of protectedObjects)
         const normal=b.clone().sub(a).cross(c.clone().sub(a)).normalize()
         const center=a.clone().add(b).add(c).multiplyScalar(1/3).addScaledVector(normal,.0001)
         raycaster.set(center,normal)
-        const hits=raycaster.intersectObject(styles.shas,true)
+        const hits=raycaster.intersectObject(body,true)
         assert.equal(hits.length,0,`${object.name} triangle ${i/3} covered by ${hits[0]?.object.name}`)
         lampRays++
     }
 }
+reports.push({id,bodyTriangles:triangles,bodyDraws:2,unobstructedLampTriangles:lampRays})
+}
 // Storage failure cannot break body selection or driving startup.
 globalThis.localStorage={getItem(){throw Error('blocked')},setItem(){throw Error('blocked')}}
 assert.equal(readVehicleBodyStyle(),'h9');assert(styles.changeTo('shas'))
-const geometries=styles.shas.children.map(m=>m.geometry),materials=styles.shas.children.map(m=>m.material)
+const meshes=[...styles.bodies.values()].flatMap(body=>body.children)
+const geometries=meshes.map(m=>m.geometry),materials=meshes.map(m=>m.material)
 let disposed=0
 for(const resource of [...geometries,...materials])resource.addEventListener('dispose',()=>disposed++)
-styles.destroy();assert.equal(disposed,4);assert.equal(styles.shas,null)
+styles.destroy();assert.equal(disposed,8);assert.equal(styles.bodies.size,0)
 for(const {object,visible} of styles.h9)assert.equal(object.visible,visible)
-console.log(JSON.stringify({bodyTriangles:triangles,bodyDraws:2,protectedObjects:protectedObjects.length,
-    originalBoundsUnchanged:true,unobstructedLampTriangles:lampRays,repeatedSwitches:80,storageFailureHandled:true}))
+console.log(JSON.stringify({bodies:reports,protectedObjects:protectedObjects.length,
+    originalBoundsUnchanged:true,repeatedSwitches:120,storageFailureHandled:true}))
