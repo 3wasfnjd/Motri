@@ -1,74 +1,68 @@
-# AR-Aboden cards in the Motri experiments area
+# AR-Aboden cards in Motri
 
-The Lab boards now contain the nine public experiences listed by
-[AR-Aboden](https://github.com/3wasfnjd/AR-Aboden) at
-`1d1a9449cf64eb1211d6d3ecc0a8323a73101ed4` (25 September 2026).
-Each experience has its own original vector illustration, a large Arabic
-title, warm paper colors, and a restrained accent matching the game world.
+The nine Lab experiences now use the user's dark emerald photographic card
+style. Five posters were supplied by the user; four matching posters were
+created with the built-in image generator for basketball, Color War, photo
+placement and touch sand. These are promotional illustrations, not gameplay
+screenshots. The full prompts are preserved in
+`resources/lab-cards/neon/prompts.json`.
 
-![All nine cards](../resources/lab-cards/preview.webp)
+![Board cards](../resources/lab-cards/neon/boards-preview.webp)
 
-| Board title | Destination under `https://3wasfnjd.github.io/AR-Aboden/` |
-| --- | --- |
-| الحلبة والتفحيط | `arena.html` |
-| صيد المناطيد | `balloons.html` |
-| الرعب المتجول | `horror.html` |
-| رماية السلة | `basketball.html` |
-| عرض الليزر | `laser.html` |
-| عملية الإنقاذ | `operation-ink-ar.html` |
-| رماية عبودين | `gallery.html` |
-| تركيب صورة | `photo.html` |
-| الكتابة على الرمل | `sand.html` |
+The paintball experiment is now called **حرب الألوان**. Its URL remains
+`https://3wasfnjd.github.io/AR-Aboden/operation-ink-ar.html`; the AR-Aboden home
+card, browser title and intro heading were renamed in commit
+`384036e0f583489e01d589ecb797cf70c59f5ac1`.
 
-The photo card opens the existing chooser for normal and 3D modes. Developer
-utilities, the marker page and legacy demos are not catalog experiences.
-The current experience pages were also checked: the drift show has three
-cars, the horror character is a hazmat zombie, and the former ink experiment
-is now called عملية الإنقاذ. Sand is labeled as camera-free.
+## Runtime budget
 
-## Size and rendering
+| Asset | Dimensions | File size |
+| --- | --- | --- |
+| Main board card | 640 × 360 | 17.6–33.0 KB each |
+| Scroller miniature | 256 × 144 | 4.5–8.1 KB each |
+| All 18 game textures | RGB WebP | **293,422 bytes total** |
+| Full portrait posters | 800 × 1000 | 50.1–108.8 KB each |
 
-- Main cards: **768 × 432**, RGB WebP, **12.8–17.8 KB** each.
-- Scroller cards: **256 × 144**, separately composed without small descriptions,
-  **3.1–3.9 KB** each.
-- All 18 runtime images together: **161,024 bytes** (157.25 KiB).
-- The review sheet and SVG sources live under `resources/` and are not loaded
-  by the game. There are no new models, shaders, live canvases, font downloads
-  or per-frame card drawing operations.
-- Existing loading behavior is retained: load the current main card and its
-  next/previous neighbor; load thumbnails only when their panels are visible.
-- Existing sRGB, `flipY = false`, linear filtering and no mipmaps are retained.
-  Missing images fall back to the corresponding Arabic experience title.
-- Versioned filenames avoid reusing cached older covers. Older unrelated lab
-  assets remain in the repository but are not referenced by the new catalog.
+Portrait posters, generation prompts, review sheet and compression measurements
+are kept under `resources/lab-cards/neon/`. They are not fetched by the game.
+The full portrait set is 682,702 bytes; `compression.json` records the original
+and compressed file sizes. The supplied JPEGs were reduced by approximately
+82–85%, and the four generated PNGs by approximately 95–96%, including resizing.
 
-`sources/data/lab.js` remains the single catalog consumed by the board, title,
-URL interaction, scroller and the existing dynamic achievement target.
-Navigation, camera transitions, opening links and the area's physical models
-are unchanged.
+The board layout keeps the scene artwork on the left and puts a large joined
+Arabic title on a dark panel at the right. This preserves the 16:9 board ratio
+instead of stretching the portrait posters. Miniatures omit small descriptions.
+The sand card explicitly says **بدون كاميرا**.
 
-## Editing
+The existing Lab geometry, UV orientation (`flipY = false`), sRGB conversion,
+linear filters, no-mipmap configuration, navigation and click handling are
+unchanged. Existing behavior loads a main card plus its neighbor, and miniature
+images as their panels become visible. All filenames are versioned to avoid
+stale cached artwork. No new models, runtime libraries or drawing loops.
 
-`scripts/build-lab-cards.mjs` contains the common layout and each illustration.
-It writes editable SVG sources, both WebP sizes, a review sheet and `sizes.json`.
-After installing the project's dependencies, run:
+## Rebuild
+
+`sources/data/lab.js` is the catalog and link source. The photo entry opens the
+existing normal/3D chooser. All nine URLs still point to their existing pages.
 
 ```sh
 node scripts/build-lab-cards.mjs
 ```
 
-The build tool uses the existing `sharp` dependency and system DejaVu Sans for
-Arabic shaping. The deployed game uses the pre-rendered WebP files and does not
-need that font. The generator checks catalog/art binding and image byte budgets.
+The established command now delegates to `build-neon-lab-cards.mjs`, which uses
+the committed compressed posters and the project's existing `sharp` dependency.
+It requires system DejaVu Sans for Arabic shaping at export time. The game
+requires no font download for these images. The script verifies catalog/art
+binding and limits individual and combined output sizes. Prior vector sources
+remain in version history and on disk but are not used by the catalog.
 
-## Verification
+## Checks
 
-Reviewed all nine covers and a native-size miniature. All 18 WebPs passed
-complete RIFF-length checks, full RGB decoding, dimension checks and individual
-and total byte budgets. All nine links match actual pages in the source catalog.
-Syntax checks passed for the edited JavaScript. The actual Lab GLB was inspected:
-the main display uses a 16:9 plane; both display and mini UVs place `v = 0` at
-the upper edge, matching the existing texture orientation.
-
-The Pages build/deployment is the production check. No live GPU gameplay or
-physical-phone AR session is claimed by these asset checks.
+- Visually inspected the four generated posters, all nine board cards, a native
+  256 × 144 miniature, and the compressed sand poster.
+- All 18 runtime WebPs passed complete RIFF-size checks, full RGB decoding,
+  resolution checks and size budgets.
+- Confirmed nine unique destination URLs and the Color War title/link pairing.
+- The AR-Aboden rename changes only four visible title strings; experience code
+  and its URL are unchanged.
+- No live GPU gameplay or physical-device AR test is claimed by these checks.

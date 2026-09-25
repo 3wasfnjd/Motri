@@ -1,0 +1,65 @@
+[
+  {
+    "card": "drift",
+    "inputBytes": 377823,
+    "posterBytes": 63532,
+    "quality": 78,
+    "savedPercent": 83
+  },
+  {
+    "card": "balloons",
+    "inputBytes": 339443,
+    "posterBytes": 50696,
+    "quality": 78,
+    "savedPercent": 85
+  },
+  {
+    "card": "horror",
+    "inputBytes": 343067,
+    "posterBytes": 50110,
+    "quality": 78,
+    "savedPercent": 85
+  },
+  {
+    "card": "laser",
+    "inputBytes": 457989,
+    "posterBytes": 80254,
+    "quality": 78,
+    "savedPercent": 82
+  },
+  {
+    "card": "gallery",
+    "inputBytes": 389615,
+    "posterBytes": 63778,
+    "quality": 78,
+    "savedPercent": 84
+  },
+  {
+    "card": "basketball",
+    "inputBytes": 1809111,
+    "posterBytes": 76918,
+    "quality": 78,
+    "savedPercent": 96
+  },
+  {
+    "card": "color-war",
+    "inputBytes": 1911937,
+    "posterBytes": 99190,
+    "quality": 78,
+    "savedPercent": 95
+  },
+  {
+    "card": "photo",
+    "inputBytes": 2097490,
+    "posterBytes": 89416,
+    "quality": 78,
+    "savedPercent": 96
+  },
+  {
+    "card": "sand",
+    "inputBytes": 2311019,
+    "posterBytes": 108808,
+    "quality": 70,
+    "savedPercent": 95
+  }
+]
