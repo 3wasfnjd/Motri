@@ -35,6 +35,18 @@ export class CamelCamp {
         this.game.respawns.items.set('camelCamp', {
             name: 'camelCamp', position: new THREE.Vector3(...CAMEL_CAMP.respawn), rotation: Math.PI / 2
         })
+
+        // Local camel-camp ambience. This is a separate positional layer and never
+        // pauses, ducks or replaces the world's playlist/music.
+        this.ambientSound = this.game.audio.register({
+            group: 'camelCampAmbient',
+            path: 'sounds/camelCamp/camel-camp-ambient.mp3',
+            autoplay: true,
+            loop: true,
+            volume: .16,
+            positions: new THREE.Vector3(...CAMEL_CAMP.center),
+            distanceFade: 18
+        })
         this.time = 0; this.accumulator = 0
         this.game.ticker.events.on('tick', () => this.update(), 11)
     }
