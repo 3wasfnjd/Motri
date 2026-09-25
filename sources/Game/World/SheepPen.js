@@ -44,12 +44,12 @@ export class SheepPen {
         // Local sheep-pen ambience. Independent from the world playlist/music.
         this.ambientSound = this.game.audio.register({
             group: 'sheepPenAmbient',
-            path: 'sheep-pen/sheep-pen-ambient.mp3?v=2',
+            path: 'sheep-pen/sheep-pen-ambient.mp3?v=3',
             autoplay: true,
             loop: true,
-            volume: .28,
+            volume: .5,
             positions: new THREE.Vector3(...SHEEP_PEN.center),
-            distanceFade: 24
+            distanceFade: 26
         })
     }
 
