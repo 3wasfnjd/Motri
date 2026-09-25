@@ -1,4 +1,5 @@
 import { RestHouse } from './RestHouse.js'
+import { SheepPen } from './SheepPen.js'
 import { Dunes } from './Dunes.js'
 import * as THREE from 'three/webgpu'
 import { Game } from '../Game.js'
@@ -57,6 +58,7 @@ export class World
         {
             this.visualVehicle = new VisualVehicle(this.game.resources.vehicle.scene)
             this.restHouse = new RestHouse()
+            this.sheepPen = new SheepPen()
             this.dunes = new Dunes()
             this.floor = new Floor()
             this.waterSurface = new WaterSurface()

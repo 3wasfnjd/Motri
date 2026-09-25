@@ -108,6 +108,12 @@ export class Terrain
                 data.b.mulAssign(keep)
             }
             if(this.dunesMaskNode) data.g.mulAssign(this.dunesMaskNode(position).oneMinus())
+            if(this.sheepPenMaskNode)
+            {
+                const keep = this.sheepPenMaskNode(position).oneMinus()
+                data.g.mulAssign(keep)
+                data.b.mulAssign(keep)
+            }
 
             return data
         })
