@@ -14,7 +14,7 @@ export class Respawns
     setItems()
     {
         this.items = new Map()
-        const disabled = new Set([ 'behindTheScene', 'social', 'timeMachine' ])
+        const disabled = new Set([ 'social', 'timeMachine' ])
 
         for(const child of this.game.resources.respawnsReferencesModel.scene.children)
         {
