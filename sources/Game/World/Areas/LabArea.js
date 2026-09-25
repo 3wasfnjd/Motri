@@ -746,7 +746,7 @@ export class LabArea extends Area
         {
             if(this.navigation.current.url)
             {
-                window.open(this.navigation.current.url, '_blank')
+                window.open(this.navigation.current.url, '_blank', 'noopener,noreferrer')
             }
         }
     }
