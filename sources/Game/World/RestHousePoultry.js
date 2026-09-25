@@ -24,6 +24,8 @@ export class RestHousePoultry {
         const [x0, x1, z0, z1] = this.motion.bounds
         this.centre = new THREE.Vector3((x0 + x1) / 2, 0, (z0 + z1) / 2).applyMatrix4(this.root.matrixWorld)
         this.car = new THREE.Vector3()
+        this.carVelocity = new THREE.Vector3()
+        this.inverseRotation = this.root.quaternion.clone().invert()
         this.accumulator = 0
         this.game.ticker.events.on('tick', () => this.update(), 11)
     }
@@ -34,7 +36,14 @@ export class RestHousePoultry {
         const player = this.game.player.position
         if(Math.hypot(player.x - this.centre.x, player.z - this.centre.z) > 45) return
         this.car.copy(player).applyMatrix4(this.inverse)
-        const nearGround = this.car.y < 2.5 && this.car.y > -1
+        const vehicle = this.game.physicalVehicle
+        // PhysicsVehicle.velocity is displacement per frame, not metres/second.
+        this.carVelocity.copy(vehicle?.velocity || { x: 0, y: 0, z: 0 })
+            .multiplyScalar(1 / Math.max(this.game.ticker.delta, 1 / 240))
+            .applyQuaternion(this.inverseRotation)
+        this.car.vx = this.carVelocity.x
+        this.car.vz = this.carVelocity.z
+        const nearGround = this.car.y < 3.5 && this.car.y > -1
         this.accumulator += Math.min(Math.max(this.game.ticker.delta, 0), .1)
         let changed = false
         while(this.accumulator >= 1 / 30) {

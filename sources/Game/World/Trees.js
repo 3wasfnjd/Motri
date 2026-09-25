@@ -101,6 +101,7 @@ export class Trees
     {
         for(const treeReference of this.references)
         {
+            if(treeReference.userData.noCollision === true) continue
             const gardenScale = treeReference.userData.restHouseTreeScale
             const halfHeight = gardenScale ? 2.5 * gardenScale : 2.5
             const radius = gardenScale ? .15 * gardenScale : .15

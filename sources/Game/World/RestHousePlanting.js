@@ -17,6 +17,7 @@ export function plantRestHouseTrees(root, shapes, referenceScene) {
         ref.scale.setScalar(size)
         ref.rotation.y = i * 2.399963
         ref.userData.restHouseTreeScale = size
+        ref.userData.noCollision = true
         referenceScene.add(ref)
         ref.updateMatrixWorld(true)
     })

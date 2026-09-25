@@ -19,7 +19,7 @@ The obsolete baked garden foliage/trunk meshes are removed from the asset. Trees
 
 `RestHouse` runs before terrain physics and instanced scenery construction. It flattens terrain, clears overlapping vegetation/props and clips intersecting combined scenery inside the established site/apron. Surrounding pond depressions are dry. The existing circuit asphalt, jump ramp, functional area props and vehicle mechanics are preserved.
 
-The model metadata contains 33 static obstacle descriptions and 46 tree planting references. After planting, runtime physics uses the 33 obstacles, two existing ground slabs and the oak system's scaled trunk cylinders. The main gate opening is approximately 2.93 world units; the existing vehicle is approximately 2.04 units wide. The `restHouseVisit` achievement remains active. Respawn is `restHouse` on the entrance apron.
+The model metadata contains 33 static obstacle descriptions and 46 tree planting references. After planting, runtime physics uses the 33 obstacles and two existing ground slabs. The 46 garden oaks retain their visuals and shadows but have `noCollision` references, so `Trees.setPhysical()` creates no rigid bodies for them. Trees elsewhere in the world keep their collisions. The main gate opening is approximately 2.93 world units; the existing vehicle is approximately 2.04 units wide. The `restHouseVisit` achievement remains active. Respawn is `restHouse` on the entrance apron.
 
 ## Verification
 
@@ -38,6 +38,11 @@ Four hens and two roosters roam the large inner garden, inside the path loop.
 coordinates. It uses the current collision metadata, including oak trunk positions,
 for short clear routes, separation, independent walk/peck timing and avoidance of
 an approaching vehicle. Birds stay within the garden and do not block the driveway.
+An explicit flee state interrupts feeding within 4.3 world metres of the vehicle
+or its predicted path. Birds run at roughly 2.1–2.36 m/s, steer around nearby
+obstacles instead of waiting for a complete random route, and stay alert for
+2.4 seconds after the threat leaves. The vehicle's frame displacement is converted
+to metres per second and rotated into garden coordinates before prediction.
 
 The procedural models have articulated heads and alternating legs, with larger
 red combs and green tails on the roosters. Five instanced batches share one game
@@ -49,5 +54,11 @@ while placement follows the rest house's position, rotation and scale.
 A five-minute deterministic simulation verified all six birds moving independently,
 pecking, staying within bounds and avoiding static obstacles/one another. Vehicle
 avoidance, articulated transforms and the actual ticker/distance-culling integration
-were also checked. Appearance and driving have not been tested in a live browser.
+were also checked. The flee fix additionally passed 96 approach cases (all six
+birds, eight directions, two distances) and eight moving-car passes. These checks
+reproduced 52 low-motion cases in the old behaviour; every revised approach caused
+at least 1.36 m of movement in 2.5 seconds without feeding near the car. The actual
+tree-physics constructor produced zero garden colliders and retained outside-tree
+colliders. A live cloud-browser attempt could not initialize WebGPU or WebGL, so
+in-game driving and visual behaviour remain unverified there.
 

@@ -28,7 +28,8 @@ export class RestHousePoultryMotion {
             radius: (s.kind === 'hen' ? .47 : .57) * s.size,
             yaw: i * 2.399963, phase: random() * Math.PI * 2,
             time: random() * 9, pace: .25 + random() * .13,
-            speed: 0, state: 'walk', timer: 0, blocked: 0, alert: false
+            speed: 0, state: 'walk', timer: 0, blocked: 0, alert: false,
+            fear: 0, threatX: 0, threatZ: 0, escapeYaw: i * 2.399963
         }))
         for(const b of this.birds) this.chooseTarget(b)
     }
@@ -64,7 +65,7 @@ export class RestHousePoultryMotion {
         return true
     }
 
-    chooseTarget(bird, car = null) {
+    chooseTarget(bird) {
         const [x0, x1, z0, z1] = this.bounds, r = bird.radius + .05
         let target = null, best = -Infinity
         for(let i = 0; i < 32; i++) {
@@ -72,10 +73,10 @@ export class RestHousePoultryMotion {
             const z = z0 + r + this.random() * (z1 - z0 - r * 2)
             const length = distance(bird.x, bird.z, x, z)
             if(length < .6 || length > 3.0 || !this.segmentFree(bird, x, z)) continue
-            const score = car ? distance(x, z, car.x, car.z) - distance(bird.x, bird.z, car.x, car.z) : this.random()
+            const score = this.random()
             if(score > best) { best = score; target = { x, z } }
         }
-        if(target && (!car || best > .12)) {
+        if(target) {
             bird.target = target; bird.state = 'walk'
             bird.timer = distance(bird.x, bird.z, target.x, target.z) / bird.pace + 3
         } else {
@@ -84,38 +85,89 @@ export class RestHousePoultryMotion {
         bird.blocked = 0
     }
 
+    threatPoint(bird, car) {
+        // Include the next fraction of a second of travel, so the flock reacts
+        // before the bumper reaches it. Clamp prediction for teleports/boosting.
+        let dx = (car.vx || 0) * .35, dz = (car.vz || 0) * .35
+        const length = Math.hypot(dx, dz)
+        if(length > 3) { dx *= 3 / length; dz *= 3 / length }
+        const lengthSquared = dx * dx + dz * dz
+        const t = lengthSquared > .0001 ? clamp(((bird.x - car.x) * dx + (bird.z - car.z) * dz) / lengthSquared, 0, 1) : 0
+        return { x: car.x + dx * t, z: car.z + dz * t }
+    }
+
+    flee(bird, dt) {
+        const away = Math.atan2(bird.x - bird.threatX, bird.z - bird.threatZ)
+        const pace = 2.1 + (bird.pace - .25) * 2
+        const step = pace * dt, lookAhead = .48
+        const oldDistance = distance(bird.x, bird.z, bird.threatX, bird.threatZ)
+        let best = -Infinity, heading = bird.escapeYaw
+        // Local steering can go around a neighbour or along a garden edge. The
+        // former random, full-route search could fail and resume pecking at a car.
+        for(let i = 0; i < 24; i++) {
+            const angle = away + i * Math.PI / 12
+            const dx = Math.sin(angle), dz = Math.cos(angle)
+            if(!this.freeFor(bird, bird.x + dx * step, bird.z + dz * step)) continue
+            const clearAhead = this.freeFor(bird, bird.x + dx * lookAhead, bird.z + dz * lookAhead)
+            const reach = clearAhead ? lookAhead : step
+            const gain = distance(bird.x + dx * reach, bird.z + dz * reach, bird.threatX, bird.threatZ) - oldDistance
+            const score = gain * 3 + (clearAhead ? .65 : 0) + Math.cos(angle - away) * .2 + Math.cos(angle - bird.escapeYaw) * .15
+            if(score > best) { best = score; heading = angle }
+        }
+        bird.escapeYaw = heading
+        const angle = Math.atan2(Math.sin(heading - bird.yaw), Math.cos(heading - bird.yaw))
+        bird.yaw += clamp(angle, -10 * dt, 10 * dt)
+        const remaining = Math.atan2(Math.sin(heading - bird.yaw), Math.cos(heading - bird.yaw))
+        const speed = pace * Math.max(0, Math.cos(remaining))
+        const x = bird.x + Math.sin(bird.yaw) * speed * dt, z = bird.z + Math.cos(bird.yaw) * speed * dt
+        if(best > -Infinity && this.freeFor(bird, x, z)) {
+            const travelled = distance(bird.x, bird.z, x, z)
+            bird.x = x; bird.z = z; bird.speed = speed
+            bird.phase += travelled * Math.PI * 2 / .38
+        } else bird.speed = 0
+    }
+
     update(delta, car = null) {
         const dt = clamp(delta, 0, 1 / 30)
         for(const b of this.birds) {
             b.time += dt; b.timer -= dt
-            const alarm = car && distance(b.x, b.z, car.x, car.z) < 2.35
-            if(alarm && !b.alert) this.chooseTarget(b, car)
-            b.alert = !!alarm
+            const threat = car ? this.threatPoint(b, car) : null
+            const alarm = threat && distance(b.x, b.z, threat.x, threat.z) < 4.3
+            if(alarm) {
+                b.fear = 2.4
+                b.threatX = threat.x; b.threatZ = threat.z
+            } else b.fear = Math.max(0, b.fear - dt)
+            b.alert = b.fear > 0
+            if(b.alert) {
+                b.state = 'flee'
+                this.flee(b, dt)
+                continue
+            }
+            if(b.state === 'flee') this.chooseTarget(b)
             if(b.state === 'peck') {
                 b.speed = 0
-                if(b.timer <= 0) this.chooseTarget(b, alarm ? car : null)
+                if(b.timer <= 0) this.chooseTarget(b)
                 continue
             }
             const dx = b.target.x - b.x, dz = b.target.z - b.z
             if(Math.hypot(dx, dz) < .16 || b.timer <= 0) {
                 b.state = 'peck'; b.speed = 0
-                b.timer = alarm ? .25 : 1.0 + this.random() * 1.8
+                b.timer = 1.0 + this.random() * 1.8
                 continue
             }
             const wanted = Math.atan2(dx, dz)
             const angle = Math.atan2(Math.sin(wanted - b.yaw), Math.cos(wanted - b.yaw))
             b.yaw += clamp(angle, -2.8 * dt, 2.8 * dt)
-            const speed = (alarm ? .78 : b.pace) * Math.max(0, Math.cos(angle))
+            const speed = b.pace * Math.max(0, Math.cos(angle))
             const x = b.x + Math.sin(b.yaw) * speed * dt, z = b.z + Math.cos(b.yaw) * speed * dt
-            const away = !alarm || distance(x, z, car.x, car.z) >= distance(b.x, b.z, car.x, car.z) - .001
-            if(this.freeFor(b, x, z) && away) {
+            if(this.freeFor(b, x, z)) {
                 const travelled = distance(b.x, b.z, x, z)
                 b.x = x; b.z = z; b.speed = speed
                 b.phase += travelled * Math.PI * 2 / .27
                 b.blocked = 0
             } else {
                 b.speed = 0; b.blocked += dt
-                if(b.blocked > .25) this.chooseTarget(b, alarm ? car : null)
+                if(b.blocked > .25) this.chooseTarget(b)
             }
         }
     }
