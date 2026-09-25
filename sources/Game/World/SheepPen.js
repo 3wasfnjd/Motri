@@ -40,6 +40,17 @@ export class SheepPen {
         this.game.respawns.items.set('sheepPen', {
             name: 'sheepPen', position: new THREE.Vector3(-45.2, 3, -13.7), rotation: Math.PI
         })
+
+        // Local sheep-pen ambience. Independent from the world playlist/music.
+        this.ambientSound = this.game.audio.register({
+            group: 'sheepPenAmbient',
+            path: 'sounds/sheepPen/sheep-pen-ambient.mp3',
+            autoplay: true,
+            loop: true,
+            volume: .14,
+            positions: new THREE.Vector3(...SHEEP_PEN.center),
+            distanceFade: 17
+        })
     }
 
     update() {
