@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu'
 import { Game } from '../Game.js'
 import { Events } from '../Events.js'
 import { lerp, remap, remapClamp, smallestAngle } from '../utilities/maths.js'
+import { VehicleRest } from './VehicleRest.js'
 
 export class PhysicsVehicle
 {
@@ -68,6 +69,7 @@ export class PhysicsVehicle
         this.setChassis()
         this.controller = this.game.physics.world.createVehicleController(this.chassis.physical.body)
         this.setWheels()
+        this.rest = new VehicleRest(this)
         this.setStop()
         this.setUpsideDown()
         this.setStuck()
@@ -97,7 +99,8 @@ export class PhysicsVehicle
                 { shape: 'cuboid', mass: 0, parameters: [ 0.5, 0.15, 0.65 ], position: { x: 0, y: 0.4, z: 0 } }, // Top
                 { shape: 'cuboid', mass: 0, parameters: [ 1.5, 0.5, 0.9 ], position: { x: 0.1, y: -0.2, z: 0 }, category: 'bumper' }, // Bumper
             ],
-            canSleep: false,
+            // VehicleRest permits sleep only after all four wheels have settled.
+            canSleep: true,
             waterGravityMultiplier: 0,
             onCollision: (force, position) =>
             {
@@ -403,6 +406,7 @@ export class PhysicsVehicle
 
         this.flip.jump = () =>
         {
+            this.rest.wake()
             accumulatedXAngle = 0
             accumulatedZAngle = 0
 
@@ -445,6 +449,7 @@ export class PhysicsVehicle
 
     moveTo(position, rotation = 0)
     {
+        this.rest.wake()
         const quaternion = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotation)
         this.chassis.physical.body.setTranslation(position)
         this.chassis.physical.body.setRotation(quaternion)
@@ -456,6 +461,9 @@ export class PhysicsVehicle
 
     updatePrePhysics()
     {
+        if(this.rest.beforePhysics())
+            return
+
         // Engine force
         const topSpeed = lerp(this.topSpeed, this.topSpeedBoost, this.game.player.boosting)
         const overflowSpeed = Math.max(0, this.speed - topSpeed)
@@ -570,6 +578,7 @@ export class PhysicsVehicle
         this.wheels.inContactCount = inContactCount
         this.wheels.justTouchedCount = justTouchedCount
 
+        this.rest.afterPhysics()
         this.stop.test()
         this.upsideDown.test()
         this.stuck.test()
@@ -579,6 +588,7 @@ export class PhysicsVehicle
 
     activate()
     {
+        this.rest.wake()
         this.chassis.physical.body.setLinvel({ x: 0, y: 0, z: 0 })
         this.chassis.physical.body.setAngvel({ x: 0, y: 0, z: 0 })
         this.chassis.physical.body.setEnabled(true)
