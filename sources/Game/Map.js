@@ -53,6 +53,7 @@ export class Map
             { name: 'Projects', respawnName: 'projects', offset: { x: 0, y: -0.02 } },
             { name: 'الاستراحة', respawnName: 'restHouse', offset: { x: 0, y: 0 } },
             { name: 'حظيرة الأغنام', respawnName: 'sheepPen', offset: { x: -.02, y: -.01 } },
+            { name: 'مراح الإبل', respawnName: 'camelCamp', offset: { x: .02, y: -.035 } },
             { name: 'النفود', respawnName: 'dunes', offset: { x: .005, y: 0 } },
         ]
 
@@ -119,6 +120,7 @@ export class Map
                 this.game.world.dunes?.drawMap(this.element, url.includes('night'))
                 this.game.world.restHouse?.drawMap(this.element, url.includes('night'))
                 this.game.world.sheepPen?.drawMap(this.element, url.includes('night'))
+                this.game.world.camelCamp?.drawMap(this.element, url.includes('night'))
             }
         }
     }

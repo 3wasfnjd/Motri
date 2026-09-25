@@ -114,6 +114,12 @@ export class Terrain
                 data.g.mulAssign(keep)
                 data.b.mulAssign(keep)
             }
+            if(this.camelCampMaskNode)
+            {
+                const keep = this.camelCampMaskNode(position).oneMinus()
+                data.g.mulAssign(keep)
+                data.b.mulAssign(keep)
+            }
 
             return data
         })
