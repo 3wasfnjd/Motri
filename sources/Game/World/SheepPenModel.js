@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { SHEEP_PEN } from './SheepPenSite.js'
+import { SHEEP_PEN, FEED_PICKUP } from './SheepPenSite.js'
+import { buildSheepFeedPickup } from './SheepFeedPickup.js'
 
 const palette = {
     soil: '#d9b475', timber: '#9d683d', endGrain: '#bf8c56', rails: '#bb8954',
@@ -62,6 +63,9 @@ export function buildSheepPenModel(material) {
     // A flush pad over the flattened terrain, plus an approach stopping before asphalt.
     addBox([0, -.045, 0], [15.8, .11, 11.4], palette.soil)
     addBox([9.925, -.045, 0], [4.05, .11, 5.2], palette.soil)
+    const [x0, x1, z0, z1] = FEED_PICKUP.parking
+    addBox([(x0 + x1) / 2 - SHEEP_PEN.center[0], -.045, (z0 + z1) / 2 - SHEEP_PEN.center[2]],
+        [x1 - x0, .11, z1 - z0], palette.soil)
 
     const post = (x, z) => {
         addBox([x, .72, z], [.19, 1.44, .19], palette.timber)
@@ -112,6 +116,9 @@ export function buildSheepPenModel(material) {
     const staticMesh = new THREE.Mesh(staticBatch.finish(), material)
     staticMesh.name = 'SheepPen_Fence_Shade_Feeders'
     root.add(staticMesh)
+    const pickup = buildSheepFeedPickup(material)
+    pickup.mesh.position.fromArray(FEED_PICKUP.center).sub(root.position)
+    root.add(pickup.mesh); colliders.push(...pickup.colliders)
 
     const body = new Batch(), head = new Batch(), limb = new Batch()
     body.add(round, [0, .79, 0], [.43, .44, .66], palette.wool)

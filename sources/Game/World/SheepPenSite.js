@@ -7,9 +7,16 @@ export const SHEEP_PEN = Object.freeze({
     feather: 1.3
 })
 
+// A separate feed-delivery bay south of the open gate, clear of both road bends.
+export const FEED_PICKUP = Object.freeze({
+    center: [-46.2, 0, -7.5], yaw: 0,
+    parking: [-47.6, -44.6, -11.1, -4.5]
+})
+
 export const sheepPenRects = [
     [-63.65, -47.45, -19.65, -7.75],
-    SHEEP_PEN.entrance
+    SHEEP_PEN.entrance,
+    FEED_PICKUP.parking
 ]
 
 export function sheepPenContains(x, z, padding = 0) {

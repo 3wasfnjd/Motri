@@ -3,7 +3,7 @@ import { attribute, Fn, max, smoothstep } from 'three/tsl'
 import { Game } from '../Game.js'
 import { MeshDefaultMaterial } from '../Materials/MeshDefaultMaterial.js'
 import { clearGeometry } from './RestHouseClearing.js'
-import { SHEEP_PEN, sheepPenRects, sheepPenContains, sheepPenFlattenWeight } from './SheepPenSite.js'
+import { SHEEP_PEN, FEED_PICKUP, sheepPenRects, sheepPenContains, sheepPenFlattenWeight } from './SheepPenSite.js'
 import { buildSheepPenModel } from './SheepPenModel.js'
 import { SheepPenMotion } from './SheepPenMotion.js'
 
@@ -128,6 +128,13 @@ export class SheepPen {
         ctx.fillStyle = night ? '#77613e' : '#d9b475'
         for(const [x0, x1, z0, z1] of sheepPenRects) ctx.fillRect(x0, z0, x1 - x0, z1 - z0)
         ctx.translate(SHEEP_PEN.center[0], SHEEP_PEN.center[2])
+        const truckX = FEED_PICKUP.center[0] - SHEEP_PEN.center[0], truckZ = FEED_PICKUP.center[2] - SHEEP_PEN.center[2]
+        ctx.fillStyle = '#eeeadd'; ctx.fillRect(truckX - .90, truckZ - 2.30, 1.80, 4.60)
+        ctx.fillStyle = '#3c5960'; ctx.fillRect(truckX - .70, truckZ + .25, 1.40, .35)
+        for(let row = 0; row < 3; row++) for(let side = 0; side < 2; side++) {
+            ctx.fillStyle = (row + side) % 3 === 0 ? '#d3b465' : '#84934f'
+            ctx.fillRect(truckX - .71 + side * .72, truckZ - 2.24 + row * .60, .69, .56)
+        }
         ctx.strokeStyle = night ? '#b4996f' : '#91613b'; ctx.lineWidth = .25
         ctx.beginPath(); ctx.moveTo(7.5, -2.4); ctx.lineTo(7.5, -5.3); ctx.lineTo(-7.5, -5.3)
         ctx.lineTo(-7.5, 5.3); ctx.lineTo(7.5, 5.3); ctx.lineTo(7.5, 2.4); ctx.stroke()

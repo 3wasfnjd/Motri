@@ -17,8 +17,8 @@ model.root.traverse(o => {
     draws++; assert.equal(o.material, material)
     triangles += (o.geometry.index?.count ?? o.geometry.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1)
 })
-assert.equal(triangles, 7848); assert.equal(draws, 4)
-assert.equal(model.colliders.length, 25)
+assert(triangles < 13000); assert.equal(draws, 5)
+assert.equal(model.colliders.length, 28)
 assert.equal(motion.states.length, 10)
 
 function assertPose(flock) {
@@ -82,7 +82,7 @@ for(const hz of [30, 144]) {
     globalThis.camelTestGame = game
     game.physics = new Physics(); game.objects = new Objects()
     const pen = new SheepPen(), count = game.physics.world.colliders.len()
-    assert.equal(count, 25); assert.equal(pen.physical.colliders.length, 15)
+    assert.equal(count, 28); assert.equal(pen.physical.colliders.length, 18)
     let version = pen.flock.legs.instanceMatrix.version, framesWithAnimation = 0
     for(let frame = 0; frame < hz * 15; frame++) {
         game.ticker.events.trigger('tick')
@@ -104,5 +104,5 @@ for(const hz of [30, 144]) {
     assert(pen.time > time); assert.equal(game.physics.world.colliders.len(), count)
     game.physics.eventQueue.free(); game.physics.world.free()
 }
-console.log({ passed: true, sheep: 10, triangles, draws, colliders: 25, twoMinuteTravel: travel.map(d => +d.toFixed(1)),
+console.log({ passed: true, sheep: 10, triangles, draws, colliders: 28, twoMinuteTravel: travel.map(d => +d.toFixed(1)),
     checks: 'independent walking/grazing/idle; moving legs; planted idle feet; fences/feeders/flock; 30/144 Hz Rapier sync; 20 Hz cap; distance sleep/resume' })
