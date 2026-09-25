@@ -64,5 +64,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Shared sinkhole jumps: authenticated visitors may only add one.
+    match /worldCounters/sinkhole {
+      allow read: if request.auth != null;
+      function validJump() {
+        return request.auth != null
+          && request.resource.data.keys().hasOnly(['count', 'lastUserId', 'updatedAt'])
+          && request.resource.data.count is int
+          && request.resource.data.count > 0
+          && request.resource.data.count <= 9007199254740991
+          && request.resource.data.lastUserId == request.auth.uid
+          && request.resource.data.updatedAt == request.time;
+      }
+      allow create: if validJump() && request.resource.data.count == 1;
+      allow update: if validJump() && request.resource.data.count == resource.data.count + 1;
+      allow delete: if false;
+    }
+
   }
 }

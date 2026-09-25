@@ -4,6 +4,8 @@ import { attribute, clamp, color, float, Fn, instancedArray, instanceIndex, lumi
 import gsap from 'gsap'
 import { alea } from 'seedrandom'
 import { Area } from './Area.js'
+import { Player } from '../../Player.js'
+import { subscribeToSinkholeCount, recordSinkholeJump } from '../../../FirebaseWhispers.js'
 
 export class AltarArea extends Area
 {
@@ -19,7 +21,7 @@ export class AltarArea extends Area
             })
         }
 
-        this.value = 0
+        this.value = null
         this.position = this.references.items.get('altar')[0].position.clone()
 
         this.color = uniform(color('#ff544d'))
@@ -35,14 +37,7 @@ export class AltarArea extends Area
         this.setData()
         this.setAchievement()
 
-        // Offline counter
-        if(!this.game.server.connected)
-            this.updateText('...')
-            
-        this.game.server.events.on('disconnected', () =>
-        {
-            this.updateText('...')
-        })
+        this.updateText('...')
 
         // Debug
         if(this.game.debug.active)
@@ -125,23 +120,21 @@ export class AltarArea extends Area
         // Bottom
         const bottomGeometry = new THREE.PlaneGeometry(radius * 2, radius * 2, 1, 1)
 
-        const satanStarTexture = this.game.resources.satanStarTexture
-        satanStarTexture.minFilter = THREE.NearestFilter
-        satanStarTexture.magFilter = THREE.NearestFilter
-        satanStarTexture.generateMipmaps = false
-        
         const bottomMaterial = new THREE.MeshBasicNodeMaterial({ transparent: true })
         bottomMaterial.outputNode = Fn(() =>
         {
-            const newUv = uv().sub(0.5).mul(1.7).add(0.5)
-            newUv.y.assign(newUv.y.oneMinus())
-            const satanStar = texture(satanStarTexture, newUv).r
+            // Three concentric neon rings, generated without a texture.
+            const radius = uv().sub(0.5).length()
+            const inner = radius.sub(0.18).abs().smoothstep(0.006, 0.014).oneMinus()
+            const middle = radius.sub(0.31).abs().smoothstep(0.006, 0.014).oneMinus()
+            const outer = radius.sub(0.44).abs().smoothstep(0.006, 0.014).oneMinus()
+            const rings = max(inner, middle, outer)
 
             const gooColor = this.game.fog.strength.mix(vec3(0), this.game.fog.color) // Fog
 
             const emissiveColor = this.color.mul(this.emissive)
             
-            const finalColor = mix(gooColor, emissiveColor, satanStar)
+            const finalColor = mix(gooColor, emissiveColor, rings)
 
             return vec4(finalColor, 1)
         })()
@@ -399,10 +392,11 @@ export class AltarArea extends Area
             'enter',
             () =>
             {
+                // Count one completed entry, not repeat triggers during respawn.
+                if(this.game.player.state !== Player.STATE_DEFAULT) return
                 this.animateBeam()
                 this.animateBeamParticles()
                 this.data.insert()
-                this.updateText(this.value + 1)
                 this.game.player.die()
                 this.sounds.deathBell2.play()
                 gsap.delayedCall(2.2, () =>
@@ -416,10 +410,24 @@ export class AltarArea extends Area
 
     setData()
     {
-        this.data = {}
+        this.data = { unsubscribe: null }
+        subscribeToSinkholeCount(
+            count => this.updateText(count),
+            error => {
+                console.warn('Sinkhole counter unavailable', error.code)
+                this.updateText('...')
+            }
+        ).then(unsubscribe => { this.data.unsubscribe = unsubscribe }).catch(error => {
+            console.warn('Sinkhole counter connection failed', error.code)
+            this.updateText('...')
+        })
         
         this.data.insert = () =>
         {
+            recordSinkholeJump().catch(error => {
+                console.warn('Sinkhole jump was not saved', error.code)
+                this.game.notifications.show('<div class="top"><div class="title">لم تُسجّل القفزة</div></div><div class="bottom"><div class="description">تعذّر الاتصال بالعدّاد العام. حاول بعد عودة الاتصال.</div></div>', 'server-disconnected', 4)
+            })
             this.game.server.send({
                 type: 'cataclysmInsert'
             })
@@ -431,7 +439,6 @@ export class AltarArea extends Area
             // Init and insert
             if(data.type === 'init' || data.type === 'cataclysmUpdate')
             {
-                this.updateText(data.cataclysmCount)
                 this.progressUniform.value = data.cataclysmProgress
             }
         })
@@ -439,7 +446,6 @@ export class AltarArea extends Area
         // Init message already received
         if(this.game.server.initData)
         {
-            this.updateText(this.game.server.initData.cataclysmCount)
             this.progressUniform.value = this.game.server.initData.cataclysmProgress
         }
     }

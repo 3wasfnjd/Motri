@@ -9,6 +9,7 @@ import {
     onSnapshot,
     orderBy,
     query,
+    runTransaction,
     serverTimestamp,
     setDoc
 } from 'firebase/firestore'
@@ -162,5 +163,37 @@ export async function publishWhisper({ message, countryCode, x, y, z })
         y,
         z,
         createdAt: serverTimestamp()
+    })
+}
+
+// Shared, persistent total. Transactions avoid lost increments between devices.
+export async function subscribeToSinkholeCount(onCount, onError)
+{
+    const { db } = await getClient()
+    return onSnapshot(doc(db, 'worldCounters', 'sinkhole'), { includeMetadataChanges: true }, snapshot =>
+    {
+        // Do not present an empty offline cache as an authoritative zero.
+        if(snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return
+        const count = snapshot.exists() ? snapshot.data().count : 0
+        if(Number.isSafeInteger(count) && count >= 0) onCount(count)
+    }, onError)
+}
+
+export async function recordSinkholeJump()
+{
+    const { auth, db } = await getClient()
+    const reference = doc(db, 'worldCounters', 'sinkhole')
+    return runTransaction(db, async transaction =>
+    {
+        const snapshot = await transaction.get(reference)
+        const current = snapshot.exists() ? snapshot.data().count : 0
+        if(!Number.isSafeInteger(current) || current < 0 || current >= Number.MAX_SAFE_INTEGER)
+            throw new Error('Invalid shared sinkhole count')
+        transaction.set(reference, {
+            count: current + 1,
+            lastUserId: auth.currentUser.uid,
+            updatedAt: serverTimestamp()
+        })
+        return current + 1
     })
 }
