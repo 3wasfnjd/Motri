@@ -39,7 +39,7 @@ jobs:
       - name: Install locked application dependencies
         run: npm ci --force --ignore-scripts --no-audit --no-fund
       - name: Install Firebase SDK for web build
-        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund firebase@12.19.0
+        run: npm install --force --no-save --package-lock=false --ignore-scripts --no-audit --no-fund firebase@12.19.0
       - name: Build Arabic game with approved identity removal
         run: |
           npm run build
