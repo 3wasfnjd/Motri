@@ -1,6 +1,7 @@
 import { RestHouse } from './RestHouse.js'
 import { SheepPen } from './SheepPen.js'
 import { CamelCamp } from './CamelCamp.js'
+import { SiteLighting } from './SiteLighting.js'
 import { Dunes } from './Dunes.js'
 import * as THREE from 'three/webgpu'
 import { Game } from '../Game.js'
@@ -62,6 +63,7 @@ export class World
             this.sheepPen = new SheepPen()
             this.camelCamp = new CamelCamp()
             this.dunes = new Dunes()
+            this.siteLighting = new SiteLighting(this.restHouse.root)
             this.floor = new Floor()
             this.waterSurface = new WaterSurface()
             this.grass = new Grass()
