@@ -37,7 +37,7 @@ export function identityResourceTexture(path) {
   if(/^career\/career[^/]+\.(?:ktx|png)$/.test(clean))
     return presentationTexture('ABODEN GAMES',{width:512,height:64,mask:true});
   if(/^timeMachine\/timeMachineScreen(?:Folio|MGS)\.(?:ktx|png)$/.test(clean))
-    return presentationTexture(clean.includes('MGS')?'—':'MOTRI 2',{width:256,height:144});
+    return presentationTexture(clean.includes('MGS')?'—':'MOTRI',{width:256,height:144});
   return null;
 }
 
