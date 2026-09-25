@@ -4,6 +4,7 @@ import { Game } from '../Game.js'
 import { MeshDefaultMaterial } from '../Materials/MeshDefaultMaterial.js'
 import { CAMEL_CAMP, camelPlacements, camelCampContains, camelCampFlattenWeight } from './CamelCampSite.js'
 import { CamelCampModel } from './CamelCampModel.js'
+import { CamelCampMotion } from './CamelCampMotion.js'
 
 export class CamelCamp {
     constructor() {
@@ -19,8 +20,10 @@ export class CamelCamp {
         this.root = this.model.root
         this.game.objects.add({ model: this.root, updateMaterials: false })
         this.physical = this.game.objects.add(null, {
-            type: 'fixed', friction: .65, restitution: 0, colliders: this.model.colliders
+            type: 'fixed', friction: .65, restitution: 0,
+            colliders: this.model.colliders.filter(c => c.camelIndex === undefined)
         }).physical
+        this.motion = new CamelCampMotion(this.game, this.model)
         this.game.respawns.items.set('camelCamp', {
             name: 'camelCamp', position: new THREE.Vector3(...CAMEL_CAMP.respawn), rotation: Math.PI / 2
         })
@@ -56,11 +59,13 @@ export class CamelCamp {
 
     update() {
         const p = this.game.player.position
-        if(Math.hypot(p.x - CAMEL_CAMP.center[0], p.z - CAMEL_CAMP.center[2]) > 50) return
+        const nearby = Math.hypot(p.x - CAMEL_CAMP.center[0], p.z - CAMEL_CAMP.center[2]) <= 50
+        if(!nearby && !this.motion.activeCount) return
         const dt = Math.max(0, Math.min(this.game.ticker.delta, .1))
         this.time += dt; this.accumulator += dt
         if(this.accumulator < 1 / 30) return
-        this.accumulator %= 1 / 30
+        this.motion.update(this.accumulator)
+        this.accumulator = 0
         this.model.pose(this.time)
     }
 

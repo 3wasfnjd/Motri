@@ -84,7 +84,7 @@ export class CamelCampModel {
     constructor(material) {
         this.root = new THREE.Group(); this.root.name = 'Motri_CamelCamp'
         this.root.position.fromArray(CAMEL_CAMP.center)
-        this.colliders = []; this.headBases = []; this.time = 0
+        this.colliders = []; this.headBases = []; this.headOffsets = []; this.camels = []; this.bodyBatches = []
         const cube = new THREE.BoxGeometry(1, 1, 1), round = new THREE.IcosahedronGeometry(1, 1)
         const small = new THREE.IcosahedronGeometry(1, 0), stem = new THREE.CylinderGeometry(1, 1, 1, 6)
         const rounded = new RoundedBoxGeometry(1, 1, 1, 1, .06)
@@ -95,11 +95,15 @@ export class CamelCampModel {
             const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize())
             batch.add(stem, start.add(end).multiplyScalar(.5).toArray(), [radius, direction.length(), radius], color, q)
         }
-        const collider = (p, size, yaw = 0) => this.colliders.push({
-            shape: 'cuboid', category: 'object', parameters: size.map(n => n / 2),
-            position: new THREE.Vector3(...p).add(this.root.position),
-            quaternion: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw)
-        })
+        const collider = (p, size, yaw = 0) => {
+            const description = {
+                shape: 'cuboid', category: 'object', parameters: size.map(n => n / 2),
+                position: new THREE.Vector3(...p).add(this.root.position),
+                quaternion: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw)
+            }
+            this.colliders.push(description)
+            return description
+        }
 
         // Open-front goat-hair tent: dark woven cloth, broad cream stripes,
         // softly sagging roof, restrained rugs and low cushions.
@@ -217,11 +221,18 @@ export class CamelCampModel {
             const placements = camelPlacements.filter(c => c.seated === seated)
             const batch = new THREE.InstancedMesh(bodyGeometry(seated), material, placements.length)
             batch.name = seated ? 'CamelCamp_KneelingBodies' : 'CamelCamp_StandingBodies'
+            batch.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+            this.bodyBatches.push(batch)
             placements.forEach((c, i) => {
                 q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), c.yaw); size.setScalar(c.size)
                 batch.setMatrixAt(i, m.compose(new THREE.Vector3(c.x, .018, c.z), q, size))
-                collider([c.x, c.seated ? .58 * c.size : 1.08 * c.size, c.z],
+                const shape = collider([c.x, c.seated ? .58 * c.size : 1.08 * c.size, c.z],
                     [.91 * c.size, (c.seated ? 1.1 : 2.12) * c.size, 1.85 * c.size], c.yaw)
+                shape.camelIndex = camelPlacements.indexOf(c)
+                this.camels[shape.camelIndex] = {
+                    batch, instance: i, matrix: m.clone(), collider: shape,
+                    centerHeight: shape.position.y - this.root.position.y, size: size.clone()
+                }
             })
             batch.instanceMatrix.needsUpdate = true; batch.computeBoundingBox(); batch.computeBoundingSphere()
             batch.castShadow = batch.receiveShadow = true; this.root.add(batch)
@@ -244,18 +255,35 @@ export class CamelCampModel {
         this.root.add(this.heads)
         for(const c of camelPlacements) {
             q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), c.yaw); size.setScalar(c.size)
+            const offset = new THREE.Matrix4().makeTranslation(0, c.seated ? .63 : 1.62, .72)
+            this.headOffsets.push(offset)
             this.headBases.push(new THREE.Matrix4().compose(new THREE.Vector3(c.x, .018, c.z), q, size)
-                .multiply(new THREE.Matrix4().makeTranslation(0, c.seated ? .63 : 1.62, .72)))
+                .multiply(offset))
         }
         this.matrix = new THREE.Matrix4(); this.rotation = new THREE.Matrix4(); this.euler = new THREE.Euler()
+        this.position = new THREE.Vector3(); this.offset = new THREE.Vector3()
+        this.quaternion = new THREE.Quaternion()
+        this.bodyBoundsDirty = false
         this.pose(0)
         for(const g of [cube, round, small, stem, rounded]) g.dispose()
         this.root.updateMatrixWorld(true)
     }
 
+    setCamelTransform(index, worldCenter, quaternion) {
+        const camel = this.camels[index]
+        // The collider is centred on the body; the authored mesh starts at the feet.
+        this.quaternion.copy(quaternion)
+        this.offset.set(0, .018 - camel.centerHeight, 0).applyQuaternion(this.quaternion)
+        this.position.copy(worldCenter).sub(this.root.position).add(this.offset)
+        camel.matrix.compose(this.position, this.quaternion, camel.size)
+        camel.batch.setMatrixAt(camel.instance, camel.matrix)
+        camel.batch.instanceMatrix.needsUpdate = true
+        this.headBases[index].copy(camel.matrix).multiply(this.headOffsets[index])
+        this.bodyBoundsDirty = true
+    }
+
     pose(time) {
-        // Gentle, independent looking/nodding; legs stay planted. No animal AI,
-        // skeletal rigs, textures or moving physics bodies are required.
+        // Head motion stays relative to its own body, including while airborne.
         for(let i = 0; i < this.headBases.length; i++) {
             const phase = i * 2.399963
             this.euler.set(Math.sin(time * .51 + phase) * .035, Math.sin(time * .34 + phase) * .07, 0)
@@ -263,5 +291,10 @@ export class CamelCampModel {
             this.heads.setMatrixAt(i, this.matrix.copy(this.headBases[i]).multiply(this.rotation))
         }
         this.heads.instanceMatrix.needsUpdate = true
+        this.heads.computeBoundingBox(); this.heads.computeBoundingSphere()
+        if(this.bodyBoundsDirty) {
+            for(const batch of this.bodyBatches) { batch.computeBoundingBox(); batch.computeBoundingSphere() }
+            this.bodyBoundsDirty = false
+        }
     }
 }

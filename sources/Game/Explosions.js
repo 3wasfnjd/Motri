@@ -22,6 +22,9 @@ export class Explosions
         // Leaves
         this.game.world.leaves?.explode(coordinates, radius)
 
+        // Let normally fixed scenery opt into this blast before collecting bodies.
+        this.events.trigger('explode', [coordinates, radius, strength, vehicleOnly])
+
         // Objects physics
         const applyPhysicsExplosion = (physicalObject) =>
         {
