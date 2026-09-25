@@ -30,3 +30,24 @@ The model metadata contains 33 static obstacle descriptions and 46 tree planting
 - No triangles from the removed building remain in its former volume.
 - glTF validation: zero errors or warnings; Draco extension information is checked separately by decoding.
 - Changed JavaScript passes syntax checks. No browser/WebGPU drive test or mobile frame-rate measurement was performed.
+
+## Moving poultry
+
+Four hens and two roosters roam the large inner garden, inside the path loop.
+`RestHousePoultryMotion.js` defines the six birds and the garden bounds in asset
+coordinates. It uses the current collision metadata, including oak trunk positions,
+for short clear routes, separation, independent walk/peck timing and avoidance of
+an approaching vehicle. Birds stay within the garden and do not block the driveway.
+
+The procedural models have articulated heads and alternating legs, with larger
+red combs and green tails on the roosters. Five instanced batches share one game
+palette material: 4,224 rendered triangles, 1,284 shared geometry triangles, no
+textures and no rigid bodies. Motion updates at 30 Hz and sleeps when the player
+is more than 45 world metres from the garden. Models use world-unit dimensions,
+while placement follows the rest house's position, rotation and scale.
+
+A five-minute deterministic simulation verified all six birds moving independently,
+pecking, staying within bounds and avoiding static obstacles/one another. Vehicle
+avoidance, articulated transforms and the actual ticker/distance-culling integration
+were also checked. Appearance and driving have not been tested in a live browser.
+

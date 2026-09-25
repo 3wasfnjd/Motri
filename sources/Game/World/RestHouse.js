@@ -1,6 +1,7 @@
 import { clearGeometry } from './RestHouseClearing.js'
 import { styleRestHouse } from './RestHouseStyle.js'
 import { plantRestHouseTrees } from './RestHousePlanting.js'
+import { RestHousePoultry } from './RestHousePoultry.js'
 import * as THREE from 'three/webgpu'
 import { Fn, max, smoothstep } from 'three/tsl'
 import { Game } from '../Game.js'
@@ -16,6 +17,7 @@ export class RestHouse {
         this.clearScenery(this.game.resources.sceneryModel.scene)
         this.clearScenery(this.game.resources.areasModel.scene)
         this.addModel()
+        this.poultry = new RestHousePoultry(this.root)
         this.setVisitAchievement()
     }
 
