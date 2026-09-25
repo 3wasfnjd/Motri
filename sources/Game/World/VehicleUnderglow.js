@@ -27,14 +27,18 @@ export class VehicleUnderglow
         this.material.color.multiplyScalar(3)
         this.strips = new THREE.Mesh(this.geometry, this.material)
         this.strips.name = 'Vehicle_Neon_Underglow'
+        this.strips.visible = false
+        vehicleUnderglow.strength.value = 0
         this.strips.castShadow = false
         this.strips.receiveShadow = false
         chassis.add(this.strips)
     }
 
-    update(vehicle)
+    update(vehicle, gameplayStarted = false)
     {
         vehicleUnderglow.strength.value = 0
+        this.strips.visible = gameplayStarted && this.chassis.visible
+        if(!gameplayStarted) return
         this.up.set(0, 1, 0).applyQuaternion(vehicle.quaternion)
         if(!this.chassis.visible || this.up.y < 0.35) return
 

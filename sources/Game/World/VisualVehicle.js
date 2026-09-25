@@ -443,7 +443,7 @@ export class VisualVehicle
         // Chassis
         this.parts.chassis.position.copy(physicalVehicle.position)
         this.parts.chassis.quaternion.copy(physicalVehicle.quaternion)
-        this.underglow.update(physicalVehicle)
+        this.underglow.update(physicalVehicle, this.game.reveal.step >= 2)
         
         // Wheels
         this.wheels.steering += ((this.game.player.steering * physicalVehicle.steeringAmplitude) - this.wheels.steering) * this.game.ticker.deltaScaled * 16
