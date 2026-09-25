@@ -8,6 +8,7 @@ import { clamp } from 'three/src/math/MathUtils.js'
 import gsap from 'gsap'
 import { MeshDefaultMaterial } from '../Materials/MeshDefaultMaterial.js'
 import { VehicleBodyStyles, readVehicleBodyStyle } from './VehicleBodyStyles.js'
+import { VehicleUnderglow } from './VehicleUnderglow.js'
 
 export class VisualVehicle
 {
@@ -28,6 +29,7 @@ export class VisualVehicle
         this.setScreenPosition()
         this.setPaints()
         this.setBodyStyles()
+        this.underglow = new VehicleUnderglow(this.parts.chassis)
 
         this.tickCallback = () =>
         {
@@ -40,6 +42,7 @@ export class VisualVehicle
     {
         this.game.ticker.events.off('tick', this.tickCallback)
         this.bodyStyles.destroy()
+        this.underglow.destroy()
 
         if(this.blinkers)
         {
@@ -440,6 +443,7 @@ export class VisualVehicle
         // Chassis
         this.parts.chassis.position.copy(physicalVehicle.position)
         this.parts.chassis.quaternion.copy(physicalVehicle.quaternion)
+        this.underglow.update(physicalVehicle)
         
         // Wheels
         this.wheels.steering += ((this.game.player.steering * physicalVehicle.steeringAmplitude) - this.wheels.steering) * this.game.ticker.deltaScaled * 16

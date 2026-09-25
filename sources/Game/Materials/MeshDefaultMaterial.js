@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu'
 import { Game } from '../Game.js'
+import { vehicleUnderglowNode } from './VehicleUnderglowNode.js'
 import { Fn, color, float, frontFacing, If, max, mix, normalWorld, positionWorld, vec2, vec3, vec4 } from 'three/tsl'
 
 export class MeshDefaultMaterial extends THREE.MeshLambertNodeMaterial
@@ -118,6 +119,9 @@ export class MeshDefaultMaterial extends THREE.MeshLambertNodeMaterial
                 outputColor.assign(mix(outputColor, shadowColor, combinedShadowMix))
             }
             
+            // Local neon spill follows the receiving surface, including ramps.
+            outputColor.addAssign(vehicleUnderglowNode(positionWorld, reorientedNormal))
+
             // Fog
             if(this.hasFog)
                 outputColor.assign(this.game.fog.strength.mix(outputColor, this.game.fog.color))

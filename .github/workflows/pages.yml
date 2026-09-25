@@ -42,6 +42,8 @@ jobs:
         run: |
           node scripts/test-vehicle-body-styles.mjs
           node --experimental-vm-modules scripts/test-mobile-boost.mjs
+          node scripts/test-vehicle-underglow.mjs
+          node scripts/test-vehicle-underglow-shader.mjs
       - name: Install Firebase SDK for web build
         run: |
           rm -rf "$RUNNER_TEMP/firebase-sdk"
