@@ -40,12 +40,18 @@ export class CamelCamp {
         // pauses, ducks or replaces the world's playlist/music.
         this.ambientSound = this.game.audio.register({
             group: 'camelCampAmbient',
-            path: 'camel-camp/camel-camp-ambient.mp3',
+            path: 'camel-camp/camel-camp-ambient.mp3?v=4',
             autoplay: true,
             loop: true,
-            volume: .16,
+            // Start silent, including while the file loads away from the camp.
+            volume: 0,
             positions: new THREE.Vector3(...CAMEL_CAMP.center),
-            distanceFade: 18
+            onPlaying: (item) => {
+                // Follow the car and the actual clearing (including its parking bay),
+                // not the camera/map focus. Fade only at the clearing's edge.
+                const p = this.game.player?.position
+                item.volume = p ? .72 * camelCampFlattenWeight(p.x, p.z) : 0
+            }
         })
         this.time = 0; this.accumulator = 0
         this.game.ticker.events.on('tick', () => this.update(), 11)

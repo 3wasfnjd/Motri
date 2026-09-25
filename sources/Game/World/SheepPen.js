@@ -44,12 +44,18 @@ export class SheepPen {
         // Local sheep-pen ambience. Independent from the world playlist/music.
         this.ambientSound = this.game.audio.register({
             group: 'sheepPenAmbient',
-            path: 'sheep-pen/sheep-pen-ambient.mp3?v=3',
+            path: 'sheep-pen/sheep-pen-ambient.mp3?v=4',
             autoplay: true,
             loop: true,
-            volume: .5,
+            // Start silent; opening the game elsewhere must not play sheep globally.
+            volume: 0,
             positions: new THREE.Vector3(...SHEEP_PEN.center),
-            distanceFade: 26
+            onPlaying: (item) => {
+                // Keep the flock clear throughout the pen and its entrance, with
+                // a short fade at the boundary. Moving the map cannot move the sound.
+                const p = this.game.player?.position
+                item.volume = p ? .8 * sheepPenFlattenWeight(p.x, p.z) : 0
+            }
         })
     }
 
