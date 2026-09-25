@@ -15,6 +15,8 @@ export class InputFlag
         this.removeElement = this.element.querySelector('.js-flag-remove')
         this.noResultElement = this.element.querySelector('.js-no-result')
         this.scrollerElement = this.element.querySelector('.js-scroller')
+        this.selectOriginalParent = this.selectElement.parentElement
+        this.selectOriginalNextSibling = this.selectElement.nextSibling
 
         this.events = new Events()
         this.inDOM = false
@@ -76,6 +78,12 @@ export class InputFlag
                 this.buttonElement.classList.add('has-flag')
             }
         }
+
+        this.reposition = () => this.positionSelect()
+        window.addEventListener('resize', this.reposition)
+        window.addEventListener('orientationchange', this.reposition)
+        window.visualViewport?.addEventListener('resize', this.reposition)
+        window.visualViewport?.addEventListener('scroll', this.reposition)
     }
 
     setCountries()
@@ -122,7 +130,7 @@ export class InputFlag
                 found = true
                 this.countries.forEach((country) =>
                 {
-                    country.element.style.display = 'block'
+                    country.element.style.display = ''
                 })
             }
 
@@ -134,7 +142,7 @@ export class InputFlag
                     if(country.terms.toLocaleLowerCase().includes(sanatizedValue.toLocaleLowerCase()))
                     {
                         found = true
-                        country.element.style.display = 'block'
+                        country.element.style.display = ''
                     }
                     else
                     {
@@ -166,6 +174,42 @@ export class InputFlag
         this.inDOM = true
     }
 
+    positionSelect()
+    {
+        if(!this.isOpen)
+            return
+
+        const viewportWidth = window.visualViewport?.width ?? window.innerWidth
+        const viewportHeight = window.visualViewport?.height ?? window.innerHeight
+        const viewportOffsetLeft = window.visualViewport?.offsetLeft ?? 0
+        const viewportOffsetTop = window.visualViewport?.offsetTop ?? 0
+        const margin = 8
+        const gap = 8
+        const width = Math.min(350, Math.max(220, viewportWidth - margin * 2))
+        const height = Math.min(300, Math.max(220, viewportHeight - margin * 2))
+        const rect = this.buttonElement.getBoundingClientRect()
+
+        let left = rect.left
+        left = Math.max(
+            viewportOffsetLeft + margin,
+            Math.min(left, viewportOffsetLeft + viewportWidth - width - margin)
+        )
+
+        let top = rect.top - height - gap
+        if(top < viewportOffsetTop + margin)
+            top = rect.bottom + gap
+
+        top = Math.max(
+            viewportOffsetTop + margin,
+            Math.min(top, viewportOffsetTop + viewportHeight - height - margin)
+        )
+
+        this.selectElement.style.left = `${Math.round(left)}px`
+        this.selectElement.style.top = `${Math.round(top)}px`
+        this.selectElement.style.width = `${Math.round(width)}px`
+        this.selectElement.style.height = `${Math.round(height)}px`
+    }
+
     open()
     {
         // Already
@@ -177,8 +221,17 @@ export class InputFlag
             this.addToDOM()
 
         this.isOpen = true
-        this.selectElement.classList.add('is-visible')
-        this.searchElement.focus()
+
+        // Move the picker to the document root while open so parent overflow
+        // in menus/modals cannot clip it on mobile Safari.
+        document.body.appendChild(this.selectElement)
+        this.selectElement.classList.add('is-floating', 'is-visible')
+        this.buttonElement.setAttribute('aria-expanded', 'true')
+        this.positionSelect()
+
+        // Opening the iOS keyboard immediately can hide the picker.
+        if(!window.matchMedia('(pointer: coarse)').matches)
+            this.searchElement.focus()
 
         if(this.country)
             this.scrollerElement.scrollTop = this.country.element.offsetTop - 15
@@ -191,7 +244,18 @@ export class InputFlag
             return
 
         this.isOpen = false
-        this.selectElement.classList.remove('is-visible')
+        this.selectElement.classList.remove('is-visible', 'is-floating')
+        this.buttonElement.setAttribute('aria-expanded', 'false')
+
+        this.selectElement.style.removeProperty('left')
+        this.selectElement.style.removeProperty('top')
+        this.selectElement.style.removeProperty('width')
+        this.selectElement.style.removeProperty('height')
+
+        if(this.selectOriginalNextSibling && this.selectOriginalNextSibling.parentNode === this.selectOriginalParent)
+            this.selectOriginalParent.insertBefore(this.selectElement, this.selectOriginalNextSibling)
+        else
+            this.selectOriginalParent.appendChild(this.selectElement)
     }
 
     select(country = null)
