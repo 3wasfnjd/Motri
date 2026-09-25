@@ -1,3 +1,4 @@
+import { presentationTexture } from '../../../identity/Presentation.js'
 import * as THREE from 'three/webgpu'
 import { Game } from '../../Game.js'
 import { InteractivePoints } from '../../InteractivePoints.js'
@@ -338,6 +339,7 @@ export class LabArea extends Area
         this.images.width = 1920 * 0.5
         this.images.height = 1080 * 0.5
         this.images.resources = new Map()
+        this.images.loader = new THREE.TextureLoader()
         this.images.loadProgress = uniform(0)
         this.images.animationProgress = uniform(0)
         this.images.animationDirection = uniform(0)
@@ -465,21 +467,27 @@ export class LabArea extends Area
                 resource = {}
                 resource.loaded = false
 
-                const loader = new THREE.TextureLoader()
+                const loader = this.images.loader
 
                 loader.load(
                     path,
                     (loadedTexture) =>
                     {
                         resource.texture = loadedTexture
-                        resource.colorSpace = THREE.SRGBColorSpace
-                        resource.flipY = false
-                        resource.magFilter = THREE.LinearFilter
-                        resource.minFilter = THREE.LinearFilter
-                        resource.generateMipmaps = false
+                        resource.texture.colorSpace = THREE.SRGBColorSpace
+                        resource.texture.flipY = false
+                        resource.texture.magFilter = THREE.LinearFilter
+                        resource.texture.minFilter = THREE.LinearFilter
+                        resource.texture.generateMipmaps = false
 
                         resource.loaded = true
-                        
+                        this.images.loadEnded(key)
+                    },
+                    undefined,
+                    () =>
+                    {
+                        resource.texture = presentationTexture('تجربة AR',{ width: 960, height: 540 })
+                        resource.loaded = true
                         this.images.loadEnded(key)
                     }
                 )
@@ -636,7 +644,7 @@ export class LabArea extends Area
         this.url = {}
         this.url.status = 'hidden'
         this.url.group = this.references.items.get('url')[0]
-        this.url.group.visible = false // No misleading link panel for an empty slot
+        this.url.group.visible = false
         this.url.inner = this.url.group.children[0]
 
         // Text
@@ -708,6 +716,9 @@ export class LabArea extends Area
         // Update
         this.url.update = (direction) =>
         {
+            this.url.group.visible = Boolean(this.navigation.current?.url)
+            this.url.intersect.active = this.url.group.visible && (this.state === LabArea.STATE_OPEN || this.state === LabArea.STATE_OPENING)
+
             if(this.url.status === 'hiding')
                 return
 
@@ -839,46 +850,50 @@ export class LabArea extends Area
                         if(mini.startedLoading)
                             return
 
-                        const loader = placeholderImageLoader
+                        const loader = this.images.loader
+
+                        const applyMiniTexture = (loadedTexture) =>
+                        {
+                            const alpha = uniform(0)
+                            const textureColor = texture(loadedTexture).rgb
+                            gsap.to(alpha, { value: 1, duration: 1, overwrite: true })
+
+                            loadedTexture.colorSpace = THREE.SRGBColorSpace
+                            loadedTexture.flipY = false
+                            loadedTexture.magFilter = THREE.LinearFilter
+                            loadedTexture.minFilter = THREE.LinearFilter
+                            loadedTexture.generateMipmaps = false
+
+                            const material = new MeshDefaultMaterial({
+                                colorNode: textureColor,
+                                hasWater: false,
+                                hasLightBounce: false,
+                                transparent: true
+                            })
+
+                            const baseOutput = material.outputNode
+                            
+                            material.outputNode = Fn(() =>
+                            {
+                                return vec4(
+                                    mix(
+                                        baseOutput.rgb,
+                                        textureColor,
+                                        this.shadeMix.images.mixUniform
+                                    ),
+                                    alpha
+                                )
+                            })()
+
+                            imageMesh.material = material
+                            imageMesh.visible = true
+                        }
 
                         loader.load(
                             `lab/images/${project.imageMini}`,
-                            (loadedTexture) =>
-                            {
-                                const alpha = uniform(0)
-                                const textureColor = texture(loadedTexture).rgb
-                                gsap.to(alpha, { value: 1, duration: 1, overwrite: true })
-
-                                loadedTexture.colorSpace = THREE.SRGBColorSpace
-                                loadedTexture.flipY = false
-                                loadedTexture.magFilter = THREE.LinearFilter
-                                loadedTexture.minFilter = THREE.LinearFilter
-                                loadedTexture.generateMipmaps = false
-
-                                const material = new MeshDefaultMaterial({
-                                    colorNode: textureColor,
-                                    hasWater: false,
-                                    hasLightBounce: false,
-                                    transparent: true
-                                })
-
-                                const baseOutput = material.outputNode
-                                
-                                material.outputNode = Fn(() =>
-                                {
-                                    return vec4(
-                                        mix(
-                                            baseOutput.rgb,
-                                            textureColor,
-                                            this.shadeMix.images.mixUniform
-                                        ),
-                                        alpha
-                                    )
-                                })()
-
-                                imageMesh.material = material
-                                imageMesh.visible = true
-                            }
+                            applyMiniTexture,
+                            undefined,
+                            () => applyMiniTexture(presentationTexture('AR',{ width: 240, height: 135 }))
                         )
 
                         mini.startedLoading = true
@@ -1322,7 +1337,7 @@ export class LabArea extends Area
 
         // Buttons
         this.game.inputs.interactiveButtons.clearItems()
-        this.game.inputs.interactiveButtons.addItems(['previous', 'next', 'close'])
+        this.game.inputs.interactiveButtons.addItems(this.navigation.current.url ? ['previous', 'next', 'open', 'close'] : ['previous', 'next', 'close'])
 
         // Sound
         const sound = this.game.audio.groups.get('click')
@@ -1433,6 +1448,13 @@ export class LabArea extends Area
         this.title.update(direction)
         this.url.update(direction)
         this.images.update()
+
+        if(this.state === LabArea.STATE_OPEN)
+        {
+            this.url.intersect.active = Boolean(this.navigation.current.url)
+            this.game.inputs.interactiveButtons.clearItems()
+            this.game.inputs.interactiveButtons.addItems(this.navigation.current.url ? ['previous', 'next', 'open', 'close'] : ['previous', 'next', 'close'])
+        }
 
         // Scroller
         this.scroller.update(this.navigation.index)
