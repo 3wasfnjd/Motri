@@ -40,7 +40,7 @@ export class CamelCamp {
         // pauses, ducks or replaces the world's playlist/music.
         this.ambientSound = this.game.audio.register({
             group: 'camelCampAmbient',
-            path: 'sounds/camelCamp/camel-camp-ambient.mp3',
+            path: 'camel-camp/camel-camp-ambient.mp3',
             autoplay: true,
             loop: true,
             volume: .16,
