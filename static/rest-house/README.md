@@ -34,22 +34,33 @@ The model metadata contains 33 static obstacle descriptions and 46 tree planting
 ## Moving poultry
 
 Four hens and two roosters roam the large inner garden, inside the path loop.
-`RestHousePoultryMotion.js` defines the six birds and the garden bounds in asset
-coordinates. It uses the current collision metadata, including oak trunk positions,
-for short clear routes, separation, independent walk/peck timing and avoidance of
-an approaching vehicle. Birds stay within the garden and do not block the driveway.
+`RestHousePoultryMotion.js` defines separate home-garden and travel bounds in asset
+coordinates. Calm walking and feeding stay on the dirt patch. Fleeing can cross
+every side of that patch and use the open paths and grounds throughout the compound;
+only buildings, basins, trunk positions, other birds and the compound perimeter
+limit escape. The birds have no physical colliders and never block the vehicle.
 An explicit flee state interrupts feeding within 4.3 world metres of the vehicle
 or its predicted path. Birds run at roughly 2.1–2.36 m/s, steer around nearby
 obstacles instead of waiting for a complete random route, and stay alert for
 2.4 seconds after the threat leaves. The vehicle's frame displacement is converted
 to metres per second and rotated into garden coordinates before prediction.
 
+Escaped birds wait at a safe position while the car occupies the garden or its
+1.8-metre margin. After it clears for 2.4 seconds, birds walk back to available
+garden positions. `RestHousePoultryNavigation.js` caches static clearance on a small
+0.4-metre grid and finds return routes only when needed. A simplified record of
+each bird's actual escape route handles narrow gaps beside the terrace steps.
+Blocked return routes are replanned, and a renewed vehicle approach interrupts
+returning immediately. This does not change vehicle physics or tree collisions.
+
 The procedural models have articulated heads and alternating legs, with larger
 red combs and green tails on the roosters. Five instanced batches share one game
 palette material: 4,224 rendered triangles, 1,284 shared geometry triangles, no
 textures and no rigid bodies. Motion updates at 30 Hz and sleeps when the player
-is more than 45 world metres from the garden. Models use world-unit dimensions,
-while placement follows the rest house's position, rotation and scale.
+is more than 45 world metres from the garden **after all escaped birds have returned**.
+Instance render bounds cover the entire travel area so birds remain visible outside
+the dirt patch. Models use world-unit dimensions, while placement follows the rest
+house's position, rotation and scale.
 
 A five-minute deterministic simulation verified all six birds moving independently,
 pecking, staying within bounds and avoiding static obstacles/one another. Vehicle
@@ -62,3 +73,12 @@ tree-physics constructor produced zero garden colliders and retained outside-tre
 colliders. A live cloud-browser attempt could not initialize WebGPU or WebGL, so
 in-game driving and visual behaviour remain unverified there.
 
+The expanded escape/return behaviour passes `node scripts/test-rest-house-poultry.mjs`
+using the shipped collision metadata: eight parked-car scenarios take all six birds
+outside the old rectangle, collectively crossing all four sides; all birds return
+after removal of the car and resume garden-only roaming. Four further chase scenarios
+check the wider grounds and interruption of return trips. Static obstacles and bird
+separation are checked throughout. The real ticker wrapper was also exercised with
+a car beyond 45 metres: birds finished returning, then slept; expanded mesh bounds
+included their escaped positions. These are simulation checks, not a mobile frame-rate
+or live driving test.

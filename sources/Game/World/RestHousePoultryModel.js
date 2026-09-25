@@ -42,7 +42,7 @@ export class RestHousePoultryModel {
             const mesh = new THREE.InstancedMesh(geometry, material, count)
             mesh.name = name; mesh.castShadow = true; mesh.receiveShadow = true
             mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
-            const [x0, x1, z0, z1] = motion.bounds
+            const [x0, x1, z0, z1] = motion.travelBounds
             // Cover every allowed position, including head/leg movement, without
             // recomputing instance bounds on each frame or culling a travelling bird.
             mesh.boundingBox = new THREE.Box3(new THREE.Vector3(x0 - 1, -.1, z0 - 1), new THREE.Vector3(x1 + 1, 1.6, z1 + 1))

@@ -32,9 +32,11 @@ export class RestHousePoultry {
 
     update() {
         // The birds are decorative and never create road-blocking rigid bodies.
-        // Freeze outside the local view to avoid background CPU/GPU updates.
+        // Finish returning escaped birds even if the car drives out of view.
+        // Once the flock is home it can sleep without leaving birds stranded.
         const player = this.game.player.position
-        if(Math.hypot(player.x - this.centre.x, player.z - this.centre.z) > 45) return
+        const nearby = Math.hypot(player.x - this.centre.x, player.z - this.centre.z) <= 45
+        if(!nearby && !this.motion.needsReturn()) return
         this.car.copy(player).applyMatrix4(this.inverse)
         const vehicle = this.game.physicalVehicle
         // PhysicsVehicle.velocity is displacement per frame, not metres/second.
