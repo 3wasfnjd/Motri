@@ -1318,7 +1318,7 @@ export class CircuitArea extends Area
                 sanatized = sanatized.replace(/[^a-z]/gi, '')
             
             if(limit)
-                sanatized = sanatized.substring(0, 3)
+                sanatized = sanatized.substring(0, 6)
 
             if(toUpper)
                 sanatized = sanatized.toUpperCase()
@@ -1330,7 +1330,7 @@ export class CircuitArea extends Area
         {
             const sanatized = sanatize(this.menu.input.value, true, true, true, true)
 
-            if(sanatized.length === 3 && this.firebase.ready && !this.firebase.sending)
+            if(sanatized.length === 6 && this.firebase.ready && !this.firebase.sending)
             {
                 this.firebase.sending = true
                 this.menu.updateSubmitGroup()
@@ -1361,7 +1361,7 @@ export class CircuitArea extends Area
 
         const updateGroup = () =>
         {
-            if(this.menu.input.value.length === 3 && this.firebase.ready && !this.firebase.sending)
+            if(this.menu.input.value.length === 6 && this.firebase.ready && !this.firebase.sending)
                 this.menu.inputGroup.classList.add('is-valide')
             else
                 this.menu.inputGroup.classList.remove('is-valide')

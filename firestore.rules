@@ -41,7 +41,7 @@ service cloud.firestore {
         && request.auth.uid == userId
         && request.resource.data.keys().hasOnly(['tag', 'countryCode', 'duration', 'createdAt'])
         && request.resource.data.tag is string
-        && request.resource.data.tag.matches('^[A-Z]{3}$')
+        && request.resource.data.tag.matches('^[A-Z]{6}$')
         && request.resource.data.countryCode is string
         && request.resource.data.countryCode.size() <= 2
         && request.resource.data.duration is number
@@ -53,7 +53,7 @@ service cloud.firestore {
         && request.auth.uid == userId
         && request.resource.data.keys().hasOnly(['tag', 'countryCode', 'duration', 'createdAt'])
         && request.resource.data.tag is string
-        && request.resource.data.tag.matches('^[A-Z]{3}$')
+        && request.resource.data.tag.matches('^[A-Z]{6}$')
         && request.resource.data.countryCode is string
         && request.resource.data.countryCode.size() <= 2
         && request.resource.data.duration is number
