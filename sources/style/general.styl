@@ -377,7 +377,7 @@ a.button
                             opacity 1
 
                     .label
-                        opacity 0.65
+                        opacity 1
 
                     .flag
                         margin-right 8px
@@ -396,6 +396,14 @@ html:not(.is-server-online) .online-element
  * Floating flag picker
  * Portaled to <body> while open to avoid clipping by menu/modal overflow.
  */
+.flag-select
+    // Keep both country pickers readable after leaving their white-text parent.
+    color #ffffff
+
+    .search::placeholder
+        color rgba(255, 255, 255, 0.7)
+        opacity 1
+
 .flag-select.is-floating
     display block
     position fixed
@@ -492,7 +500,7 @@ html:not(.is-server-online) .online-element
             cursor pointer
 
             .label
-                opacity 0.85
+                opacity 1
                 overflow hidden
                 text-overflow ellipsis
 
