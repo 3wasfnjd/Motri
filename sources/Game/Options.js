@@ -1,4 +1,5 @@
 import { Game } from './Game.js'
+import { VEHICLE_BODY_STYLES, readVehicleBodyStyle } from './World/VehicleBodyStyles.js'
 
 export class Options
 {
@@ -9,6 +10,7 @@ export class Options
 
         this.setSound()
         this.setQuality()
+        this.setVehicleBody()
         this.setRespawn()
         this.setReset()
         this.setRenderer()
@@ -37,6 +39,29 @@ export class Options
         {
             text.textContent = this.game.quality.level === 0 ? "عالية" : "منخفضة"
         })
+    }
+
+    setVehicleBody()
+    {
+        const element = this.element.querySelector('.js-vehicle-body')
+        const label = element.querySelector('span')
+        const update = () =>
+        {
+            const id = this.game.world?.visualVehicle?.bodyStyles.current ?? readVehicleBodyStyle()
+            const style = VEHICLE_BODY_STYLES.find(style => style.id === id)
+            label.textContent = style.label
+            element.setAttribute('aria-label', `تغيير شكل السيارة، الحالي: ${style.label}`)
+        }
+        update()
+        element.addEventListener('click', () =>
+        {
+            const styles = this.game.world?.visualVehicle?.bodyStyles
+            if(!styles) return
+            const index = VEHICLE_BODY_STYLES.findIndex(style => style.id === styles.current)
+            styles.changeTo(VEHICLE_BODY_STYLES[(index + 1) % VEHICLE_BODY_STYLES.length].id)
+            update()
+        })
+        this.game.menu.items.get('options').events.on('opened', update)
     }
 
     setRespawn()

@@ -3,10 +3,11 @@ import { Game } from '../Game.js'
 import { Track } from '../Tracks.js'
 import { Trails } from '../Trails.js'
 import { remapClamp } from '../utilities/maths.js'
-import { cameraPosition, color, Fn, min, mix, normalWorld, positionViewDirection, positionWorld, screenCoordinate, texture, uniform, uv, vec2, vec3, vec4 } from 'three/tsl'
+import { attribute, cameraPosition, color, Fn, min, mix, normalWorld, positionViewDirection, positionWorld, screenCoordinate, texture, uniform, uv, vec2, vec3, vec4 } from 'three/tsl'
 import { clamp } from 'three/src/math/MathUtils.js'
 import gsap from 'gsap'
 import { MeshDefaultMaterial } from '../Materials/MeshDefaultMaterial.js'
+import { VehicleBodyStyles, readVehicleBodyStyle } from './VehicleBodyStyles.js'
 
 export class VisualVehicle
 {
@@ -26,6 +27,7 @@ export class VisualVehicle
         this.setBoostAnimation()
         this.setScreenPosition()
         this.setPaints()
+        this.setBodyStyles()
 
         this.tickCallback = () =>
         {
@@ -37,6 +39,7 @@ export class VisualVehicle
     destroy()
     {
         this.game.ticker.events.off('tick', this.tickCallback)
+        this.bodyStyles.destroy()
 
         if(this.blinkers)
         {
@@ -124,6 +127,19 @@ export class VisualVehicle
 
         // Wheel
         this.game.materials.updateObject(this.parts.wheelContainer)
+    }
+
+    setBodyStyles()
+    {
+        this.bodyStyles = new VehicleBodyStyles(this.parts.chassis, this.parts.bodyPainted, () =>
+        {
+            const paint = new MeshDefaultMaterial({ colorNode: color('#c9b58d') })
+            const details = new MeshDefaultMaterial({ colorNode: attribute('color', 'vec3') })
+            paint.name = 'Shas_MatteBeige'
+            details.name = 'Shas_BodyDetails'
+            return { paint, details }
+        })
+        this.bodyStyles.changeTo(readVehicleBodyStyle(), false)
     }
 
     setPaints()
