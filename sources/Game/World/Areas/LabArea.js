@@ -336,8 +336,8 @@ export class LabArea extends Area
     {
         this.images = {}
         this.images.initiated = false
-        this.images.width = 1920 * 0.5
-        this.images.height = 1080 * 0.5
+        this.images.width = 768
+        this.images.height = 432
         this.images.resources = new Map()
         this.images.loader = new THREE.TextureLoader()
         this.images.loadProgress = uniform(0)
@@ -486,7 +486,8 @@ export class LabArea extends Area
                     undefined,
                     () =>
                     {
-                        resource.texture = presentationTexture('تجربة AR',{ width: 960, height: 540 })
+                        const title = labData.find(project => project.image === key)?.title || 'تجربة AR'
+                        resource.texture = presentationTexture(title, { width: this.images.width, height: this.images.height })
                         resource.loaded = true
                         this.images.loadEnded(key)
                     }
@@ -804,8 +805,8 @@ export class LabArea extends Area
             this.scroller.minis.items = []
             this.scroller.minis.total = labData.length * this.scroller.minis.inter
             this.scroller.minis.current = null
-            this.scroller.minis.width = 1920 / 8
-            this.scroller.minis.height = 1080 / 8
+            this.scroller.minis.width = 256
+            this.scroller.minis.height = 144
 
             let i = 0
             for(const project of labData)
@@ -893,7 +894,7 @@ export class LabArea extends Area
                             `lab/images/${project.imageMini}`,
                             applyMiniTexture,
                             undefined,
-                            () => applyMiniTexture(presentationTexture('AR',{ width: 240, height: 135 }))
+                            () => applyMiniTexture(presentationTexture(project.title, { width: this.scroller.minis.width, height: this.scroller.minis.height }))
                         )
 
                         mini.startedLoading = true

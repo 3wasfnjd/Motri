@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="تركيب صورة">
+<title>تركيب صورة</title>
+<rect x="0" y="0" width="960" height="540" rx="0" fill="#f6edda" />
+<path d="M0 0H397Q485 125 459 269Q436 430 301 540H0Z" fill="#d7e3cc" />
+<rect x="24" y="24" width="912" height="492" rx="24" fill="none" stroke="#263e4224" stroke-width="2"/>
+<g transform="translate(18 87)"><ellipse cx="211" cy="308" rx="170" ry="34" fill="#273e4214" /><path d="M38 273 207 198 390 276 224 352 38 296Z" fill="#b4a887" /><path d="M38 273 207 198 390 276 224 326Z" fill="#b7cdbc" /><path d="M224 326 390 276 390 296 224 352Z" fill="#a69878" /><g transform="rotate(-12 183 182)"><rect x="84" y="89" width="203" height="208" rx="16" fill="#749f94" /><rect x="95" y="101" width="180" height="167" rx="8" fill="#d2dbc3" /></g><g transform="rotate(9 244 181)"><rect x="146" y="62" width="190" height="226" rx="17" fill="#f6edda" /><rect x="159" y="76" width="164" height="164" rx="11" fill="#8cbebc" /><circle cx="241" cy="151" r="66" fill="#c9dec8" /><path d="M180 174 215 122 246 167 266 140 303 177Q243 239 180 174Z" fill="#628e74" /><path d="M196 197 250 153 288 188Q242 221 196 197Z" fill="#93b495" /><circle cx="269" cy="120" r="14" fill="#edc780" /><rect x="185" y="253" width="116" height="6" rx="3" fill="#d9cfb1" /></g><path d="M60 125V100H81M341 77H363V103M349 276H370V251M75 301H52V278" fill="none" stroke="#537f74" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" /><g transform="translate(89 59) scale(1)"><path d="M0 -13 4 -4 13 0 4 4 0 13 -4 4 -13 0 -4 -4Z" fill="#dfa769" /></g></g>
+<text x="51" y="69" font-family="DejaVu Sans" font-size="19" font-weight="700" fill="#263e42" letter-spacing="2">ABODEN GAMES</text>
+<text x="905" y="68" direction="rtl" unicode-bidi="embed" text-anchor="start" font-family="DejaVu Sans" font-size="19" font-weight="700" fill="#4c867d">تجارب الواقع المعزز</text>
+<rect x="842" y="119" width="63" height="8" rx="4" fill="#4c867d" />
+<text x="905" y="226" direction="rtl" unicode-bidi="embed" text-anchor="start" font-family="DejaVu Sans" font-size="74" font-weight="700" fill="#263e42">تركيب</text>
+<text x="905" y="319" direction="rtl" unicode-bidi="embed" text-anchor="start" font-family="DejaVu Sans" font-size="74" font-weight="700" fill="#263e42">صورة</text>
+<text x="905" y="385" direction="rtl" unicode-bidi="embed" text-anchor="start" font-family="DejaVu Sans" font-size="21" font-weight="400" fill="#5d6d62">صور وفيديو • عادي وثلاثي الأبعاد</text>
+<path d="M493 442H905" fill="none" stroke="#cfc8ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+<text x="56" y="482" font-family="DejaVu Sans" font-size="23" font-weight="700" fill="#4c867d" >08</text>
+<text x="94" y="482" font-family="DejaVu Sans" font-size="16" font-weight="700" fill="#778074" >/ 09</text>
+<text x="905" y="483" direction="rtl" unicode-bidi="embed" text-anchor="start" font-family="DejaVu Sans" font-size="22" font-weight="700" fill="#4c867d">واقع معزز</text>
+</svg>

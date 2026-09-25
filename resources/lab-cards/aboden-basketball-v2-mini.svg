@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="رماية السلة">
+<title>رماية السلة</title>
+<rect x="0" y="0" width="960" height="540" rx="0" fill="#f6edda" />
+<path d="M0 0H397Q485 125 459 269Q436 430 301 540H0Z" fill="#e5dec0" />
+<rect x="24" y="24" width="912" height="492" rx="24" fill="none" stroke="#263e4224" stroke-width="2"/>
+<g transform="translate(18 87)"><ellipse cx="211" cy="308" rx="170" ry="34" fill="#273e4214" /><path d="M38 273 207 198 390 276 224 352 38 296Z" fill="#b4a887" /><path d="M38 273 207 198 390 276 224 326Z" fill="#c5cfa9" /><path d="M224 326 390 276 390 296 224 352Z" fill="#a69878" /><path d="M92 278 226 218 332 264 205 321Z" fill="#dc9367" /><path d="M128 277 226 236 292 265 201 304Z" fill="none" stroke="#f7e3b9" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" /><ellipse cx="210" cy="272" rx="31" ry="13" fill="none" stroke="#f7e3b9" stroke-width="4"/><rect x="281" y="95" width="15" height="172" rx="5" fill="#64877b" /><path d="M252 250 296 239 323 252 282 266Z" fill="#597367" /><rect x="212" y="56" width="125" height="88" rx="9" fill="#618981" /><rect x="222" y="65" width="105" height="70" rx="5" fill="#f6edda" /><rect x="251" y="88" width="45" height="34" rx="1" fill="none" stroke="#d78055" stroke-width="5"/><path d="M249 139 258 176 292 176 302 137 M259 143 270 176M292 143 281 176M255 161H296" fill="none" stroke="#f6edda" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /><ellipse cx="276" cy="136" rx="31" ry="9" fill="none" stroke="#d2774d" stroke-width="7"/><path d="M133 205Q177 80 248 122" fill="none" stroke="#98aa8c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="7 13"/><circle cx="141" cy="223" r="47" fill="#da8a4d" /><path d="M104 237Q136 199 175 199A47 47 0 0 1 104 252Z" fill="#e6a85f" /><path d="M102 200Q150 218 177 250M114 260Q136 217 177 197M102 237Q149 244 168 186" fill="none" stroke="#8f5e39" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" /><g transform="translate(106 105) scale(1.1)"><path d="M0 -13 4 -4 13 0 4 4 0 13 -4 4 -13 0 -4 -4Z" fill="#dca455" /></g></g>
+
+
+<rect x="842" y="75" width="63" height="8" rx="4" fill="#b67643" />
+<text x="905" y="228" direction="rtl" unicode-bidi="embed" text-anchor="start" font-family="DejaVu Sans" font-size="82" font-weight="700" fill="#263e42">رماية</text>
+<text x="905" y="330" direction="rtl" unicode-bidi="embed" text-anchor="start" font-family="DejaVu Sans" font-size="82" font-weight="700" fill="#263e42">السلة</text>
+
+<path d="M493 442H905" fill="none" stroke="#cfc8ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+<text x="56" y="482" font-family="DejaVu Sans" font-size="23" font-weight="700" fill="#b67643" >04</text>
+
+<text x="905" y="483" direction="rtl" unicode-bidi="embed" text-anchor="start" font-family="DejaVu Sans" font-size="27" font-weight="700" fill="#b67643">واقع معزز</text>
+</svg>

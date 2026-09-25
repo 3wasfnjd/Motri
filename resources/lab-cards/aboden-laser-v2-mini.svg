@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="عرض الليزر">
+<title>عرض الليزر</title>
+<rect x="0" y="0" width="960" height="540" rx="0" fill="#f6edda" />
+<path d="M0 0H397Q485 125 459 269Q436 430 301 540H0Z" fill="#d5e2cb" />
+<rect x="24" y="24" width="912" height="492" rx="24" fill="none" stroke="#263e4224" stroke-width="2"/>
+<g transform="translate(18 87)"><ellipse cx="224" cy="225" rx="167" ry="135" fill="#466962" /><ellipse cx="224" cy="217" rx="153" ry="123" fill="#314d4a" /><path d="M215 302 81 150 170 115 323 120 368 207Z" fill="#85c8a623" /><path d="M215 302 107 156M215 302 175 112M215 302 302 120M215 302 346 205" fill="none" stroke="#8dd1b0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /><path d="M96 192 143 138 190 187 238 112 284 179 337 142" fill="none" stroke="#a6d79b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" /><path d="M104 216 152 170 195 219 244 146 289 213 342 176" fill="none" stroke="#dec37a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" /><path d="M106 241 153 202 200 245 246 180 291 242 344 212" fill="none" stroke="#89cbd0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" /><ellipse cx="215" cy="331" rx="68" ry="15" fill="#263e4233" /><path d="M164 303 205 281 265 300 219 321Z" fill="#8caa9c" /><path d="M164 303 219 321 219 346 164 326Z" fill="#3e5a57" /><path d="M219 321 265 300 265 326 219 346Z" fill="#263e42" /><circle cx="234" cy="323" r="10" fill="#9ed9b7" /><circle cx="234" cy="323" r="5" fill="#e3f1c7" /><path d="M174 313 202 322M174 319 202 328" fill="none" stroke="#91a498" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /><g transform="translate(321 91) scale(0.9)"><path d="M0 -13 4 -4 13 0 4 4 0 13 -4 4 -13 0 -4 -4Z" fill="#e8bb69" /></g></g>
+
+
+<rect x="842" y="75" width="63" height="8" rx="4" fill="#497d71" />
+<text x="905" y="228" direction="rtl" unicode-bidi="embed" text-anchor="start" font-family="DejaVu Sans" font-size="82" font-weight="700" fill="#263e42">عرض</text>
+<text x="905" y="330" direction="rtl" unicode-bidi="embed" text-anchor="start" font-family="DejaVu Sans" font-size="82" font-weight="700" fill="#263e42">الليزر</text>
+
+<path d="M493 442H905" fill="none" stroke="#cfc8ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+<text x="56" y="482" font-family="DejaVu Sans" font-size="23" font-weight="700" fill="#497d71" >05</text>
+
+<text x="905" y="483" direction="rtl" unicode-bidi="embed" text-anchor="start" font-family="DejaVu Sans" font-size="27" font-weight="700" fill="#497d71">واقع معزز</text>
+</svg>
