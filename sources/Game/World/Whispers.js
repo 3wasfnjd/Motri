@@ -6,7 +6,7 @@ import gsap from 'gsap'
 import { Bubble } from './Bubble.js'
 import emojiRegex from 'emoji-regex'
 import { InputFlag } from '../InputFlag.js'
-import { subscribeToWhispers, publishWhisper } from '../../FirebaseWhispers.js'
+import { firebaseErrorText, subscribeToWhispers, publishWhisper } from '../../FirebaseWhispers.js'
 
 export class Whispers
 {
@@ -295,7 +295,7 @@ export class Whispers
                 {
                     console.error('Firebase whispers listener error', error)
                     this.firebase.ready = false
-                    this.menu.setServiceStatus('error')
+                    this.menu.setServiceStatus('error', firebaseErrorText(error))
                     this.menu.updateGroup()
                 }
             )
@@ -308,7 +308,7 @@ export class Whispers
         {
             console.error('Firebase whispers connection error', error)
             this.firebase.ready = false
-            this.menu.setServiceStatus('error')
+            this.menu.setServiceStatus('error', firebaseErrorText(error))
             this.menu.updateGroup()
         }
     }
@@ -333,7 +333,7 @@ export class Whispers
         this.menu.previewMessageText = this.menu.previewMessage.querySelector('.js-text')
         this.menu.previewMessageFlag = this.menu.previewMessage.querySelector('.js-flag')
         this.menu.serviceStatus = this.menu.container.querySelector('.js-whispers-status')
-        this.menu.setServiceStatus = (status) =>
+        this.menu.setServiceStatus = (status, details = '') =>
         {
             if(!this.menu.serviceStatus)
                 return
@@ -348,7 +348,7 @@ export class Whispers
                 this.menu.serviceStatus.hidden = false
                 this.menu.serviceStatus.textContent = status === 'connecting'
                     ? 'جارٍ الاتصال بخدمة الرسائل…'
-                    : 'تعذّر الاتصال بخدمة الرسائل. جرّب مرة أخرى بعد قليل.'
+                    : `تعذّر الاتصال بخدمة الرسائل: ${details || 'تحقق من إعدادات Firebase'}`
             }
         }
 
@@ -401,7 +401,7 @@ export class Whispers
                 catch(error)
                 {
                     console.error('Firebase whisper send error', error)
-                    this.menu.setServiceStatus('error')
+                    this.menu.setServiceStatus('error', firebaseErrorText(error))
                 }
                 finally
                 {

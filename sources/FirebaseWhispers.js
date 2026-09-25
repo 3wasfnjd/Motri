@@ -1,3 +1,17 @@
+import { getApp, getApps, initializeApp } from 'firebase/app'
+import { getAuth, signInAnonymously } from 'firebase/auth'
+import {
+    collection,
+    doc,
+    getFirestore,
+    limit,
+    onSnapshot,
+    orderBy,
+    query,
+    serverTimestamp,
+    setDoc
+} from 'firebase/firestore'
+
 const firebaseConfig = Object.freeze({
     apiKey: 'AIzaSyBbyByEIqSslyNhQvv3ed-HQhF-43fK_Wk',
     authDomain: 'motri-4ed44.firebaseapp.com',
@@ -7,46 +21,57 @@ const firebaseConfig = Object.freeze({
     appId: '1:241178340893:web:8a01dbbf985a074e52e0f4'
 })
 
-const FIREBASE_VERSION = '12.19.0'
 let clientPromise = null
 
 async function createClient()
 {
-    const [appSdk, authSdk, firestoreSdk] = await Promise.all([
-        import(/* @vite-ignore */ `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
-        import(/* @vite-ignore */ `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
-        import(/* @vite-ignore */ `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`)
-    ])
-
-    const app = appSdk.getApps().length ? appSdk.getApp() : appSdk.initializeApp(firebaseConfig)
-    const auth = authSdk.getAuth(app)
-    const db = firestoreSdk.getFirestore(app)
+    const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
+    const auth = getAuth(app)
+    const db = getFirestore(app)
 
     if(!auth.currentUser)
-        await authSdk.signInAnonymously(auth)
+        await signInAnonymously(auth)
 
-    return { auth, db, firestoreSdk }
+    return { auth, db }
 }
 
 function getClient()
 {
     if(!clientPromise)
-        clientPromise = createClient()
+        clientPromise = createClient().catch(error =>
+        {
+            clientPromise = null
+            throw error
+        })
 
     return clientPromise
 }
 
+export function firebaseErrorText(error)
+{
+    const code = error?.code || ''
+    if(code === 'auth/operation-not-allowed')
+        return 'الدخول المجهول غير مفعّل في Firebase'
+    if(code === 'auth/unauthorized-domain')
+        return 'نطاق GitHub Pages غير مضاف في Authorized domains'
+    if(code === 'permission-denied' || code === 'firestore/permission-denied')
+        return 'قواعد Firestore تمنع الوصول'
+    if(code === 'unavailable' || code === 'firestore/unavailable')
+        return 'خدمة Firebase غير متاحة مؤقتًا'
+
+    return code || error?.message || 'خطأ غير معروف'
+}
+
 export async function subscribeToWhispers(count, onChange, onError)
 {
-    const { db, firestoreSdk } = await getClient()
-    const collectionRef = firestoreSdk.collection(db, 'whispers')
-    const whisperQuery = firestoreSdk.query(
-        collectionRef,
-        firestoreSdk.orderBy('createdAt', 'desc'),
-        firestoreSdk.limit(count)
+    const { db } = await getClient()
+    const whisperQuery = query(
+        collection(db, 'whispers'),
+        orderBy('createdAt', 'desc'),
+        limit(count)
     )
 
-    return firestoreSdk.onSnapshot(
+    return onSnapshot(
         whisperQuery,
         (snapshot) =>
         {
@@ -59,20 +84,18 @@ export async function subscribeToWhispers(count, onChange, onError)
 
 export async function publishWhisper({ message, countryCode, x, y, z })
 {
-    const { auth, db, firestoreSdk } = await getClient()
+    const { auth, db } = await getClient()
     const user = auth.currentUser
 
     if(!user)
         throw new Error('Anonymous Firebase user is not available')
 
-    const documentRef = firestoreSdk.doc(db, 'whispers', user.uid)
-
-    await firestoreSdk.setDoc(documentRef, {
+    await setDoc(doc(db, 'whispers', user.uid), {
         message,
         countryCode,
         x,
         y,
         z,
-        createdAt: firestoreSdk.serverTimestamp()
+        createdAt: serverTimestamp()
     })
 }
