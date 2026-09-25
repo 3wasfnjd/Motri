@@ -86,7 +86,8 @@ function blastAt(f, index = 0, radius = 5, strength = 8, vehicleOnly = false) {
     const f = fixture(), { camp, game, advance } = f
     const before = camp.model.bodyBatches.map(b => b.instanceMatrix.array.slice())
     const physicsCount = game.physics.physicals.length, colliderCount = game.physics.world.colliders.len()
-    assert.equal(colliderCount, 14) // 12 camp + test ground + test car
+    assert.equal(colliderCount, 17) // 12 camp + 3 parked Shas + test ground + test car
+    assert.equal(camp.pickup.object.physical.body.bodyType(), RAPIER.RigidBodyType.Fixed)
     assert.equal(camp.physical.colliders.length, 6, 'Only tent/tanker/trough stay in the shared fixed body')
     blastAt(f)
     assert(camp.motion.activeCount > 0 && camp.motion.activeCount < 6, 'Only nearby camels respond')

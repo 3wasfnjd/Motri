@@ -1,10 +1,11 @@
 import * as THREE from 'three/webgpu'
-import { attribute, Fn, smoothstep, vec2 } from 'three/tsl'
+import { attribute, Fn, max, smoothstep, vec2 } from 'three/tsl'
 import { Game } from '../Game.js'
 import { MeshDefaultMaterial } from '../Materials/MeshDefaultMaterial.js'
-import { CAMEL_CAMP, camelPlacements, camelCampContains, camelCampFlattenWeight } from './CamelCampSite.js'
+import { CAMEL_CAMP, SHAS_PICKUP, camelPlacements, camelCampContains, camelCampFlattenWeight, shasParkingContains } from './CamelCampSite.js'
 import { CamelCampModel } from './CamelCampModel.js'
 import { CamelCampMotion } from './CamelCampMotion.js'
+import { buildCamelCampPickup } from './CamelCampPickup.js'
 
 export class CamelCamp {
     constructor() {
@@ -24,6 +25,13 @@ export class CamelCamp {
             colliders: this.model.colliders.filter(c => c.camelIndex === undefined)
         }).physical
         this.motion = new CamelCampMotion(this.game, this.model)
+        this.pickup = buildCamelCampPickup(material)
+        this.pickup.mesh.position.fromArray(SHAS_PICKUP.position)
+        this.pickup.mesh.rotation.y = SHAS_PICKUP.yaw
+        this.pickup.object = this.game.objects.add({ model: this.pickup.mesh, updateMaterials: false }, {
+            type: 'fixed', position: this.pickup.mesh.position, rotation: this.pickup.mesh.quaternion,
+            friction: .65, restitution: 0, colliders: this.pickup.colliders
+        })
         this.game.respawns.items.set('camelCamp', {
             name: 'camelCamp', position: new THREE.Vector3(...CAMEL_CAMP.respawn), rotation: Math.PI / 2
         })
@@ -40,7 +48,10 @@ export class CamelCamp {
         geometry.computeVertexNormals(); geometry.computeBoundingBox(); geometry.computeBoundingSphere()
         this.game.terrain.camelCampMaskNode = Fn(([p]) => {
             const distance = p.sub(vec2(CAMEL_CAMP.center[0], CAMEL_CAMP.center[2])).length()
-            return smoothstep(CAMEL_CAMP.radius, CAMEL_CAMP.radius + CAMEL_CAMP.feather, distance).oneMinus()
+            const circle = smoothstep(CAMEL_CAMP.radius, CAMEL_CAMP.radius + CAMEL_CAMP.feather, distance).oneMinus()
+            const [x0, x1, z0, z1] = SHAS_PICKUP.parking
+            const edge = max(max(p.x.negate().add(x0), p.x.sub(x1)), max(p.y.negate().add(z0), p.y.sub(z1)))
+            return max(circle, smoothstep(0, SHAS_PICKUP.feather, edge).oneMinus())
         })
     }
 
@@ -52,7 +63,7 @@ export class CamelCamp {
             for(const ref of [...scene.children]) {
                 const p = ref.getWorldPosition(new THREE.Vector3()), scale = ref.getWorldScale(new THREE.Vector3())
                 const radius = (key.includes('Trees') ? 3.5 : key.includes('bushes') ? 1.5 : .5) * Math.max(scale.x, scale.z)
-                if(camelCampContains(p.x, p.z, radius)) { scene.remove(ref); this.cleared.vegetation++ }
+                if(camelCampContains(p.x, p.z, radius) || shasParkingContains(p.x, p.z, radius)) { scene.remove(ref); this.cleared.vegetation++ }
             }
         }
     }
@@ -92,6 +103,12 @@ export class CamelCamp {
         for(const c of camelPlacements) {
             ctx.beginPath(); ctx.ellipse(c.x, c.z, .46 * c.size, 1.1 * c.size, -c.yaw, 0, Math.PI * 2); ctx.fill()
         }
+        ctx.save()
+        ctx.translate(SHAS_PICKUP.position[0] - CAMEL_CAMP.center[0], SHAS_PICKUP.position[2] - CAMEL_CAMP.center[2])
+        ctx.rotate(-SHAS_PICKUP.yaw)
+        ctx.fillStyle = night ? '#897958' : '#c9b58d'; ctx.fillRect(-.91, -2.55, 1.82, 5.25)
+        ctx.fillStyle = '#334b50'; ctx.fillRect(-.68, .59, 1.36, .46)
+        ctx.restore()
         ctx.restore()
     }
 }

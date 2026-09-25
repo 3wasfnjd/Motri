@@ -6,6 +6,17 @@ export const CAMEL_CAMP = Object.freeze({
     respawn: [26, 3, -14.2]
 })
 
+// Separate western parking bay; the southern approach and lamp carts stay clear.
+export const SHAS_PICKUP = Object.freeze({
+    position: [15.5, 0, -23.1], yaw: .10,
+    parking: [13.8, 17.2, -26.4, -19.8], feather: .45
+})
+
+export function shasParkingContains(x, z, padding = 0) {
+    const [x0, x1, z0, z1] = SHAS_PICKUP.parking
+    return x >= x0 - padding && x <= x1 + padding && z >= z0 - padding && z <= z1 + padding
+}
+
 export const camelPlacements = [
     { name: 'Camel_01', x: -5.4, z: -.4, yaw: .5, size: 1.03, seated: false },
     { name: 'Camel_02', x: -2.8, z: 1.2, yaw: -.4, size: .96, seated: false },
@@ -22,5 +33,8 @@ export function camelCampContains(x, z, padding = 0) {
 export function camelCampFlattenWeight(x, z) {
     const distance = Math.hypot(x - CAMEL_CAMP.center[0], z - CAMEL_CAMP.center[2])
     const t = Math.max(0, Math.min(1, (distance - CAMEL_CAMP.radius) / CAMEL_CAMP.feather))
-    return 1 - t * t * (3 - 2 * t)
+    const [x0, x1, z0, z1] = SHAS_PICKUP.parking
+    const d = Math.max(x0 - x, x - x1, z0 - z, z - z1, 0)
+    const s = Math.min(1, d / SHAS_PICKUP.feather)
+    return Math.max(1 - t * t * (3 - 2 * t), 1 - s * s * (3 - 2 * s))
 }
