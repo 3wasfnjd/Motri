@@ -4,7 +4,8 @@ import { Game } from '../Game.js'
 import { MeshDefaultMaterial } from '../Materials/MeshDefaultMaterial.js'
 import { clearGeometry } from './RestHouseClearing.js'
 import { SHEEP_PEN, sheepPenRects, sheepPenContains, sheepPenFlattenWeight } from './SheepPenSite.js'
-import { buildSheepPenModel, sheepPlacements } from './SheepPenModel.js'
+import { buildSheepPenModel } from './SheepPenModel.js'
+import { SheepPenMotion } from './SheepPenMotion.js'
 
 export class SheepPen {
     constructor() {
@@ -17,16 +18,48 @@ export class SheepPen {
         this.clearScenery(this.game.resources.areasModel.scene)
         const material = new MeshDefaultMaterial({ colorNode: attribute('color', 'vec3'), hasWater: false })
         material.name = 'SheepPen_GamePalette'
-        const { root, colliders } = buildSheepPenModel(material)
+        const { root, colliders, flock } = buildSheepPenModel(material)
         this.root = root
         this.colliders = colliders
+        this.flock = flock
+        this.motion = new SheepPenMotion(colliders)
         this.game.objects.add({ model: root, updateMaterials: false })
         this.physical = this.game.objects.add(null, {
-            type: 'fixed', friction: .7, restitution: 0, colliders
+            type: 'fixed', friction: .7, restitution: 0, colliders: colliders.filter(c => c.sheepIndex === undefined)
         }).physical
+        this.sheepBodies = colliders.filter(c => c.sheepIndex !== undefined).map(c => this.game.objects.add(null, {
+            type: 'kinematicPositionBased', position: c.position, rotation: c.quaternion,
+            friction: .7, restitution: 0,
+            colliders: [{ shape: c.shape, category: c.category, parameters: c.parameters }]
+        }).physical.body)
+        this.time = 0; this.accumulator = 0
+        this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.up = new THREE.Vector3(0, 1, 0)
+        this.carLocal = { x: 0, z: 0 }
+        // Set kinematic targets before Physics (priority 3) consumes this frame.
+        this.game.ticker.events.on('tick', () => this.update(), 2)
         this.game.respawns.items.set('sheepPen', {
             name: 'sheepPen', position: new THREE.Vector3(-45.2, 3, -13.7), rotation: Math.PI
         })
+    }
+
+    update() {
+        const p = this.game.player.position
+        if(Math.hypot(p.x - SHEEP_PEN.center[0], p.z - SHEEP_PEN.center[2]) > 45) return
+        const dt = Math.max(0, Math.min(this.game.ticker.delta, .1))
+        this.time += dt; this.accumulator += dt
+        if(this.accumulator < 1 / 20) return
+        const car = this.game.physicalVehicle?.chassis.physical.body.translation() ?? p
+        this.carLocal.x = car.x - SHEEP_PEN.center[0]; this.carLocal.z = car.z - SHEEP_PEN.center[2]
+        this.motion.update(this.accumulator, car.y < 4 ? this.carLocal : null)
+        this.accumulator = 0
+        this.flock.pose(this.motion.states, this.time)
+        for(let i = 0; i < this.sheepBodies.length; i++) {
+            const s = this.motion.states[i]
+            this.position.set(SHEEP_PEN.center[0] + s.x, .60 * s.size, SHEEP_PEN.center[2] + s.z)
+            this.rotation.setFromAxisAngle(this.up, s.yaw)
+            this.sheepBodies[i].setNextKinematicTranslation(this.position)
+            this.sheepBodies[i].setNextKinematicRotation(this.rotation)
+        }
     }
 
     prepareTerrain() {
@@ -100,7 +133,7 @@ export class SheepPen {
         ctx.lineTo(-7.5, 5.3); ctx.lineTo(7.5, 5.3); ctx.lineTo(7.5, 2.4); ctx.stroke()
         ctx.fillStyle = night ? '#496466' : '#719394'; ctx.fillRect(-6.925, -4.75, 5.65, 3.9)
         ctx.fillStyle = night ? '#c4b998' : '#eee8cf'
-        for(const s of sheepPlacements) {
+        for(const s of this.motion.states) {
             ctx.beginPath(); ctx.ellipse(s.x, s.z, .36 * s.size, .56 * s.size, -s.yaw, 0, Math.PI * 2); ctx.fill()
         }
         ctx.restore()

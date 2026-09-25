@@ -9,7 +9,7 @@ const palette = {
     wool: '#eee8cf', woolShade: '#ddd3b4', face: '#52483e', ear: '#8a7461', hoof: '#443e36'
 }
 
-// Geometry and palette are shared. No downloaded models, image maps or per-frame work.
+// Original geometry and one palette are shared across the animated flock.
 class Batch {
     constructor() { this.parts = [] }
     add(geometry, position, scale, tint, rotation = [0, 0, 0]) {
@@ -113,50 +113,70 @@ export function buildSheepPenModel(material) {
     staticMesh.name = 'SheepPen_Fence_Shade_Feeders'
     root.add(staticMesh)
 
-    const sheepGeometry = grazing => {
-        const body = new Batch(), head = new Batch()
-        body.add(round, [0, .79, 0], [.43, .44, .66], palette.wool)
-        for(const [x, y, z, sx, sy, sz] of [[0, 1.1, -.25, .37, .21, .4], [0, 1.09, .30, .38, .24, .35], [0, .80, -.58, .33, .33, .22]])
-            body.add(smallRound, [x, y, z], [sx, sy, sz], palette.wool)
-        for(const x of [-.25, .25]) for(const z of [-.38, .38]) {
-            body.add(leg, [x, .31, z], [1, .54, 1], palette.ear)
-            body.add(cube, [x, .065, z + .015], [.135, .13, .18], palette.hoof)
-        }
-        body.add(smallRound, [0, .8, -.72], [.10, .17, .12], palette.woolShade, [.4, 0, 0])
-        head.add(round, [0, .99, .56], [.25, .31, .26], palette.woolShade)
-        head.add(round, [0, 1.05, .74], [.20, .25, .23], palette.face)
-        head.add(smallRound, [0, .91, .91], [.165, .13, .15], palette.face)
-        head.add(smallRound, [0, 1.25, .67], [.23, .14, .20], palette.wool)
-        for(const sign of [-1, 1]) {
-            head.add(smallRound, [sign * .29, 1.10, .65], [.18, .075, .11], palette.ear, [0, 0, sign * -.4])
-            head.add(smallRound, [sign * .176, 1.12, .85], [.035, .044, .022], '#f2ead2')
-            head.add(smallRound, [sign * .181, 1.12, .868], [.018, .026, .010], '#292d2b')
-        }
-        const h = head.finish()
-        if(grazing) {
-            h.translate(0, -.82, -.48)
-            h.rotateX(1.02)
-            h.translate(0, .82, .48)
-        }
-        const b = body.finish(), geometry = mergeGeometries([b, h], false)
-        b.dispose(); h.dispose(); geometry.computeBoundingBox(); geometry.computeBoundingSphere()
-        return geometry
+    const body = new Batch(), head = new Batch(), limb = new Batch()
+    body.add(round, [0, .79, 0], [.43, .44, .66], palette.wool)
+    for(const [x, y, z, sx, sy, sz] of [[0, 1.1, -.25, .37, .21, .4], [0, 1.09, .30, .38, .24, .35], [0, .80, -.58, .33, .33, .22]])
+        body.add(smallRound, [x, y, z], [sx, sy, sz], palette.wool)
+    // One shared leg, authored relative to its hip, drives all forty legs.
+    limb.add(leg, [0, -.27, 0], [1, .54, 1], palette.ear)
+    limb.add(cube, [0, -.515, .015], [.135, .13, .18], palette.hoof)
+    body.add(smallRound, [0, .8, -.72], [.10, .17, .12], palette.woolShade, [.4, 0, 0])
+    head.add(round, [0, .99, .56], [.25, .31, .26], palette.woolShade)
+    head.add(round, [0, 1.05, .74], [.20, .25, .23], palette.face)
+    head.add(smallRound, [0, .91, .91], [.165, .13, .15], palette.face)
+    head.add(smallRound, [0, 1.25, .67], [.23, .14, .20], palette.wool)
+    for(const sign of [-1, 1]) {
+        head.add(smallRound, [sign * .29, 1.10, .65], [.18, .075, .11], palette.ear, [0, 0, sign * -.4])
+        head.add(smallRound, [sign * .176, 1.12, .85], [.035, .044, .022], '#f2ead2')
+        head.add(smallRound, [sign * .181, 1.12, .868], [.018, .026, .010], '#292d2b')
     }
-    for(const grazing of [false, true]) {
-        const placements = sheepPlacements.filter(s => s.grazing === grazing)
-        const mesh = new THREE.InstancedMesh(sheepGeometry(grazing), material, placements.length)
-        mesh.name = grazing ? 'SheepPen_GrazingSheep' : 'SheepPen_StandingSheep'
-        placements.forEach((s, i) => {
-            const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), s.yaw)
-            mesh.setMatrixAt(i, new THREE.Matrix4().compose(new THREE.Vector3(s.x, .014, s.z), q, new THREE.Vector3(s.size, s.size, s.size)))
-            collider([s.x, .60 * s.size, s.z + .03], [.40 * s.size, .59 * s.size, .76 * s.size], [0, s.yaw, 0])
-        })
-        mesh.instanceMatrix.needsUpdate = true
-        mesh.computeBoundingBox(); mesh.computeBoundingSphere()
-        root.add(mesh)
+    const headGeometry = head.finish(); headGeometry.translate(0, -.82, -.48)
+    headGeometry.computeBoundingBox(); headGeometry.computeBoundingSphere()
+    const bodies = new THREE.InstancedMesh(body.finish(), material, sheepPlacements.length)
+    const heads = new THREE.InstancedMesh(headGeometry, material, sheepPlacements.length)
+    const legs = new THREE.InstancedMesh(limb.finish(), material, sheepPlacements.length * 4)
+    bodies.name = 'SheepPen_Bodies'; heads.name = 'SheepPen_Heads'; legs.name = 'SheepPen_Legs'
+    for(const mesh of [bodies, heads, legs]) {
+        mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); root.add(mesh)
     }
+    sheepPlacements.forEach((s, sheepIndex) => {
+        collider([s.x, .60 * s.size, s.z], [.40 * s.size, .59 * s.size, .76 * s.size], [0, s.yaw, 0])
+        colliders[colliders.length - 1].sheepIndex = sheepIndex
+    })
+    const base = new THREE.Matrix4(), local = new THREE.Matrix4(), matrix = new THREE.Matrix4()
+    const q = new THREE.Quaternion(), euler = new THREE.Euler(), position = new THREE.Vector3(), scale = new THREE.Vector3()
+    const hips = [[-.25, .58, -.38], [-.25, .58, .38], [.25, .58, -.38], [.25, .58, .38]]
+    const phases = [0, Math.PI, Math.PI, 0]
+    const flock = {
+        bodies, heads, legs,
+        pose(states, time) {
+            for(let i = 0; i < states.length; i++) {
+                const s = states[i], phase = i * 2.399963, walk = s.walkAmount ?? 0, stride = s.stride ?? 0
+                const graze = s.graze ?? (s.grazing ? 1 : 0)
+                const bob = Math.abs(Math.sin(stride)) * .025 * walk
+                q.setFromEuler(euler.set(0, s.yaw, 0)); scale.setScalar(s.size)
+                base.compose(position.set(s.x, .014 + bob, s.z), q, scale)
+                bodies.setMatrixAt(i, base)
+                local.makeTranslation(0, .82 - .16 * graze, .48)
+                q.setFromEuler(euler.set(graze * 1.10 + Math.sin(time * 1.4 + phase) * .035,
+                    Math.sin(time * .62 + phase) * .14 * (1 - graze * .65), Math.sin(time * .7 + phase) * .025))
+                matrix.makeRotationFromQuaternion(q)
+                heads.setMatrixAt(i, matrix.premultiply(local).premultiply(base))
+                for(let j = 0; j < 4; j++) {
+                    local.makeTranslation(...hips[j])
+                    matrix.makeRotationX(Math.sin(stride + phases[j]) * .42 * walk)
+                    legs.setMatrixAt(i * 4 + j, matrix.premultiply(local).premultiply(base))
+                }
+            }
+            for(const mesh of [bodies, heads, legs]) {
+                mesh.instanceMatrix.needsUpdate = true
+                mesh.computeBoundingBox(); mesh.computeBoundingSphere()
+            }
+        }
+    }
+    flock.pose(sheepPlacements, 0)
     for(const g of [cube, round, smallRound, leg]) g.dispose()
     root.traverse(o => { if(o.isMesh) { o.castShadow = true; o.receiveShadow = true } })
     root.updateMatrixWorld(true)
-    return { root, colliders }
+    return { root, colliders, flock }
 }
