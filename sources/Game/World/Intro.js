@@ -3,6 +3,7 @@ import { Game } from '../Game.js'
 import { atan, float, Fn, PI, PI2, positionGeometry, texture, uniform, uv, vec2, vec3, vec4 } from 'three/tsl'
 import gsap from 'gsap'
 import { Inputs } from '../Inputs/Inputs.js'
+import { createLoadingHaval, updateLoadingHaval } from './LoadingHaval.js'
 
 export class Intro
 {
@@ -83,6 +84,10 @@ export class Intro
         this.game.scene.add(mesh)
 
         this.circle.mesh = mesh
+        this.circle.radius = radius - thickness * 0.5
+        this.circle.car = createLoadingHaval()
+        this.game.scene.add(this.circle.car)
+        updateLoadingHaval(this.circle.car, this.center, 0, this.circle.radius)
 
         // Hide
         this.circle.hide = (callback = null) =>
@@ -100,6 +105,7 @@ export class Intro
                     onUpdate: () =>
                     {
                         mesh.scale.setScalar(dummy.scale)
+                        updateLoadingHaval(this.circle.car, this.center, this.circle.smoothedProgress.value, this.circle.radius, dummy.scale)
                     },
                     onComplete: () =>
                     {
@@ -107,6 +113,7 @@ export class Intro
                             callback()
 
                         mesh.removeFromParent()
+                        this.circle.car.removeFromParent()
                     }
                 }
             )
@@ -306,12 +313,13 @@ export class Intro
 
     updateProgress(progress)
     {
-        this.circle.progress = progress
+        this.circle.progress = Math.max(0, Math.min(1, progress))
     }
 
     update()
     {
-        this.circle.smoothedProgress.value += (this.circle.progress - this.circle.smoothedProgress.value) * this.game.ticker.delta * 10
+        this.circle.smoothedProgress.value += (this.circle.progress - this.circle.smoothedProgress.value) * Math.min(1, this.game.ticker.delta * 10)
+        updateLoadingHaval(this.circle.car, this.center, this.circle.smoothedProgress.value, this.circle.radius, this.circle.mesh.scale.x)
     }
 
     destroy()
@@ -320,6 +328,9 @@ export class Intro
 
         // Geometries
         this.circle.mesh.geometry.dispose()
+        this.circle.car.removeFromParent()
+        this.circle.car.geometry.dispose()
+        this.circle.car.material.dispose()
         this.soundButton.mesh.geometry.dispose()
         this.text.mesh.geometry.dispose()
 
