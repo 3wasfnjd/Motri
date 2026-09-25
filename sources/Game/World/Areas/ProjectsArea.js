@@ -1,4 +1,3 @@
-import {placeholderImageLoader} from '../../../identity/Presentation.js' // MOTRI2_EMPTY_GALLERY
 import * as THREE from 'three/webgpu'
 import { Game } from '../../Game.js'
 import { InteractivePoints } from '../../InteractivePoints.js'
@@ -480,18 +479,18 @@ export class ProjectsArea extends Area
                 resource = {}
                 resource.loaded = false
 
-                const loader = placeholderImageLoader
+                const loader = new THREE.TextureLoader()
 
                 loader.load(
                     path,
                     (loadedTexture) =>
                     {
                         resource.texture = loadedTexture
-                        resource.colorSpace = THREE.SRGBColorSpace
-                        resource.flipY = false
-                        resource.magFilter = THREE.LinearFilter
-                        resource.minFilter = THREE.LinearFilter
-                        resource.generateMipmaps = false
+                        loadedTexture.colorSpace = THREE.SRGBColorSpace
+                        loadedTexture.flipY = false // Authored glTF board UVs
+                        loadedTexture.magFilter = THREE.LinearFilter
+                        loadedTexture.minFilter = THREE.LinearMipmapLinearFilter
+                        loadedTexture.generateMipmaps = true
 
                         resource.loaded = true
                         

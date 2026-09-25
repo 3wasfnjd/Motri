@@ -1,126 +1,55 @@
-// Empty presentation slots; counts remain compatible with existing navigation and achievements.
+// User-supplied gallery artwork; one lightweight image per board.
 export default [
   {
-    "title": "لوحة فارغة 1",
+    "title": "معرض الصور 1",
     "titleSmall": [
-      "لوحة فارغة",
+      "معرض الصور",
       "1"
     ],
     "url": "",
     "attributes": {},
     "distinctions": [],
     "images": [
-      "motri2-empty-1-1.png",
-      "motri2-empty-1-2.png",
-      "motri2-empty-1-3.png",
-      "motri2-empty-1-4.png",
-      "motri2-empty-1-5.png"
+      "aboden-gallery-1.webp"
     ]
   },
   {
-    "title": "لوحة فارغة 2",
+    "title": "معرض الصور 2",
     "titleSmall": [
-      "لوحة فارغة",
+      "معرض الصور",
       "2"
     ],
     "url": "",
     "attributes": {},
     "distinctions": [],
     "images": [
-      "motri2-empty-2-1.png",
-      "motri2-empty-2-2.png",
-      "motri2-empty-2-3.png"
+      "aboden-gallery-2.webp"
     ]
   },
   {
-    "title": "لوحة فارغة 3",
+    "title": "معرض الصور 3",
     "titleSmall": [
-      "لوحة فارغة",
+      "معرض الصور",
       "3"
     ],
     "url": "",
     "attributes": {},
     "distinctions": [],
     "images": [
-      "motri2-empty-3-1.png",
-      "motri2-empty-3-2.png",
-      "motri2-empty-3-3.png"
+      "aboden-gallery-3.webp"
     ]
   },
   {
-    "title": "لوحة فارغة 4",
+    "title": "معرض الصور 4",
     "titleSmall": [
-      "لوحة فارغة",
+      "معرض الصور",
       "4"
     ],
     "url": "",
     "attributes": {},
     "distinctions": [],
     "images": [
-      "motri2-empty-4-1.png",
-      "motri2-empty-4-2.png",
-      "motri2-empty-4-3.png",
-      "motri2-empty-4-4.png"
-    ]
-  },
-  {
-    "title": "لوحة فارغة 5",
-    "titleSmall": [
-      "لوحة فارغة",
-      "5"
-    ],
-    "url": "",
-    "attributes": {},
-    "distinctions": [],
-    "images": [
-      "motri2-empty-5-1.png",
-      "motri2-empty-5-2.png",
-      "motri2-empty-5-3.png"
-    ]
-  },
-  {
-    "title": "لوحة فارغة 6",
-    "titleSmall": [
-      "لوحة فارغة",
-      "6"
-    ],
-    "url": "",
-    "attributes": {},
-    "distinctions": [],
-    "images": [
-      "motri2-empty-6-1.png",
-      "motri2-empty-6-2.png",
-      "motri2-empty-6-3.png"
-    ]
-  },
-  {
-    "title": "لوحة فارغة 7",
-    "titleSmall": [
-      "لوحة فارغة",
-      "7"
-    ],
-    "url": "",
-    "attributes": {},
-    "distinctions": [],
-    "images": [
-      "motri2-empty-7-1.png",
-      "motri2-empty-7-2.png",
-      "motri2-empty-7-3.png"
-    ]
-  },
-  {
-    "title": "لوحة فارغة 8",
-    "titleSmall": [
-      "لوحة فارغة",
-      "8"
-    ],
-    "url": "",
-    "attributes": {},
-    "distinctions": [],
-    "images": [
-      "motri2-empty-8-1.png",
-      "motri2-empty-8-2.png",
-      "motri2-empty-8-3.png"
+      "aboden-gallery-4.webp"
     ]
   }
 ];
