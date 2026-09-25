@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07130f"/><stop offset="1" stop-color="#020706"/></linearGradient><radialGradient id="glow"><stop stop-color="#43f5b5" stop-opacity=".35"/><stop offset="1" stop-color="#43f5b5" stop-opacity="0"/></radialGradient></defs>
+<rect width="960" height="540" fill="url(#bg)"/><circle cx="730" cy="260" r="330" fill="url(#glow)"/>
+<rect x="18" y="18" width="924" height="504" rx="24" fill="none" stroke="#43f5b5" stroke-width="3"/>
+<g opacity=".9"><g transform="translate(510 130)" fill="none" stroke="#62ffb9" stroke-width="5"><path d="M20 300L180 80M20 300L300 110M20 300L420 180M20 300L350 300"/><path d="M180 80l60 60-60 60-60-60z"/><path d="M300 110l70 35-35 70-70-35z"/></g></g>
+<text x="70" y="125" fill="#65ffc2" font-family="Arial,sans-serif" font-size="28" font-weight="700">AR ABODEN</text>
+<text x="70" y="230" fill="white" font-family="Arial,sans-serif" font-size="62" font-weight="800">عرض الليزر</text>
+<text x="70" y="292" fill="#d7e6df" font-family="Arial,sans-serif" font-size="27">عرض وطني بخطوط ضوئية مبهرة</text>
+<rect x="70" y="335" width="110" height="52" rx="12" fill="none" stroke="#43f5b5" stroke-width="2"/><text x="105" y="370" fill="white" font-family="Arial,sans-serif" font-size="25" font-weight="700">AR</text>
+<rect x="195" y="335" width="155" height="52" rx="12" fill="none" stroke="#43f5b5" stroke-width="2"/><text x="225" y="370" fill="white" font-family="Arial,sans-serif" font-size="25" font-weight="700">WEBXR</text>
+<circle cx="875" cy="450" r="38" fill="#07130f" stroke="#43f5b5" stroke-width="3"/><path d="M860 430l25 20-25 20" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

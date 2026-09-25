@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07130f"/><stop offset="1" stop-color="#020706"/></linearGradient><radialGradient id="glow"><stop stop-color="#43f5b5" stop-opacity=".35"/><stop offset="1" stop-color="#43f5b5" stop-opacity="0"/></radialGradient></defs>
+<rect width="960" height="540" fill="url(#bg)"/><circle cx="730" cy="260" r="330" fill="url(#glow)"/>
+<rect x="18" y="18" width="924" height="504" rx="24" fill="none" stroke="#43f5b5" stroke-width="3"/>
+<g opacity=".9"><g transform="translate(500 180)"><path d="M40 190c40-100 120-145 250-125 80 12 130 60 155 135H40z" fill="#111" stroke="#65ffc2" stroke-width="5"/><circle cx="130" cy="205" r="45" fill="#050505" stroke="#ddd" stroke-width="8"/><circle cx="360" cy="205" r="45" fill="#050505" stroke="#ddd" stroke-width="8"/><path d="M85 165h300" stroke="#65ffc2" stroke-width="7"/><path d="M10 260c120 35 250 35 420 0" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="12"/></g></g>
+<text x="70" y="125" fill="#65ffc2" font-family="Arial,sans-serif" font-size="28" font-weight="700">AR ABODEN</text>
+<text x="70" y="230" fill="white" font-family="Arial,sans-serif" font-size="62" font-weight="800">حلبة الدرفت</text>
+<text x="70" y="292" fill="#d7e6df" font-family="Arial,sans-serif" font-size="27">هجولة معززة بالواقع في ساحة تفاعلية</text>
+<rect x="70" y="335" width="110" height="52" rx="12" fill="none" stroke="#43f5b5" stroke-width="2"/><text x="105" y="370" fill="white" font-family="Arial,sans-serif" font-size="25" font-weight="700">AR</text>
+<rect x="195" y="335" width="155" height="52" rx="12" fill="none" stroke="#43f5b5" stroke-width="2"/><text x="225" y="370" fill="white" font-family="Arial,sans-serif" font-size="25" font-weight="700">WEBXR</text>
+<circle cx="875" cy="450" r="38" fill="#07130f" stroke="#43f5b5" stroke-width="3"/><path d="M860 430l25 20-25 20" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

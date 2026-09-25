@@ -1,4 +1,3 @@
-import {placeholderImageLoader} from '../../../identity/Presentation.js' // MOTRI2_EMPTY_GALLERY
 import * as THREE from 'three/webgpu'
 import { Game } from '../../Game.js'
 import { InteractivePoints } from '../../InteractivePoints.js'
@@ -466,7 +465,7 @@ export class LabArea extends Area
                 resource = {}
                 resource.loaded = false
 
-                const loader = placeholderImageLoader
+                const loader = new THREE.TextureLoader()
 
                 loader.load(
                     path,
