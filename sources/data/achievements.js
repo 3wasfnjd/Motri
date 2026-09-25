@@ -111,6 +111,18 @@ export default
         true // Unique
     ],
     [
+        'camelBlast',
+        'تفجير الحلال',
+        'فجّر صندوقًا بالقرب من الإبل حتى تتأثر بالانفجار.',
+        1
+    ],
+    [
+        'sheepPenVisit',
+        'خذلك طلي وخل الدجاج عنك',
+        'ادخل حوش الغنم بالسيارة.',
+        1
+    ],
+    [
         'goHigh',
         'Limit the sky',
         'Reach <strong>15 meters</strong> high.',

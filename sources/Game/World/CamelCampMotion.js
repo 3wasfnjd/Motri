@@ -28,6 +28,7 @@ export class CamelCampMotion {
 
     onExplosion(coordinates, radius, strength, vehicleOnly) {
         if(vehicleOnly || strength <= 0 || radius <= 1) return
+        let camelHit = false
         for(const item of this.items) {
             const physical = item.object.physical, body = physical.body
             if(!body.isEnabled() || item.object.reseting) continue
@@ -43,7 +44,9 @@ export class CamelCampMotion {
                 this.activeCount++
             }
             item.remaining = CAMEL_RETURN_DELAY
+            camelHit = true
         }
+        if(camelHit) this.game.achievements.setProgress('camelBlast', 1)
     }
 
     homeOccupied(item) {

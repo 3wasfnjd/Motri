@@ -44,6 +44,11 @@ export class SheepPen {
 
     update() {
         const p = this.game.player.position
+        const [x0, x1, z0, z1] = SHEEP_PEN.bounds
+        const inside = p.x >= x0 && p.x <= x1 && p.z >= z0 && p.z <= z1 && p.y >= 0 && p.y < 3
+        if(inside && !this.wasInsideAchievementZone)
+            this.game.achievements.setProgress('sheepPenVisit', 1)
+        this.wasInsideAchievementZone = inside
         if(Math.hypot(p.x - SHEEP_PEN.center[0], p.z - SHEEP_PEN.center[2]) > 45) return
         const dt = Math.max(0, Math.min(this.game.ticker.delta, .1))
         this.time += dt; this.accumulator += dt
