@@ -2,6 +2,14 @@ name = "motri-multiplayer"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
 
+[build]
+command = "cd .. && npm ci --force --ignore-scripts --no-audit --no-fund && npm install --no-save --force --ignore-scripts --no-audit --no-fund firebase@12.19.0 && npm run build"
+
+[assets]
+directory = "../dist"
+not_found_handling = "single-page-application"
+run_worker_first = ["/room/*"]
+
 [[durable_objects.bindings]]
 name = "ROOMS"
 class_name = "MotriRoom"
