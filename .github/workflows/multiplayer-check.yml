@@ -45,10 +45,6 @@ jobs:
       - name: Build game
         run: npm run build
 
-      - name: Install multiplayer server dependencies
-        working-directory: multiplayer-server
-        run: npm install --ignore-scripts --no-audit --no-fund
-
       - name: Validate Cloudflare Worker config
         working-directory: multiplayer-server
-        run: npx wrangler deploy --dry-run --outdir .wrangler-dry-run
+        run: npx --yes wrangler@4 deploy --dry-run --outdir .wrangler-dry-run
