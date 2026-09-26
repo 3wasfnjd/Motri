@@ -3,7 +3,7 @@ main = "src/index.js"
 compatibility_date = "2026-09-01"
 
 [build]
-command = "cd .. && npm ci --force --ignore-scripts --no-audit --no-fund && npm install --no-save --force --ignore-scripts --no-audit --no-fund firebase@12.19.0 && npm run build"
+command = "cd .. && npm ci --force --ignore-scripts --no-audit --no-fund && npm install --no-save --force --ignore-scripts --no-audit --no-fund firebase@12.19.0 && npm run build && rm -f dist/sounds/musics/*.wav"
 
 [assets]
 directory = "../dist"
