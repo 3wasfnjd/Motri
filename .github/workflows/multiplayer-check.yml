@@ -9,6 +9,7 @@ on:
       - 'sources/Game/Game.js'
       - 'multiplayer-server/**'
       - '.env.example'
+      - '.env.production'
       - '.github/workflows/multiplayer-check.yml'
   workflow_dispatch:
 
