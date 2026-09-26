@@ -45,3 +45,5 @@ VITE_MULTIPLAYER_ROOM=public
 
 
 Deployment trigger: Cloudflare production branch = multiplayer-prototype.
+
+Build trigger after SKIP_DEPENDENCY_INSTALL configured.
