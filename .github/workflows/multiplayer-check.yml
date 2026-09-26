@@ -7,6 +7,8 @@ on:
       - 'sources/Game/Multiplayer.js'
       - 'sources/Game/Server.js'
       - 'sources/Game/Game.js'
+      - 'sources/style/multiplayer.styl'
+      - 'sources/style/index.styl'
       - 'multiplayer-server/**'
       - '.env.example'
       - '.env.production'
