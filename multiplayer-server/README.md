@@ -42,3 +42,6 @@ VITE_MULTIPLAYER_ROOM=public
 ## اختبار أولي
 
 افتح اللعبة على جهازين بنفس الغرفة. يجب أن تظهر سيارة الجهاز الآخر وتتحرك بسلاسة. إذا ثبتت هذه المرحلة نضيف اختيار السيارة، الأسماء، الدعوات، السباقات ثم التصادمات.
+
+
+Deployment trigger: Cloudflare production branch = multiplayer-prototype.
