@@ -135,7 +135,8 @@ function defaultAttachment()
         uuid: null,
         name: 'MOTRI',
         state: null,
-        lastStateAt: 0
+        lastStateAt: 0,
+        joinedAt: null
     }
 }
 
@@ -203,6 +204,8 @@ export class MotriRoom extends DurableObject
 
             attachment.uuid = uuid
             attachment.name = cleanName(message.name)
+            if(!Number.isFinite(attachment.joinedAt))
+                attachment.joinedAt = Date.now()
             ws.serializeAttachment(attachment)
 
             const players = []
@@ -322,17 +325,29 @@ export class MotriRoom extends DurableObject
 
     getAuthorityUuid(except = null)
     {
+        let leader = null
+
         for(const socket of this.ctx.getWebSockets())
         {
             if(socket === except)
                 continue
 
             const attachment = socket.deserializeAttachment()
-            if(attachment?.uuid)
-                return attachment.uuid
+            if(!attachment?.uuid)
+                continue
+
+            const joinedAt = Number.isFinite(attachment.joinedAt) ? attachment.joinedAt : Number.MAX_SAFE_INTEGER
+            if(
+                !leader ||
+                joinedAt < leader.joinedAt ||
+                (joinedAt === leader.joinedAt && attachment.uuid < leader.uuid)
+            )
+            {
+                leader = { uuid: attachment.uuid, joinedAt }
+            }
         }
 
-        return null
+        return leader?.uuid || null
     }
 
     broadcast(message, except = null)
