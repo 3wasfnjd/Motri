@@ -308,6 +308,27 @@ export class Physics
             const body1 = collider1.parent()
             const body2 = collider2.parent()
 
+            // Multiplayer vehicle contact: route directly from Rapier's
+            // contact-force event so no collision is lost through generic callbacks.
+            const localVehicleBody = this.game.physicalVehicle?.chassis?.physical?.body
+            if(localVehicleBody && this.game.multiplayer)
+            {
+                let remoteUuid = null
+
+                if(body1 === localVehicleBody)
+                    remoteUuid = body2.userData?.multiplayerRemoteUuid || null
+                else if(body2 === localVehicleBody)
+                    remoteUuid = body1.userData?.multiplayerRemoteUuid || null
+
+                if(remoteUuid)
+                {
+                    this.game.multiplayer.handleRemoteVehicleContact(
+                        remoteUuid,
+                        event.maxForceMagnitude()
+                    )
+                }
+            }
+
             // Retrieve callbacks
             const callback1 = body1.userData?.object?.physical?.onCollision
             const callback2 = body2.userData?.object?.physical?.onCollision
