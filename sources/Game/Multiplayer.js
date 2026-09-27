@@ -565,7 +565,6 @@ export class Multiplayer
             wheelPainted: [],
             wheels: [],
             stopLights: [],
-            stopLights: [],
             backLights: [],
             blinkerLeft: [],
             blinkerRight: []
