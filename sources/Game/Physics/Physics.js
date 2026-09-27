@@ -314,10 +314,11 @@ export class Physics
             if(localVehicleBody && this.game.multiplayer)
             {
                 let remoteUuid = null
+                const localHandle = localVehicleBody.handle
 
-                if(body1 === localVehicleBody)
+                if(body1.handle === localHandle)
                     remoteUuid = body2.userData?.multiplayerRemoteUuid || null
-                else if(body2 === localVehicleBody)
+                else if(body2.handle === localHandle)
                     remoteUuid = body1.userData?.multiplayerRemoteUuid || null
 
                 if(remoteUuid)
