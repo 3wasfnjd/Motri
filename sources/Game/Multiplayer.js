@@ -4,13 +4,14 @@ import { VEHICLE_BODY_STYLES } from './World/VehicleBodyStyles.js'
 import { WorldSync } from './WorldSync.js'
 import { MultiplayerLobby } from './MultiplayerLobby.js'
 
-const SEND_INTERVAL = 1 / 12
-const INTERPOLATION_DELAY_MS = 120
-const MAX_EXTRAPOLATION_SECONDS = 0.16
+const SEND_INTERVAL = 1 / 20
+const INTERPOLATION_DELAY_MS = 55
+const MAX_EXTRAPOLATION_SECONDS = 0.12
 const MAX_SNAPSHOTS = 20
 const TELEPORT_DISTANCE = 22
 const MAX_NAME_LENGTH = 12
 const MAX_NAME_TAG_DISTANCE = 75
+const COLLISION_PREDICTION_SECONDS = 0.025
 const IMPACT_COOLDOWN_MS = 220
 const IMPACT_MIN_RELATIVE_SPEED = 0.3
 const IMPACT_MAX_IMPULSE = 24
@@ -56,6 +57,7 @@ export class Multiplayer
         this.lastImpactSentAt = new Map()
         this.tempImpactDirection = new THREE.Vector3()
         this.tempImpactRelativeVelocity = new THREE.Vector3()
+        this.tempCollisionPosition = new THREE.Vector3()
 
         this.prepareRemoteVehicleTemplate()
         this.worldSync = new WorldSync(this.game, this)
@@ -825,7 +827,10 @@ export class Multiplayer
             stopLights: [],
             backLights: [],
             blinkerLeft: [],
-            blinkerRight: []
+            blinkerRight: [],
+            directionIndicator: null,
+            directionArrow: null,
+            directionLabel: null
         }
 
         model.traverse((child) =>
@@ -907,6 +912,24 @@ export class Multiplayer
         remote.leaderElement = leaderElement
         remote.playerNameElement = playerNameElement
 
+        const directionIndicator = document.createElement('div')
+        directionIndicator.className = 'multiplayer-direction-indicator'
+        directionIndicator.hidden = true
+
+        const directionArrow = document.createElement('span')
+        directionArrow.className = 'multiplayer-direction-arrow'
+        directionArrow.textContent = '▲'
+
+        const directionLabel = document.createElement('span')
+        directionLabel.className = 'multiplayer-direction-label'
+
+        directionIndicator.append(directionArrow, directionLabel)
+        this.game.domElement.append(directionIndicator)
+
+        remote.directionIndicator = directionIndicator
+        remote.directionArrow = directionArrow
+        remote.directionLabel = directionLabel
+
         this.game.scene.add(model)
         this.remotePlayers.set(uuid, remote)
         this.updateLeaderPresentation()
@@ -972,6 +995,7 @@ export class Multiplayer
         this.destroyRemoteCollisionBody(remote)
         remote.model.removeFromParent()
         remote.nameElement?.remove()
+        remote.directionIndicator?.remove()
 
         for(const material of remote.paintMaterials?.values?.() || [])
             material.dispose()
@@ -1116,6 +1140,61 @@ export class Multiplayer
         remote.nameElement.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) translate(-50%, -115%)`
     }
 
+    updateRemoteDirectionIndicator(remote)
+    {
+        const indicator = remote.directionIndicator
+        if(!indicator || !remote.initialized || !this.game.server.active)
+        {
+            if(indicator)
+                indicator.hidden = true
+            return
+        }
+
+        // When the car itself and its name tag are visible, an extra arrow only
+        // adds clutter. Use the edge marker for off-screen / behind / far players.
+        if(remote.nameElement && !remote.nameElement.hidden)
+        {
+            indicator.hidden = true
+            return
+        }
+
+        const camera = this.game.view.camera
+        this.tempCameraSpace
+            .copy(remote.model.position)
+            .applyMatrix4(camera.matrixWorldInverse)
+
+        const angle = Math.atan2(
+            this.tempCameraSpace.x,
+            -this.tempCameraSpace.z
+        )
+
+        const rect = this.game.domElement.getBoundingClientRect()
+        const halfWidth = rect.width * 0.5
+        const halfHeight = rect.height * 0.5
+        const radiusX = Math.max(30, halfWidth - 54)
+        const radiusY = Math.max(30, halfHeight - 64)
+
+        const dx = Math.sin(angle)
+        const dy = -Math.cos(angle)
+        const scaleX = radiusX / Math.max(0.001, Math.abs(dx))
+        const scaleY = radiusY / Math.max(0.001, Math.abs(dy))
+        const scale = Math.min(scaleX, scaleY)
+
+        const x = halfWidth + dx * scale
+        const y = halfHeight + dy * scale
+        const distance = Math.round(
+            this.game.physicalVehicle.position.distanceTo(remote.model.position)
+        )
+        const leader = this.authorityUuid === remote.uuid ? '👑 ' : ''
+
+        indicator.hidden = false
+        indicator.style.transform =
+            `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) translate(-50%, -50%)`
+        remote.directionArrow.style.transform = `rotate(${angle}rad)`
+        remote.directionLabel.textContent = `${leader}${remote.name} · ${distance}م`
+        indicator.classList.toggle('is-leader', this.authorityUuid === remote.uuid)
+    }
+
     update()
     {
         if(!this.enabled)
@@ -1137,8 +1216,8 @@ export class Multiplayer
         }
 
         const renderTime = Date.now() - INTERPOLATION_DELAY_MS
-        const positionAlpha = 1 - Math.exp(-18 * dt)
-        const rotationAlpha = 1 - Math.exp(-20 * dt)
+        const positionAlpha = 1 - Math.exp(-26 * dt)
+        const rotationAlpha = 1 - Math.exp(-28 * dt)
 
         this.worldSync.update(dt)
 
@@ -1148,6 +1227,7 @@ export class Multiplayer
             if(!state)
             {
                 this.updateRemoteNameTag(remote)
+                this.updateRemoteDirectionIndicator(remote)
                 continue
             }
 
@@ -1168,17 +1248,32 @@ export class Multiplayer
                 if(!remote.physical.body.isEnabled())
                     remote.physical.body.setEnabled(true)
 
-                remote.physical.body.setNextKinematicTranslation({
-                    x: remote.model.position.x,
-                    y: remote.model.position.y,
-                    z: remote.model.position.z
-                })
-                remote.physical.body.setNextKinematicRotation({
-                    x: remote.model.quaternion.x,
-                    y: remote.model.quaternion.y,
-                    z: remote.model.quaternion.z,
-                    w: remote.model.quaternion.w
-                })
+                const latest = remote.snapshots[remote.snapshots.length - 1]
+                if(latest)
+                {
+                    this.tempCollisionPosition
+                        .copy(latest.position)
+                        .addScaledVector(latest.velocity, COLLISION_PREDICTION_SECONDS)
+
+                    const current = remote.physical.body.translation()
+                    this.tempCollisionPosition.set(
+                        THREE.MathUtils.lerp(current.x, this.tempCollisionPosition.x, 0.72),
+                        THREE.MathUtils.lerp(current.y, this.tempCollisionPosition.y, 0.72),
+                        THREE.MathUtils.lerp(current.z, this.tempCollisionPosition.z, 0.72)
+                    )
+
+                    remote.physical.body.setNextKinematicTranslation({
+                        x: this.tempCollisionPosition.x,
+                        y: this.tempCollisionPosition.y,
+                        z: this.tempCollisionPosition.z
+                    })
+                    remote.physical.body.setNextKinematicRotation({
+                        x: latest.quaternion.x,
+                        y: latest.quaternion.y,
+                        z: latest.quaternion.z,
+                        w: latest.quaternion.w
+                    })
+                }
             }
 
             const speed = state.velocity.length()
@@ -1220,6 +1315,7 @@ export class Multiplayer
                 light.visible = state.right && blinkOn
 
             this.updateRemoteNameTag(remote)
+            this.updateRemoteDirectionIndicator(remote)
         }
     }
 }
