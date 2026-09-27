@@ -82,13 +82,13 @@ export class SheepPen {
             return
         }
 
-        if(Math.hypot(p.x - SHEEP_PEN.center[0], p.z - SHEEP_PEN.center[2]) > 45) return
+        const sharedVehicle = multiplayer?.getClosestVehicleState(this.centerPosition)
+        const car = sharedVehicle?.position ?? this.game.physicalVehicle?.chassis.physical.body.translation() ?? p
+        if(Math.hypot(car.x - SHEEP_PEN.center[0], car.z - SHEEP_PEN.center[2]) > 45) return
+
         const dt = Math.max(0, Math.min(this.game.ticker.delta, .1))
         this.time += dt; this.accumulator += dt
         if(this.accumulator < 1 / 20) return
-
-        const sharedVehicle = multiplayer?.getClosestVehicleState(this.centerPosition)
-        const car = sharedVehicle?.position ?? this.game.physicalVehicle?.chassis.physical.body.translation() ?? p
         this.carLocal.x = car.x - SHEEP_PEN.center[0]; this.carLocal.z = car.z - SHEEP_PEN.center[2]
         this.motion.update(this.accumulator, car.y < 4 ? this.carLocal : null)
         this.accumulator = 0
