@@ -93,6 +93,7 @@ export class PhysicsVehicle
             type: 'dynamic',
             position: this.position,
             friction: 0.4,
+            ccd: true,
             rotation: new THREE.Quaternion().setFromAxisAngle(new THREE.Euler(0, 1, 0), Math.PI * 0),
             colliders: [
                 { shape: 'cuboid', mass: 2.5, parameters: [ 1.3, 0.4, 0.85 ], position: { x: 0, y: -0.1, z: 0 }, centerOfMass: { x: 0, y: -0.5, z: 0 }, category: 'vehicle' }, // Main
