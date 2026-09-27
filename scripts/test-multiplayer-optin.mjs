@@ -44,3 +44,14 @@ assert.match(worker, /legacyPending/, 'Worker must delete legacy suspended ghost
 assert.match(worker, /legacyUuids/, 'Worker must broadcast removal of legacy ghost players')
 
 console.log('Legacy multiplayer ghost cleanup OK')
+
+const multiplayer = fs.readFileSync('sources/Game/Multiplayer.js', 'utf8')
+
+assert.match(multiplayer, /type:\s*'hello'[\s\S]*paint:\s*this\.selectedColor/, 'Selected color must be sent in player hello profile')
+assert.match(multiplayer, /paintMaterials:\s*new Map\(\)/, 'Each remote player must own isolated paint materials')
+assert.match(multiplayer, /source\.clone\(\)/, 'Remote paint must clone the canonical material per player')
+assert.match(worker, /attachment\.paint\s*=\s*cleanPaint\(message\.paint\)/, 'Room server must store selected player color')
+assert.match(worker, /state\.paint\s*=\s*attachment\.paint/, 'Room server must enforce stored player color on every state')
+assert.match(worker, /paint:\s*attachment\.paint/, 'Join profile must broadcast selected player color')
+
+console.log('Multiplayer color profile sync OK')
