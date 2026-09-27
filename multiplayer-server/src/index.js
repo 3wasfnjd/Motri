@@ -12,6 +12,16 @@ function cleanName(value)
     return name || 'MOTRI'
 }
 
+function cleanBody(value)
+{
+    return [ 'h9', 'shas', 'datsun' ].includes(value) ? value : 'h9'
+}
+
+function cleanPaint(value)
+{
+    return [ 'red', 'orange', 'white', 'black' ].includes(value) ? value : 'red'
+}
+
 function cleanNumber(value, fallback = 0, min = -10000, max = 10000)
 {
     const number = Number(value)
@@ -43,8 +53,8 @@ function cleanState(value)
         boost: value.boost ? 1 : 0,
         l: value.l ? 1 : 0,
         r: value.r ? 1 : 0,
-        body: [ 'h9', 'shas', 'datsun' ].includes(value.body) ? value.body : 'h9',
-        paint: String(value.paint || 'red').replace(/[^a-z0-9_-]/gi, '').slice(0, 24) || 'red',
+        body: cleanBody(value.body),
+        paint: cleanPaint(value.paint),
         wy: cleanArray(value.wy, 4, [ -0.88, -0.88, -0.88, -0.88 ], -3, 1),
         seq: Math.max(0, Math.floor(cleanNumber(value.seq, 0, 0, Number.MAX_SAFE_INTEGER))),
         ts: Date.now()
@@ -138,6 +148,8 @@ function defaultAttachment()
         uuid: null,
         deviceUuid: null,
         name: 'MOTRI',
+        body: 'h9',
+        paint: 'red',
         state: null,
         lastStateAt: 0,
         joinedAt: null,
@@ -263,6 +275,8 @@ export class MotriRoom extends DurableObject
                         uuid: value.uuid,
                         deviceUuid: value.deviceUuid,
                         name: value.name,
+                        body: cleanBody(value.body || value.state?.body),
+                        paint: cleanPaint(value.paint || value.state?.paint),
                         state: value.state || null,
                         joinedAt
                     }
@@ -354,10 +368,14 @@ export class MotriRoom extends DurableObject
             attachment.uuid = uuid
             attachment.deviceUuid = deviceUuid || null
             attachment.name = cleanName(message.name)
+            attachment.body = cleanBody(message.body)
+            attachment.paint = cleanPaint(message.paint)
             attachment.joinedAt = Number.isFinite(resumed?.joinedAt) && resumed.joinedAt !== Number.MAX_SAFE_INTEGER
                 ? resumed.joinedAt
                 : Date.now()
-            attachment.state = resumed?.state || attachment.state || null
+            attachment.state = resumed?.state
+                ? { ...resumed.state, body: attachment.body, paint: attachment.paint }
+                : null
             attachment.explicitLeave = false
             attachment.suppressClose = false
             ws.serializeAttachment(attachment)
@@ -377,6 +395,8 @@ export class MotriRoom extends DurableObject
                 players.set(identity, {
                     uuid: otherAttachment.uuid,
                     name: otherAttachment.name,
+                    body: cleanBody(otherAttachment.body || otherAttachment.state?.body),
+                    paint: cleanPaint(otherAttachment.paint || otherAttachment.state?.paint),
                     state: otherAttachment.state,
                     suspended: false
                 })
@@ -394,6 +414,8 @@ export class MotriRoom extends DurableObject
                     players.set(identity, {
                         uuid: record.uuid,
                         name: record.name,
+                        body: cleanBody(record.body || record.state?.body),
+                        paint: cleanPaint(record.paint || record.state?.paint),
                         state: record.state,
                         suspended: true
                     })
@@ -417,6 +439,8 @@ export class MotriRoom extends DurableObject
                 type: 'join',
                 uuid: attachment.uuid,
                 name: attachment.name,
+                body: attachment.body,
+                paint: attachment.paint,
                 authorityUuid,
                 snapshotSourceUuid,
                 resumed: !!resumed
@@ -452,6 +476,8 @@ export class MotriRoom extends DurableObject
             if(!state)
                 return
 
+            state.body = attachment.body
+            state.paint = attachment.paint
             attachment.state = state
             attachment.lastStateAt = now
             ws.serializeAttachment(attachment)
@@ -551,6 +577,8 @@ export class MotriRoom extends DurableObject
             uuid: attachment.uuid,
             deviceUuid: attachment.deviceUuid || null,
             name: attachment.name,
+            body: attachment.body,
+            paint: attachment.paint,
             state: attachment.state,
             joinedAt: Number.isFinite(attachment.joinedAt) ? attachment.joinedAt : Date.now(),
             expiresAt: Date.now() + DISCONNECT_GRACE_MS
