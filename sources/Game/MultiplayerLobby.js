@@ -240,9 +240,10 @@ export class MultiplayerLobby
             this.update()
         })
 
+        this.server.events.on('started', () => this.update())
         this.server.events.on('connecting', () =>
         {
-            this.setStatus(`جارٍ الدخول إلى ${this.server.room}…`)
+            this.setStatus(`جارٍ الاتصال بالغرفة ${this.server.room}…`)
             this.update()
         })
         this.server.events.on('connected', () => this.update())
@@ -358,25 +359,33 @@ export class MultiplayerLobby
     {
         const connected = this.server.connected
         const connecting = this.server.connecting
-        this.setupElement.hidden = connected
-        this.roomElement.hidden = !connected
-        this.launchButton.classList.toggle('is-connected', connected)
-        this.launchButton.textContent = connected ? `غرفة ${this.server.room}` : 'جماعي'
+        const inRoom = this.server.active && !!this.server.room
 
-        this.nameInput.disabled = connected || connecting
+        this.setupElement.hidden = inRoom
+        this.roomElement.hidden = !inRoom
+        this.launchButton.classList.toggle('is-connected', inRoom)
+        this.launchButton.textContent = inRoom ? `غرفة ${this.server.room}` : 'جماعي'
+
+        this.nameInput.disabled = inRoom || connecting
         for(const button of this.carOptions.querySelectorAll('button'))
-            button.disabled = connected || connecting
+            button.disabled = inRoom || connecting
         for(const button of this.colorOptions.querySelectorAll('button'))
-            button.disabled = connected || connecting
+            button.disabled = inRoom || connecting
         this.quickButton.disabled = connecting
         this.createButton.disabled = connecting
         this.roomInput.disabled = connecting
         this.joinForm.querySelector('button').disabled = connecting
 
-        if(!connected)
+        if(!inRoom)
             return
 
         this.roomCodeElement.textContent = this.server.room
+        this.roomCountElement.textContent = connected
+            ? `${Math.min(this.multiplayer.maxPlayers, 1 + this.multiplayer.peerIds.size)} / ${this.multiplayer.maxPlayers}`
+            : 'جارٍ إعادة الاتصال…'
+
+        if(!connected)
+            return
 
         const players = [
             {
