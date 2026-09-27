@@ -400,16 +400,27 @@ export class MotriRoom extends DurableObject
         }
     }
 
-    async webSocketClose(ws)
+    async webSocketClose(ws, code, reason)
     {
         const attachment = { ...defaultAttachment(), ...(ws.deserializeAttachment() || {}) }
+        const explicitByClose = code === 1000 && reason === 'left room'
 
-        if(
+        if(attachment?.uuid && explicitByClose && !attachment.explicitLeave)
+        {
+            await this.ctx.storage.delete(`${PENDING_PREFIX}${attachment.uuid}`)
+            this.broadcast({ type: 'leave', uuid: attachment.uuid }, ws)
+            const authorityUuid = await this.getAuthorityUuid(attachment.uuid)
+            this.broadcast({ type: 'authority', uuid: authorityUuid }, ws)
+            await this.scheduleNextAlarm()
+        }
+        else if(
             attachment?.uuid &&
             !attachment.explicitLeave &&
             !attachment.suppressClose
         )
+        {
             await this.deferDisconnect(attachment)
+        }
 
         try { ws.close(1000, 'closed') } catch {}
     }
