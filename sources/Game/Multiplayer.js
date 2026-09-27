@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu'
 import { Game } from './Game.js'
 import { VEHICLE_BODY_STYLES } from './World/VehicleBodyStyles.js'
+import { WorldSync } from './WorldSync.js'
 
 const SEND_INTERVAL = 1 / 12
 const INTERPOLATION_DELAY_MS = 120
@@ -45,6 +46,7 @@ export class Multiplayer
         this.tempCameraSpace = new THREE.Vector3()
 
         this.prepareRemoteVehicleTemplate()
+        this.worldSync = new WorldSync(this.game, this)
         this.setHud()
 
         this.game.server.events.on('connected', () => this.onConnected())
@@ -181,7 +183,24 @@ export class Multiplayer
                 }
             }
 
+            if(message.world)
+                this.worldSync.applySnapshot(message.world)
+            if(message.animals)
+                this.worldSync.applyAnimals(message.animals)
+
             this.updateHud()
+            return
+        }
+
+        if(message.type === 'worldDelta')
+        {
+            this.worldSync.applySnapshot(message.changes)
+            return
+        }
+
+        if(message.type === 'animalState')
+        {
+            this.worldSync.applyAnimals(message.animals)
             return
         }
 
@@ -206,6 +225,45 @@ export class Multiplayer
             this.removeRemotePlayer(message.uuid)
             this.updateHud()
         }
+    }
+
+    isWorldAuthority()
+    {
+        const ids = [ this.game.server.sessionUuid, ...this.peerIds ].filter(Boolean).sort()
+        return ids.length === 0 || ids[0] === this.game.server.sessionUuid
+    }
+
+    getClosestVehicleState(target)
+    {
+        const localVehicle = this.game.physicalVehicle
+        let best = {
+            position: localVehicle.position,
+            velocity: localVehicle.velocity,
+            distance: localVehicle.position.distanceTo(target),
+            local: true
+        }
+
+        this.worldSync.update(dt)
+
+        for(const remote of this.remotePlayers.values())
+        {
+            if(!remote.initialized)
+                continue
+
+            const latest = remote.snapshots[remote.snapshots.length - 1]
+            const distance = remote.model.position.distanceTo(target)
+            if(distance >= best.distance)
+                continue
+
+            best = {
+                position: remote.model.position,
+                velocity: latest?.velocity || this.tempPosition.set(0, 0, 0),
+                distance,
+                local: false
+            }
+        }
+
+        return best
     }
 
     applyRemoteState(uuid, name, state)
