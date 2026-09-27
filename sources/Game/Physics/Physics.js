@@ -28,14 +28,34 @@ export class Physics
         this.physicals = []
 
         this.groups = {
-            all: 0b0000000000000001,
-            object:  0b0000000000000010,
-            bumper:  0b0000000000000100
+            all:           0b0000000000000001,
+            object:        0b0000000000000010,
+            bumper:        0b0000000000000100,
+            vehicle:       0b0000000000001000,
+            remoteVehicle: 0b0000000000010000
         }
         this.categories = {
             floor: (this.groups.all) << 16 | (this.groups.all),
             object: (this.groups.all | this.groups.object) << 16 | (this.groups.all | this.groups.bumper),
             bumper: (this.groups.bumper) << 16 | this.groups.object,
+
+            // Local player chassis: same world contacts as the previous default
+            // object category, plus remote multiplayer vehicle colliders.
+            vehicle:
+                (this.groups.all | this.groups.vehicle) << 16 |
+                (this.groups.all | this.groups.bumper | this.groups.remoteVehicle),
+
+            // Local oversized bumper: keeps its old object-only behavior and can
+            // additionally hit remote multiplayer vehicles.
+            vehicleBumper:
+                (this.groups.bumper | this.groups.vehicle) << 16 |
+                (this.groups.object | this.groups.remoteVehicle),
+
+            // Remote cars are kinematic proxies. They only collide with the local
+            // vehicle and never push world props independently on each client.
+            remoteVehicle:
+                (this.groups.remoteVehicle) << 16 |
+                this.groups.vehicle,
         }
         this.frictionRules = {
             average: this.game.RAPIER.CoefficientCombineRule.Average,
