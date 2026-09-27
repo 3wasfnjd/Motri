@@ -12,8 +12,9 @@ const TELEPORT_DISTANCE = 22
 const MAX_NAME_LENGTH = 12
 const MAX_NAME_TAG_DISTANCE = 75
 const IMPACT_COOLDOWN_MS = 260
-const IMPACT_MIN_CLOSING_SPEED = 0.65
-const IMPACT_MAX_IMPULSE = 11
+const IMPACT_MIN_CLOSING_SPEED = 0.45
+const IMPACT_MAX_IMPULSE = 20
+const IMPACT_MAX_TORQUE = 4.5
 
 const H9_BODY_NAMES = new Set([
     'H9_Body_trim',
@@ -474,9 +475,10 @@ export class Multiplayer
     getClosestVehicleState(target)
     {
         const localVehicle = this.game.physicalVehicle
+        const localLinvel = localVehicle.chassis?.physical?.body?.linvel?.() || { x: 0, y: 0, z: 0 }
         let best = {
             position: localVehicle.position,
-            velocity: localVehicle.velocity,
+            velocity: new THREE.Vector3(localLinvel.x, localLinvel.y, localLinvel.z),
             distance: localVehicle.position.distanceTo(target),
             local: true
         }
@@ -594,19 +596,27 @@ export class Multiplayer
             return
 
         const localVehicle = this.game.physicalVehicle
-        const localVelocity = localVehicle.velocity
+        const body = localVehicle.chassis?.physical?.body
+        if(!body)
+            return
+
+        const rawLocalVelocity = body.linvel()
+        const localVelocity = new THREE.Vector3(
+            rawLocalVelocity.x,
+            rawLocalVelocity.y,
+            rawLocalVelocity.z
+        )
         const remoteVelocity = latest.velocity || this.tempImpactRelativeVelocity.set(0, 0, 0)
 
         const localSpeed = localVelocity.length()
         const remoteSpeed = remoteVelocity.length()
 
-        // Only one side sends the event. The faster car owns the impact; when
-        // speeds are practically equal, UUID ordering breaks the tie.
+        // Let one peer author the network impulse so the same hit is not doubled.
         const speedGap = localSpeed - remoteSpeed
-        if(speedGap < -0.2)
+        if(speedGap < -0.35)
             return
         if(
-            Math.abs(speedGap) <= 0.2 &&
+            Math.abs(speedGap) <= 0.35 &&
             this.game.server.sessionUuid > remoteUuid
         )
             return
@@ -629,22 +639,41 @@ export class Multiplayer
         if(closingSpeed < IMPACT_MIN_CLOSING_SPEED)
             return
 
+        const mass = Math.max(1, Number(localVehicle.chassis?.mass) || Number(body.mass()) || 2.5)
         const measuredForce = Number.isFinite(force) ? Math.max(0, force) : 0
-        const mass = Math.max(1, Number(localVehicle.chassis?.mass) || 2.5)
+
+        // A physically meaningful baseline: impulse ~= mass * relative speed.
+        // The 0.95 transfer keeps a noticeable hit while avoiding arcade launches.
         const magnitude = THREE.MathUtils.clamp(
-            closingSpeed * mass * 0.62 + Math.min(measuredForce, 4) * 0.18,
-            0.7,
+            closingSpeed * mass * 0.95 + Math.min(measuredForce, 12) * 0.12,
+            1.2,
             IMPACT_MAX_IMPULSE
         )
 
         const impulse = this.tempImpactDirection.clone().multiplyScalar(magnitude)
-        impulse.y = Math.min(0.35, magnitude * 0.025)
+        impulse.y = THREE.MathUtils.clamp(magnitude * 0.035, 0.08, 0.6)
+
+        // Approximate side-hit yaw from the struck vehicle orientation.
+        const targetForward = new THREE.Vector3(1, 0, 0).applyQuaternion(latest.quaternion)
+        const targetSide = new THREE.Vector3(0, 0, 1).applyQuaternion(latest.quaternion)
+        const sideAmount = THREE.MathUtils.clamp(
+            this.tempImpactDirection.dot(targetSide),
+            -1,
+            1
+        )
+        const forwardAmount = Math.abs(this.tempImpactDirection.dot(targetForward))
+        const yawTorque = THREE.MathUtils.clamp(
+            sideAmount * magnitude * (1 - forwardAmount * 0.55) * 0.32,
+            -IMPACT_MAX_TORQUE,
+            IMPACT_MAX_TORQUE
+        )
 
         this.lastImpactSentAt.set(remoteUuid, now)
         this.game.server.send({
             type: 'vehicleImpact',
             targetUuid: remoteUuid,
-            impulse: impulse.toArray().map(value => Number(value.toFixed(3)))
+            impulse: impulse.toArray().map(value => Number(value.toFixed(3))),
+            torque: [ 0, Number(yawTorque.toFixed(3)), 0 ]
         })
     }
 
@@ -675,11 +704,31 @@ export class Multiplayer
             return
 
         this.game.physicalVehicle.rest?.wake?.()
+        body.wakeUp()
+
         body.applyImpulse({
             x: impulse.x,
             y: impulse.y,
             z: impulse.z
         }, true)
+
+        if(Array.isArray(message.torque) && message.torque.length === 3)
+        {
+            const torque = new THREE.Vector3(
+                Number(message.torque[0]) || 0,
+                Number(message.torque[1]) || 0,
+                Number(message.torque[2]) || 0
+            )
+
+            if(torque.length() > IMPACT_MAX_TORQUE)
+                torque.setLength(IMPACT_MAX_TORQUE)
+
+            body.applyTorqueImpulse({
+                x: torque.x,
+                y: torque.y,
+                z: torque.z
+            }, true)
+        }
     }
 
     createRemoteCollisionBody(uuid)
@@ -944,10 +993,13 @@ export class Multiplayer
         const visualVehicle = this.game.world?.visualVehicle
         const inputs = this.game.inputs.actions
 
+        const rapierVelocity = vehicle.chassis?.physical?.body?.linvel?.() || { x: 0, y: 0, z: 0 }
+
         return {
             p: vehicle.position.toArray().map(value => Number(value.toFixed(3))),
             q: vehicle.quaternion.toArray().map(value => Number(value.toFixed(4))),
-            v: vehicle.velocity.toArray().map(value => Number(value.toFixed(3))),
+            v: [ rapierVelocity.x, rapierVelocity.y, rapierVelocity.z ]
+                .map(value => Number(value.toFixed(3))),
             s: Number(player.steering.toFixed(3)),
             a: Number(player.accelerating.toFixed(3)),
             b: player.braking > 0 ? 1 : 0,
