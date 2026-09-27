@@ -11,10 +11,10 @@ const MAX_SNAPSHOTS = 20
 const TELEPORT_DISTANCE = 22
 const MAX_NAME_LENGTH = 12
 const MAX_NAME_TAG_DISTANCE = 75
-const IMPACT_COOLDOWN_MS = 260
-const IMPACT_MIN_CLOSING_SPEED = 0.45
-const IMPACT_MAX_IMPULSE = 20
-const IMPACT_MAX_TORQUE = 4.5
+const IMPACT_COOLDOWN_MS = 220
+const IMPACT_MIN_RELATIVE_SPEED = 0.3
+const IMPACT_MAX_IMPULSE = 24
+const IMPACT_MAX_TORQUE = 5.5
 
 const H9_BODY_NAMES = new Set([
     'H9_Body_trim',
@@ -580,7 +580,7 @@ export class Multiplayer
         }
     }
 
-    handleRemoteVehicleCollision(remoteUuid, force = 0)
+    handleRemoteVehicleContact(remoteUuid, force = 0)
     {
         if(!this.game.server.connected)
             return
@@ -608,17 +608,16 @@ export class Multiplayer
         )
         const remoteVelocity = latest.velocity || this.tempImpactRelativeVelocity.set(0, 0, 0)
 
-        const localSpeed = localVelocity.length()
-        const remoteSpeed = remoteVelocity.length()
+        this.tempImpactRelativeVelocity
+            .copy(localVelocity)
+            .sub(remoteVelocity)
 
-        // Let one peer author the network impulse so the same hit is not doubled.
-        const speedGap = localSpeed - remoteSpeed
-        if(speedGap < -0.35)
-            return
-        if(
-            Math.abs(speedGap) <= 0.35 &&
-            this.game.server.sessionUuid > remoteUuid
-        )
+        const relativeSpeed = this.tempImpactRelativeVelocity.length()
+        const measuredForce = Number.isFinite(force) ? Math.max(0, force) : 0
+
+        // Rapier has already confirmed a real chassis/contact event. Do not
+        // reject side/rear hits based on a centre-line closing-speed test.
+        if(relativeSpeed < IMPACT_MIN_RELATIVE_SPEED && measuredForce < 2)
             return
 
         this.tempImpactDirection
@@ -627,33 +626,31 @@ export class Multiplayer
         this.tempImpactDirection.y = 0
 
         if(this.tempImpactDirection.lengthSq() < 0.0001)
+        {
+            this.tempImpactDirection.copy(this.tempImpactRelativeVelocity)
+            this.tempImpactDirection.y = 0
+        }
+
+        if(this.tempImpactDirection.lengthSq() < 0.0001)
             this.tempImpactDirection.copy(localVehicle.forward)
 
         this.tempImpactDirection.normalize()
 
-        this.tempImpactRelativeVelocity
-            .copy(localVelocity)
-            .sub(remoteVelocity)
-
-        const closingSpeed = this.tempImpactRelativeVelocity.dot(this.tempImpactDirection)
-        if(closingSpeed < IMPACT_MIN_CLOSING_SPEED)
-            return
-
         const mass = Math.max(1, Number(localVehicle.chassis?.mass) || Number(body.mass()) || 2.5)
-        const measuredForce = Number.isFinite(force) ? Math.max(0, force) : 0
 
-        // A physically meaningful baseline: impulse ~= mass * relative speed.
-        // The 0.95 transfer keeps a noticeable hit while avoiding arcade launches.
+        // Contact already exists, so every meaningful hit gets a visible baseline.
+        // Relative momentum supplies most of the push; Rapier contact force adds
+        // extra weight for hard glancing/side contacts.
+        const forceBoost = Math.min(7, Math.sqrt(measuredForce) * 0.28)
         const magnitude = THREE.MathUtils.clamp(
-            closingSpeed * mass * 0.95 + Math.min(measuredForce, 12) * 0.12,
-            1.2,
+            2.8 + relativeSpeed * mass * 1.05 + forceBoost,
+            2.8,
             IMPACT_MAX_IMPULSE
         )
 
         const impulse = this.tempImpactDirection.clone().multiplyScalar(magnitude)
-        impulse.y = THREE.MathUtils.clamp(magnitude * 0.035, 0.08, 0.6)
+        impulse.y = THREE.MathUtils.clamp(magnitude * 0.025, 0.05, 0.55)
 
-        // Approximate side-hit yaw from the struck vehicle orientation.
         const targetForward = new THREE.Vector3(1, 0, 0).applyQuaternion(latest.quaternion)
         const targetSide = new THREE.Vector3(0, 0, 1).applyQuaternion(latest.quaternion)
         const sideAmount = THREE.MathUtils.clamp(
@@ -663,7 +660,7 @@ export class Multiplayer
         )
         const forwardAmount = Math.abs(this.tempImpactDirection.dot(targetForward))
         const yawTorque = THREE.MathUtils.clamp(
-            sideAmount * magnitude * (1 - forwardAmount * 0.55) * 0.32,
+            sideAmount * magnitude * (1 - forwardAmount * 0.45) * 0.38,
             -IMPACT_MAX_TORQUE,
             IMPACT_MAX_TORQUE
         )
@@ -712,6 +709,17 @@ export class Multiplayer
             z: impulse.z
         }, true)
 
+        // Vehicle controller/brake damping can absorb a one-frame impulse quickly.
+        // Preserve a visible minimum velocity change without teleporting the car.
+        const currentVelocity = body.linvel()
+        const mass = Math.max(1, Number(body.mass()) || 2.5)
+        const velocityDelta = impulse.clone().multiplyScalar(0.42 / mass)
+        body.setLinvel({
+            x: currentVelocity.x + velocityDelta.x,
+            y: currentVelocity.y + velocityDelta.y,
+            z: currentVelocity.z + velocityDelta.z
+        }, true)
+
         if(Array.isArray(message.torque) && message.torque.length === 3)
         {
             const torque = new THREE.Vector3(
@@ -743,11 +751,7 @@ export class Multiplayer
             linearDamping: 0,
             angularDamping: 0,
             waterGravityMultiplier: 0,
-            contactThreshold: 0.5,
-            onCollision: (force) =>
-            {
-                this.handleRemoteVehicleCollision(uuid, force)
-            },
+            contactThreshold: 0.05,
             colliders: [
                 {
                     shape: 'cuboid',
