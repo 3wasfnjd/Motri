@@ -41,7 +41,7 @@ export class MultiplayerLobby
         this.launchButton = document.createElement('button')
         this.launchButton.type = 'button'
         this.launchButton.className = 'multiplayer-launch-button'
-        this.launchButton.textContent = 'جماعي'
+        this.launchButton.textContent = 'ONLINE'
 
         this.root = document.createElement('div')
         this.root.className = 'multiplayer-lobby'
@@ -364,7 +364,7 @@ export class MultiplayerLobby
         this.setupElement.hidden = inRoom
         this.roomElement.hidden = !inRoom
         this.launchButton.classList.toggle('is-connected', inRoom)
-        this.launchButton.textContent = inRoom ? `غرفة ${this.server.room}` : 'جماعي'
+        this.launchButton.textContent = inRoom ? `غرفة ${this.server.room}` : 'ONLINE'
 
         this.nameInput.disabled = inRoom || connecting
         for(const button of this.carOptions.querySelectorAll('button'))
