@@ -198,7 +198,6 @@ export class Game
         // this.monitoring = new Monitoring()
         this.world.step(1)
         this.multiplayer = new Multiplayer()
-        this.server.start()
         this.overlay = new Overlay()
 
         // Pre-render if quality high
