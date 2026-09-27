@@ -118,3 +118,13 @@ assert.match(physics, /body1\.handle === localHandle/, 'Local multiplayer chassi
 assert.match(physics, /body2\.handle === localHandle/, 'Remote/local contact order must both be supported')
 
 console.log('Rapier body handle matching OK')
+
+assert.match(multiplayer, /const SEND_INTERVAL = 1 \/ 20/, 'Vehicle state sync must run at 20 Hz')
+assert.match(multiplayer, /const INTERPOLATION_DELAY_MS = 55/, 'Remote rendering latency must be reduced')
+assert.match(multiplayer, /COLLISION_PREDICTION_SECONDS = 0\.025/, 'Remote collision proxy must use short forward prediction')
+assert.match(multiplayer, /addScaledVector\(latest\.velocity, COLLISION_PREDICTION_SECONDS\)/, 'Collision proxy must follow predicted fresh state')
+assert.match(multiplayer, /multiplayer-direction-indicator/, 'Remote players must get a direction indicator')
+assert.match(multiplayer, /directionLabel\.textContent = .*distance.*م/s, 'Direction indicator must show player name and distance')
+assert.match(multiplayer, /updateRemoteDirectionIndicator\(remote\)/, 'Direction indicators must update continuously')
+
+console.log('Responsive multiplayer motion and direction indicators OK')
