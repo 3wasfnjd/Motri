@@ -529,6 +529,12 @@ export class Player
         if(this.state !== Player.STATE_DEFAULT)
             return
 
+        if(this.game.vr?.active)
+        {
+            this.game.vr.applyDriving(this)
+            return
+        }
+
         /**
          * Accelerating
          */

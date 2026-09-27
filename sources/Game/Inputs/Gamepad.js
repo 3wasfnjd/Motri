@@ -244,7 +244,7 @@ export class Gamepad
         let gamepad = null
         for(const _gamepad of navigator.getGamepads())
         {
-            if(_gamepad !== null)
+            if(_gamepad !== null && _gamepad.mapping !== 'xr-standard')
                 gamepad = _gamepad
         }
 

@@ -8,6 +8,14 @@ on:
       - 'sources/Game/MultiplayerLobby.js'
       - 'sources/Game/Server.js'
       - 'sources/Game/Game.js'
+      - 'sources/Game/VirtualReality.js'
+      - 'sources/Game/View.js'
+      - 'sources/Game/Player.js'
+      - 'sources/Game/Reveal.js'
+      - 'sources/Game/Inputs/**'
+      - 'sources/style/vr.css'
+      - 'sources/index.html'
+      - 'scripts/test-vr.mjs'
       - 'sources/Game/Options.js'
       - 'sources/Game/Passes/cheapDOF.js'
       - 'sources/Game/Rendering.js'
@@ -75,6 +83,9 @@ jobs:
 
       - name: Build game
         run: npm run build
+
+      - name: Test VR controls, camera and session recovery
+        run: node --test scripts/test-vr.mjs
 
       - name: Validate Cloudflare Worker config
         working-directory: multiplayer-server

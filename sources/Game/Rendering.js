@@ -4,6 +4,7 @@ import { bloom } from 'three/addons/tsl/display/BloomNode.js'
 import { Game } from './Game.js'
 import { cheapDOF } from './Passes/cheapDOF.js'
 import { Inspector } from 'three/addons/inspector/Inspector.js'
+import gsap from 'gsap'
 
 export class Rendering
 {
@@ -42,10 +43,12 @@ export class Rendering
 
     async setRenderer()
     {
+        // Three r183 supports immersive XR through its WebGL2 backend only.
+        const supportsVR = await this.game.vr.supportPromise
         this.renderer = new THREE.WebGPURenderer({
             canvas: this.game.canvasElement,
             powerPreference: 'high-performance',
-            forceWebGL: false,
+            forceWebGL: supportsVR || new URLSearchParams(location.search).get('vr') === '1',
             antialias:
                 this.game.quality.level === 0 &&
                 this.game.viewport.pixelRatio <= 1.25
@@ -74,7 +77,13 @@ export class Rendering
         }
 
         // Make the renderer control the ticker
-        this.renderer.setAnimationLoop((elapsedTime) => { this.game.ticker.update(elapsedTime) })
+        this.renderer.setAnimationLoop((elapsedTime) =>
+        {
+            // Window RAF may pause in an immersive session. Keep reveal, respawn
+            // and world tweens advancing on the headset's animation loop too.
+            if(this.game.vr?.active) gsap.ticker.tick()
+            this.game.ticker.update(elapsedTime)
+        })
 
         return this.renderer
             .init()
@@ -187,6 +196,7 @@ export class Rendering
 
     updateAdaptiveResolution()
     {
+        if(this.renderer.xr.isPresenting) return
         const adaptive = this.adaptiveResolution
         if(!adaptive)
             return
@@ -301,6 +311,7 @@ export class Rendering
 
     resize()
     {
+        if(this.renderer.xr.isPresenting) return
         const viewport = this.game.viewport
 
         if(!Number.isFinite(this.dynamicPixelRatio))
@@ -321,7 +332,8 @@ export class Rendering
 
     async render()
     {
-        if(this.usePostProcessing)
+        // Stereo eye targets are owned by WebXR, not the flat-screen DOF pass.
+        if(this.usePostProcessing && !this.renderer.xr.isPresenting)
             this.postProcessing.render()
         else
             this.renderer.render(
