@@ -152,6 +152,9 @@ export class Physics
 
         if(typeof _physicalDescription.enabled !== 'undefined')
             rigidBodyDesc.setEnabled(_physicalDescription.enabled)
+
+        if(_physicalDescription.ccd === true)
+            rigidBodyDesc.setCcdEnabled(true)
         
         physical.body = this.world.createRigidBody(rigidBodyDesc)
 
@@ -308,27 +311,6 @@ export class Physics
             const body1 = collider1.parent()
             const body2 = collider2.parent()
 
-            // Multiplayer vehicle contact: route directly from Rapier's
-            // contact-force event so no collision is lost through generic callbacks.
-            const localVehicleBody = this.game.physicalVehicle?.chassis?.physical?.body
-            if(localVehicleBody && this.game.multiplayer)
-            {
-                let remoteUuid = null
-                const localHandle = localVehicleBody.handle
-
-                if(body1.handle === localHandle)
-                    remoteUuid = body2.userData?.multiplayerRemoteUuid || null
-                else if(body2.handle === localHandle)
-                    remoteUuid = body1.userData?.multiplayerRemoteUuid || null
-
-                if(remoteUuid)
-                {
-                    this.game.multiplayer.handleRemoteVehicleContact(
-                        remoteUuid,
-                        event.maxForceMagnitude()
-                    )
-                }
-            }
 
             // Retrieve callbacks
             const callback1 = body1.userData?.object?.physical?.onCollision
