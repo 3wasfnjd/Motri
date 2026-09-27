@@ -45,6 +45,7 @@ function cleanState(value)
         r: value.r ? 1 : 0,
         body: [ 'h9', 'shas', 'datsun' ].includes(value.body) ? value.body : 'h9',
         paint: String(value.paint || 'red').replace(/[^a-z0-9_-]/gi, '').slice(0, 24) || 'red',
+        wy: cleanArray(value.wy, 4, [ -0.88, -0.88, -0.88, -0.88 ], -3, 1),
         seq: Math.max(0, Math.floor(cleanNumber(value.seq, 0, 0, Number.MAX_SAFE_INTEGER))),
         ts: Date.now()
     }
