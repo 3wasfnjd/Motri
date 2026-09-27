@@ -4,6 +4,7 @@ import { bloom } from 'three/addons/tsl/display/BloomNode.js'
 import { Game } from './Game.js'
 import { cheapDOF } from './Passes/cheapDOF.js'
 import { Inspector } from 'three/addons/inspector/Inspector.js'
+import gsap from 'gsap'
 
 export class Rendering
 {
@@ -37,10 +38,12 @@ export class Rendering
 
     async setRenderer()
     {
+        // Three r183 supports immersive XR through its WebGL2 backend only.
+        const supportsVR = await this.game.vr.supportPromise
         this.renderer = new THREE.WebGPURenderer({
             canvas: this.game.canvasElement,
             powerPreference: 'high-performance',
-            forceWebGL: false,
+            forceWebGL: supportsVR || new URLSearchParams(location.search).get('vr') === '1',
             antialias: this.game.viewport.pixelRatio < 2
         })
         this.renderer.setSize(this.game.viewport.width, this.game.viewport.height)
@@ -65,7 +68,12 @@ export class Rendering
         }
 
         // Make the renderer control the ticker
-        this.renderer.setAnimationLoop((elapsedTime) => { this.game.ticker.update(elapsedTime) })
+        this.renderer.setAnimationLoop((elapsedTime) =>
+        {
+            // Keep reveal/respawn tweens running if window RAF pauses in VR.
+            if(this.game.vr?.active) gsap.ticker.tick()
+            this.game.ticker.update(elapsedTime)
+        })
 
         return this.renderer
             .init()
@@ -164,14 +172,18 @@ export class Rendering
 
     resize()
     {
+        if(this.renderer.xr.isPresenting) return
         this.renderer.setSize(this.game.viewport.width, this.game.viewport.height)
         this.renderer.setPixelRatio(this.game.viewport.pixelRatio)
     }
 
     async render()
     {
-        // this.renderer.render(this.game.scene, this.game.view.camera)
-        this.postProcessing.render()
+        // WebXR owns both eye targets; flat-screen post-processing stays unchanged.
+        if(this.renderer.xr.isPresenting)
+            this.renderer.render(this.game.scene, this.game.view.camera)
+        else
+            this.postProcessing.render()
 
         if(this.stats)
             this.stats.update()

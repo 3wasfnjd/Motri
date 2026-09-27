@@ -44,6 +44,8 @@ jobs:
           node --experimental-vm-modules scripts/test-mobile-boost.mjs
           node scripts/test-vehicle-underglow.mjs
           node scripts/test-vehicle-underglow-shader.mjs
+      - name: Test Meta Quest VR controls, camera and session recovery
+        run: node --test scripts/test-vr.mjs
       - name: Install Firebase SDK for web build
         run: |
           rm -rf "$RUNNER_TEMP/firebase-sdk"
