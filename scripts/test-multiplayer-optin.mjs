@@ -113,3 +113,8 @@ assert.match(multiplayer, /IMPACT_MIN_RELATIVE_SPEED = 0\.3/, 'Side and rear imp
 assert.match(multiplayer, /body\.setLinvel\(/, 'Incoming impacts must preserve a visible velocity delta after controller damping')
 
 console.log('Confirmed Rapier contact routing OK')
+
+assert.match(physics, /body1\.handle === localHandle/, 'Local multiplayer chassis must be matched by stable Rapier body handle')
+assert.match(physics, /body2\.handle === localHandle/, 'Remote/local contact order must both be supported')
+
+console.log('Rapier body handle matching OK')
