@@ -123,28 +123,44 @@ export class Options
             {
                 element.classList.add('is-success')
                 element.classList.remove('is-danger')
-                
-                text.textContent = "متصل"
-
-                tooltip.innerHTML = /* html */`ميزات <strong>اللعب المشترك</strong> متاحة`
+                text.textContent = `متصل · ${this.game.server.room}`
+                tooltip.innerHTML = /* html */`أنت داخل غرفة <strong>${this.game.server.room}</strong>`
+            }
+            else if(this.game.server.active || this.game.server.connecting)
+            {
+                element.classList.remove('is-success')
+                element.classList.remove('is-danger')
+                text.textContent = "جارٍ الاتصال"
+                tooltip.innerHTML = /* html */`جارٍ الاتصال بغرفة اللعب الجماعي.`
             }
             else
             {
                 element.classList.remove('is-success')
-                element.classList.add('is-danger')
-                text.textContent = "غير متصل"
-
-                tooltip.innerHTML = /* html */`الخدمات الشبكية غير مفعّلة في هذه النسخة. القيادة المحلية متاحة.`
+                element.classList.remove('is-danger')
+                text.textContent = "فردي"
+                tooltip.innerHTML = /* html */`أنت في الوضع الفردي. افتح زر <strong>جماعي</strong> للدخول إلى غرفة.`
             }
         }
 
         update(this.game.server.connected)
 
+        this.game.server.events.on('started', () =>
+        {
+            update(false)
+        })
+        this.game.server.events.on('connecting', () =>
+        {
+            update(false)
+        })
         this.game.server.events.on('connected', () =>
         {
             update(true)
         })
         this.game.server.events.on('disconnected', () =>
+        {
+            update(false)
+        })
+        this.game.server.events.on('stopped', () =>
         {
             update(false)
         })
