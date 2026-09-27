@@ -62,6 +62,9 @@ export class Multiplayer
         this.game.server.events.on('disconnected', () => this.onDisconnected())
 
         this.game.ticker.events.on('tick', () => this.update(), 9)
+
+        if(this.enabled && this.game.server.resumeRoom)
+            this.game.server.start(this.game.server.resumeRoom)
     }
 
     resolveLocalName()
@@ -179,14 +182,16 @@ export class Multiplayer
             return
         }
 
-        this.hud.hidden = !this.game.server.connected
+        const inRoom = this.game.server.active && !!this.game.server.room
+        this.hud.hidden = !inRoom
         this.hud.classList.toggle('is-connected', this.game.server.connected)
 
-        if(this.game.server.connected)
+        if(inRoom)
         {
             const count = Math.min(this.maxPlayers, 1 + this.peerIds.size)
             const leaderPrefix = this.isWorldAuthority() ? '👑 القائد · ' : ''
-            this.hudStatus.textContent = `${leaderPrefix}${this.localName} · ${count}/${this.maxPlayers}`
+            const reconnecting = this.game.server.connected ? '' : ' · إعادة اتصال'
+            this.hudStatus.textContent = `${leaderPrefix}${this.localName} · ${count}/${this.maxPlayers}${reconnecting}`
             this.hudRoom.textContent = `الغرفة: ${this.game.server.room}`
             this.hud.classList.toggle('is-leader', this.isWorldAuthority())
         }
@@ -225,10 +230,7 @@ export class Multiplayer
 
     onConnected()
     {
-        this.peerIds.clear()
-        this.authorityUuid = null
         this.worldReady = false
-        this.clearRemotePlayers(false)
         this.updateHud()
 
         this.game.server.send({
@@ -239,10 +241,15 @@ export class Multiplayer
 
     onDisconnected()
     {
-        this.peerIds.clear()
-        this.authorityUuid = null
         this.worldReady = false
-        this.clearRemotePlayers(false)
+
+        if(!this.game.server.active)
+        {
+            this.peerIds.clear()
+            this.authorityUuid = null
+            this.clearRemotePlayers(false)
+        }
+
         this.updateHud()
     }
 
@@ -260,19 +267,29 @@ export class Multiplayer
                 this.maxPlayers = Math.max(2, Math.min(12, Math.floor(message.maxPlayers)))
 
             this.authorityUuid = message.authorityUuid || this.game.server.sessionUuid
-            this.worldReady = !Array.isArray(message.players) || message.players.length === 0
+            this.worldReady = !message.snapshotSourceUuid
 
             if(Array.isArray(message.players))
             {
+                const nextPeerIds = new Set()
+
                 for(const player of message.players)
                 {
                     if(!player?.uuid || player.uuid === this.game.server.sessionUuid)
                         continue
 
-                    this.peerIds.add(player.uuid)
+                    nextPeerIds.add(player.uuid)
                     if(player.state)
                         this.applyRemoteState(player.uuid, player.name, player.state)
                 }
+
+                for(const uuid of [ ...this.remotePlayers.keys() ])
+                {
+                    if(!nextPeerIds.has(uuid))
+                        this.removeRemotePlayer(uuid)
+                }
+
+                this.peerIds = nextPeerIds
             }
 
             if(message.world)
@@ -311,16 +328,13 @@ export class Multiplayer
 
         if(message.type === 'join' && message.uuid && message.uuid !== this.game.server.sessionUuid)
         {
-            const wasWorldAuthority = this.isWorldAuthority()
             this.peerIds.add(message.uuid)
             if(message.authorityUuid)
                 this.authorityUuid = message.authorityUuid
 
             this.updateLeaderPresentation()
 
-            // The previous room authority sends the new player one complete world
-            // snapshot before authority can move to a lower-sorted session id.
-            if(wasWorldAuthority)
+            if(message.snapshotSourceUuid === this.game.server.sessionUuid)
                 this.worldSync.sendFullSnapshot()
 
             this.updateHud()
@@ -332,6 +346,13 @@ export class Multiplayer
             this.peerIds.add(message.uuid)
             this.applyRemoteState(message.uuid, message.name, message.state)
             this.updateHud()
+            return
+        }
+
+        if(message.type === 'roomFull')
+        {
+            this.lobby?.setStatus(`الغرفة ممتلئة (${message.maxPlayers || this.maxPlayers} لاعبين).`)
+            this.game.server.stop(false)
             return
         }
 
