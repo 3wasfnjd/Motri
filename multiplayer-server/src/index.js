@@ -6,7 +6,8 @@ const MAX_WORLD_CHANGES = 96
 const WORLD_OWNER_MOVING_MS = 1600
 const WORLD_OWNER_SLEEPING_MS = 1100
 const VEHICLE_IMPACT_COOLDOWN_MS = 180
-const VEHICLE_IMPACT_MAX = 11
+const VEHICLE_IMPACT_MAX = 20
+const VEHICLE_TORQUE_MAX = 4.5
 const DISCONNECT_GRACE_MS = 10 * 60 * 1000
 const PENDING_PREFIX = 'pending:'
 
@@ -59,6 +60,23 @@ function cleanImpulse(value)
     }
 
     return impulse
+}
+
+function cleanTorque(value)
+{
+    if(!Array.isArray(value) || value.length !== 3)
+        return [ 0, 0, 0 ]
+
+    const torque = value.map(item => cleanNumber(item, 0, -VEHICLE_TORQUE_MAX, VEHICLE_TORQUE_MAX))
+    const magnitude = Math.hypot(...torque)
+
+    if(magnitude > VEHICLE_TORQUE_MAX)
+    {
+        const scale = VEHICLE_TORQUE_MAX / magnitude
+        return torque.map(item => item * scale)
+    }
+
+    return torque
 }
 
 function cleanState(value)
@@ -527,6 +545,8 @@ export class MotriRoom extends DurableObject
             if(!impulse)
                 return
 
+            const torque = cleanTorque(message.torque)
+
             const now = Date.now()
             const pairKey = `${attachment.uuid}>${targetUuid}`
             const lastAt = this.vehicleImpactLastAt.get(pairKey) || 0
@@ -555,7 +575,8 @@ export class MotriRoom extends DurableObject
                     type: 'vehicleImpact',
                     sourceUuid: attachment.uuid,
                     targetUuid,
-                    impulse
+                    impulse,
+                    torque
                 }))
             }
             catch {}
