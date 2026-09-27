@@ -31,7 +31,18 @@ export class Server
         this.active = false
         this.initData = null
         this.events = new Events()
-        this.sessionUuid = uuidv4()
+
+        let storedSessionUuid = null
+        let storedRoom = null
+        try
+        {
+            storedSessionUuid = localStorage.getItem('motri.multiplayer.sessionUuid')
+            storedRoom = cleanRoom(localStorage.getItem('motri.multiplayer.activeRoom'))
+        }
+        catch {}
+
+        this.sessionUuid = storedSessionUuid || uuidv4()
+        this.resumeRoom = storedRoom
         this.reconnectInterval = null
 
         const params = new URLSearchParams(window.location.search)
@@ -39,6 +50,22 @@ export class Server
         this.room = null
 
         document.documentElement.classList.add('is-server-offline')
+
+        const resumeTransport = () =>
+        {
+            if(!this.active || this.connected || this.connecting)
+                return
+
+            this.connect()
+        }
+
+        document.addEventListener('visibilitychange', () =>
+        {
+            if(document.visibilityState === 'visible')
+                resumeTransport()
+        })
+        window.addEventListener('pageshow', resumeTransport)
+        window.addEventListener('online', resumeTransport)
     }
 
     start(room)
@@ -59,10 +86,23 @@ export class Server
         if(this.active || this.connected || this.connecting)
             this.stop(false)
 
+        const isResume = this.resumeRoom === nextRoom && !!this.sessionUuid
+
         this.room = nextRoom
         this.active = true
         this.initData = null
-        this.sessionUuid = uuidv4()
+
+        if(!isResume)
+            this.sessionUuid = uuidv4()
+
+        this.resumeRoom = nextRoom
+
+        try
+        {
+            localStorage.setItem('motri.multiplayer.activeRoom', nextRoom)
+            localStorage.setItem('motri.multiplayer.sessionUuid', this.sessionUuid)
+        }
+        catch {}
 
         this.connect()
         this.reconnectInterval = setInterval(() =>
@@ -87,11 +127,35 @@ export class Server
         }
 
         const socket = this.socket
+        const room = this.room
+
+        if(socket && this.connected && room)
+        {
+            try
+            {
+                socket.send(this.encode({
+                    uuid: this.sessionUuid,
+                    deviceUuid: this.uuid,
+                    room,
+                    type: 'leaveRoom'
+                }))
+            }
+            catch {}
+        }
+
         this.socket = null
         this.connecting = false
         this.connected = false
         this.initData = null
         this.room = null
+        this.resumeRoom = null
+
+        try
+        {
+            localStorage.removeItem('motri.multiplayer.activeRoom')
+            localStorage.removeItem('motri.multiplayer.sessionUuid')
+        }
+        catch {}
 
         document.documentElement.classList.add('is-server-offline')
         document.documentElement.classList.remove('is-server-online')
