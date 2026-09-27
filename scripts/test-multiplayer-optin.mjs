@@ -96,3 +96,13 @@ assert.match(worker, /cleanImpulse\(message\.impulse\)/, 'Server must sanitize v
 assert.match(worker, /targetSocket\.send\(JSON\.stringify\(\{[\s\S]*type:\s*'vehicleImpact'/, 'Server must route impact only to the target socket')
 
 console.log('Multiplayer impact force exchange OK')
+
+assert.match(multiplayer, /body\.linvel\(\)/, 'Impact calculation must use real Rapier linear velocity')
+assert.match(multiplayer, /rapierVelocity = vehicle\.chassis\?\.physical\?\.body\?\.linvel/, 'Network state must send real Rapier velocity')
+assert.match(multiplayer, /closingSpeed \* mass \* 0\.95/, 'Impact strength must scale from real relative momentum')
+assert.match(multiplayer, /applyTorqueImpulse\(/, 'Side impacts must apply a bounded yaw torque')
+assert.match(multiplayer, /IMPACT_MAX_IMPULSE = 20/, 'Client impact cap must allow a clearly visible push')
+assert.match(worker, /VEHICLE_IMPACT_MAX = 20/, 'Server impact cap must match the client')
+assert.match(worker, /cleanTorque\(message\.torque\)/, 'Server must sanitize impact torque')
+
+console.log('Real Rapier impact velocity OK')
