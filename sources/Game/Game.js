@@ -218,6 +218,28 @@ export class Game
 
     reset()
     {
+        if(
+            this.server?.connected &&
+            this.multiplayer &&
+            !this.multiplayer.isWorldAuthority()
+        )
+        {
+            const html = /* html */`
+                <div class="top">
+                    <div class="title">إعادة ضبط العالم متاحة للقائد فقط 👑</div>
+                </div>
+            `
+
+            this.notifications.show(
+                html,
+                'multiplayer-leader-only',
+                3,
+                null,
+                'multiplayer-leader-only'
+            )
+            return
+        }
+
         // Interactive buttons
         this.inputs.interactiveButtons.clearItems()
 
