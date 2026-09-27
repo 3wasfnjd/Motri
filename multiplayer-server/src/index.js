@@ -3,7 +3,6 @@ import { DurableObject } from 'cloudflare:workers'
 const MAX_PLAYERS = 6
 const MIN_STATE_INTERVAL_MS = 40
 const MAX_WORLD_CHANGES = 96
-const MAX_WORLD_ENTRIES = 256
 
 function cleanName(value)
 {
@@ -108,9 +107,7 @@ function defaultAttachment()
         uuid: null,
         name: 'MOTRI',
         state: null,
-        lastStateAt: 0,
-        world: {},
-        animals: null
+        lastStateAt: 0
     }
 }
 
@@ -181,9 +178,6 @@ export class MotriRoom extends DurableObject
             ws.serializeAttachment(attachment)
 
             const players = []
-            const world = {}
-            let animals = null
-
             for(const other of this.ctx.getWebSockets())
             {
                 if(other === ws)
@@ -198,24 +192,13 @@ export class MotriRoom extends DurableObject
                         state: otherAttachment.state
                     })
                 }
-
-                for(const [ id, state ] of Object.entries(otherAttachment.world || {}))
-                {
-                    if(!world[id] || Number(state.ts || 0) >= Number(world[id].ts || 0))
-                        world[id] = state
-                }
-
-                if(otherAttachment.animals && (!animals || Number(otherAttachment.animals.ts || 0) >= Number(animals.ts || 0)))
-                    animals = otherAttachment.animals
             }
 
             ws.send(JSON.stringify({
                 type: 'welcome',
                 uuid: attachment.uuid,
                 maxPlayers: MAX_PLAYERS,
-                players,
-                world,
-                animals
+                players
             }))
 
             this.broadcast({
@@ -259,26 +242,6 @@ export class MotriRoom extends DurableObject
             if(!changes.length)
                 return
 
-            for(const socket of this.ctx.getWebSockets())
-            {
-                const socketAttachment = { ...defaultAttachment(), ...(socket.deserializeAttachment() || {}) }
-                const nextWorld = { ...(socketAttachment.world || {}) }
-
-                for(const change of changes)
-                    nextWorld[change.id] = change
-
-                const ids = Object.keys(nextWorld)
-                if(ids.length > MAX_WORLD_ENTRIES)
-                {
-                    ids.sort((a, b) => Number(nextWorld[a]?.ts || 0) - Number(nextWorld[b]?.ts || 0))
-                    for(const id of ids.slice(0, ids.length - MAX_WORLD_ENTRIES))
-                        delete nextWorld[id]
-                }
-
-                socketAttachment.world = nextWorld
-                socket.serializeAttachment(socketAttachment)
-            }
-
             this.broadcast({
                 type: 'worldDelta',
                 uuid: attachment.uuid,
@@ -292,13 +255,6 @@ export class MotriRoom extends DurableObject
             const animals = cleanAnimals(message.animals)
             if(!animals)
                 return
-
-            for(const socket of this.ctx.getWebSockets())
-            {
-                const socketAttachment = { ...defaultAttachment(), ...(socket.deserializeAttachment() || {}) }
-                socketAttachment.animals = animals
-                socket.serializeAttachment(socketAttachment)
-            }
 
             this.broadcast({
                 type: 'animalState',
