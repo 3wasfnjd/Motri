@@ -1,6 +1,6 @@
 import * as THREE from 'three/webgpu'
 import { Game } from './Game.js'
-import { bool, color, float, Fn, If, mix, positionGeometry, texture, uniform, vec2, vec3, vec4, viewportCoordinate, viewportSize, screenUV, min, max, mul } from 'three/tsl'
+import { cameraViewport, color, Fn, If, mix, positionGeometry, texture, uniform, vec4, viewportCoordinate } from 'three/tsl'
 import gsap from 'gsap'
 
 export class Overlay
@@ -28,11 +28,17 @@ export class Overlay
         const material = new THREE.MeshBasicNodeMaterial({ transparent: true, depthTest: false, depthWrite: false })
         material.outputNode = Fn(() =>
         {
+            // This mesh writes clip-space vertices directly. Using the active
+            // eye's viewport also supplies the cameraIndex binding required by
+            // Three's stereo draw path, and keeps the wipe aligned in both eyes.
+            const pixelPosition = viewportCoordinate.sub(cameraViewport.xy).toVar()
+            const screenUV = pixelPosition.div(cameraViewport.zw).toVar()
+
             // Stroke
-            const strokeMask = viewportCoordinate.x.add(viewportCoordinate.y).div(this.strokeSize).mod(1).sub(0.5).mul(2).abs()
+            const strokeMask = pixelPosition.x.add(pixelPosition.y).div(this.strokeSize).mod(1).sub(0.5).mul(2).abs()
 
             // Pattern
-            const patternUv = viewportCoordinate.div(this.patternSize).mod(1)
+            const patternUv = pixelPosition.div(this.patternSize).mod(1)
             const patternMask = texture(this.game.resources.overlayPatternTexture, patternUv).a.remap(0, 0.68, 0, 1).toVar()
 
             If(this.inverted.greaterThan(0.5), () =>
@@ -55,7 +61,7 @@ export class Overlay
             diagonalProgress.lessThan(mask).discard()
 
             // Gradient
-            const colorHash = texture(this.game.noises.hash, viewportCoordinate.div(this.game.noises.resolution)).r.sub(0.5).mul(0.2)
+            const colorHash = texture(this.game.noises.hash, pixelPosition.div(this.game.noises.resolution)).r.sub(0.5).mul(0.2)
             const colorMix = screenUV.length().add(colorHash)
             const finalColor = mix(colorA, colorB, colorMix)
 

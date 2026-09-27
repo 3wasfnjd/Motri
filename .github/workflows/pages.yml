@@ -48,6 +48,7 @@ jobs:
         run: |
           node --test scripts/test-vr.mjs
           node --loader ./scripts/camel-camp-test-loader.mjs scripts/test-vr-rendering.mjs
+          node --loader ./scripts/camel-camp-test-loader.mjs scripts/test-vr-overlay.mjs
       - name: Install Firebase SDK for web build
         run: |
           rm -rf "$RUNNER_TEMP/firebase-sdk"

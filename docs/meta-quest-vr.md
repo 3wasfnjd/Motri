@@ -39,11 +39,17 @@
 - تتوقف معالجة DOF/bloom وتغيير دقة النافذة أثناء XR، مع دقة إطار 0.8 وfoveation 1.
 - تستخدم خريطة آثار الإطارات كاميرتها الأرضية مع تعطيل XR مؤقتًا أثناء رسمها فقط،
   وتُستعاد حالة الرسم حتى عند حدوث خطأ.
+- تستخدم طبقة الانتقال حدود الصورة الخاصة بكل عين. كان استخدام إحداثيات
+  الشاشة كاملة يُنتج مادة بلا مجموعة `cameraIndex`، فيوقف Three رسم VR
+  بخطأ `Cannot read properties of undefined (reading 'bindings')` قبل اكتمال الإطار.
 - تتبع الرأس يستخدم reference space من نوع `local` مع معايرة الجلسة الأولى؛
   لا يتطلب الوقوف ولا يصطنع طولًا للمستخدم.
 - تحكم Quest يُقرأ من `XRSession.inputSources` حسب اليد و`xr-standard`.
 - الفحوص الآلية: `node --test scripts/test-vr.mjs`، ثم
-  `node --loader ./scripts/camel-camp-test-loader.mjs scripts/test-vr-rendering.mjs`، ثم `npm run build`.
+  `node --loader ./scripts/camel-camp-test-loader.mjs scripts/test-vr-rendering.mjs`، ثم
+  `node --loader ./scripts/camel-camp-test-loader.mjs scripts/test-vr-overlay.mjs`، ثم `npm run build`.
+  يعيد اختبار الطبقة إنتاج خطأ `bindings` بالمادة الفعلية وباني GLSL ومسار الرسم
+  الأصليين من Three، ويتحقق بعد الإصلاح من رسم العينين والعودة المتكررة لوضع الويب.
 - يلزم تحقق فعلي على Quest من جودة الصورة ومعدل الإطارات وراحة القيادة؛
   اختبارات المحاكاة لا تقيس هذه الأمور.
 
