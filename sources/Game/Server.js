@@ -3,13 +3,20 @@ import { v4 as uuidv4 } from 'uuid'
 import { Events } from './Events.js'
 import { Game } from './Game.js'
 
+function cleanRoom(value)
+{
+    return String(value || 'public')
+        .replace(/[^a-zA-Z0-9_-]/g, '')
+        .slice(0, 32) || 'public'
+}
+
 export class Server
 {
     constructor()
     {
         this.game = Game.getInstance()
 
-        // Unique session ID
+        // Persistent device ID used by the existing online features.
         this.uuid = localStorage.getItem('uuid')
         if(!this.uuid)
         {
@@ -19,26 +26,95 @@ export class Server
 
         this.connected = false
         this.connecting = false
+        this.active = false
         this.initData = null
         this.events = new Events()
         this.sessionUuid = uuidv4()
         this.reconnectInterval = null
-        this.room = new URLSearchParams(window.location.search).get('room') || import.meta.env.VITE_MULTIPLAYER_ROOM || 'public'
+
+        const params = new URLSearchParams(window.location.search)
+        this.inviteRoom = params.has('room') ? cleanRoom(params.get('room')) : null
+        this.room = cleanRoom(import.meta.env.VITE_MULTIPLAYER_ROOM || 'public')
+
         document.documentElement.classList.add('is-server-offline')
     }
 
-    start()
+    start(room = this.room)
     {
-        if(!import.meta.env.VITE_SERVER_URL || this.reconnectInterval)
-            return
+        if(!import.meta.env.VITE_SERVER_URL)
+            return false
+
+        const nextRoom = cleanRoom(room)
+        if(this.active && (this.connected || this.connecting) && this.room === nextRoom)
+            return true
+
+        if(this.active || this.connected || this.connecting)
+            this.stop(false)
+
+        this.room = nextRoom
+        this.active = true
+        this.initData = null
+        this.sessionUuid = uuidv4()
 
         this.connect()
-
         this.reconnectInterval = setInterval(() =>
         {
-            if(!this.connected && !this.connecting)
+            if(this.active && !this.connected && !this.connecting)
                 this.connect()
         }, 2000)
+
+        this.events.trigger('started', [ this.room ])
+        return true
+    }
+
+    stop(notify = true)
+    {
+        const wasActive = this.active || this.connected || this.connecting
+        this.active = false
+
+        if(this.reconnectInterval)
+        {
+            clearInterval(this.reconnectInterval)
+            this.reconnectInterval = null
+        }
+
+        const socket = this.socket
+        this.socket = null
+        this.connecting = false
+        this.connected = false
+        this.initData = null
+
+        document.documentElement.classList.add('is-server-offline')
+        document.documentElement.classList.remove('is-server-online')
+
+        if(socket)
+        {
+            try { socket.close(1000, 'left room') }
+            catch {}
+        }
+
+        if(wasActive)
+        {
+            this.events.trigger('disconnected')
+            this.events.trigger('stopped')
+
+            if(notify && this.game.ticker?.elapsed > 10)
+            {
+                const html = /* html */`
+                    <div class="top">
+                        <div class="title">تم الخروج من الغرفة</div>
+                    </div>
+                `
+
+                this.game.notifications.show(
+                    html,
+                    'server-disconnected',
+                    3,
+                    null,
+                    'server-disconnected'
+                )
+            }
+        }
     }
 
     getSocketUrl()
@@ -56,10 +132,11 @@ export class Server
     connect()
     {
         const socketUrl = this.getSocketUrl()
-        if(!socketUrl || this.connecting || this.connected)
+        if(!this.active || !socketUrl || this.connecting || this.connected)
             return
 
         this.connecting = true
+        this.events.trigger('connecting', [ this.room ])
 
         let socket
         try
@@ -70,6 +147,7 @@ export class Server
         {
             this.connecting = false
             console.warn('Server > Invalid WebSocket URL', socketUrl, error)
+            this.events.trigger('connectionError')
             return
         }
 
@@ -78,7 +156,7 @@ export class Server
 
         socket.addEventListener('open', () =>
         {
-            if(this.socket !== socket)
+            if(this.socket !== socket || !this.active)
                 return
 
             this.connecting = false
@@ -98,7 +176,7 @@ export class Server
                 this.game.notifications.show(
                     html,
                     'server-connected',
-                    5,
+                    3,
                     null,
                     'server-connected'
                 )
@@ -122,7 +200,7 @@ export class Server
             document.documentElement.classList.add('is-server-offline')
             document.documentElement.classList.remove('is-server-online')
 
-            if(wasConnected && this.game.ticker.elapsed > 10)
+            if(wasConnected && this.active && this.game.ticker.elapsed > 10)
             {
                 const html = /* html */`
                     <div class="top">
@@ -145,7 +223,10 @@ export class Server
         socket.addEventListener('error', () =>
         {
             if(this.socket === socket)
+            {
                 this.connecting = false
+                this.events.trigger('connectionError')
+            }
         })
     }
 
@@ -170,7 +251,7 @@ export class Server
 
     send(message)
     {
-        if(!this.connected)
+        if(!this.connected || !this.socket)
             return false
 
         this.socket.send(this.encode({
@@ -179,6 +260,7 @@ export class Server
             room: this.room,
             ...message
         }))
+        return true
     }
 
     decode(data)
