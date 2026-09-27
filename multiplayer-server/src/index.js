@@ -206,6 +206,42 @@ export class MotriRoom extends DurableObject
             if(!uuid)
                 return
 
+            const legacyUuids = new Set()
+
+            // One-time migration cleanup: builds before persistent device identity
+            // can leave suspended/live ghosts with no deviceUuid. Modern clients
+            // always provide deviceUuid, so these legacy records are safe to retire.
+            for(const other of this.ctx.getWebSockets())
+            {
+                if(other === ws)
+                    continue
+
+                const otherAttachment = { ...defaultAttachment(), ...(other.deserializeAttachment() || {}) }
+                if(!otherAttachment.uuid || otherAttachment.deviceUuid)
+                    continue
+
+                legacyUuids.add(otherAttachment.uuid)
+                otherAttachment.suppressClose = true
+                other.serializeAttachment(otherAttachment)
+                try { other.close(4002, 'legacy session cleanup') } catch {}
+            }
+
+            const legacyPending = await this.ctx.storage.list({ prefix: PENDING_PREFIX })
+            for(const [ key, record ] of legacyPending)
+            {
+                if(!record?.uuid || record.deviceUuid)
+                    continue
+
+                legacyUuids.add(record.uuid)
+                await this.ctx.storage.delete(key)
+            }
+
+            for(const legacyUuid of legacyUuids)
+                this.broadcast({ type: 'leave', uuid: legacyUuid }, ws)
+
+            if(legacyUuids.size)
+                await this.scheduleNextAlarm()
+
             const identityMatches = (value) =>
                 value?.uuid === uuid ||
                 (!!deviceUuid && value?.deviceUuid === deviceUuid)
