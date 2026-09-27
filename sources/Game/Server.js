@@ -37,6 +37,7 @@ export class Server
         try
         {
             storedPlayerUuid = localStorage.getItem('motri.multiplayer.playerUuid')
+                || localStorage.getItem('motri.multiplayer.sessionUuid')
             storedRoom = cleanRoom(localStorage.getItem('motri.multiplayer.activeRoom'))
         }
         catch {}
@@ -45,7 +46,11 @@ export class Server
         this.resumeRoom = storedRoom
         this.reconnectInterval = null
 
-        try { localStorage.setItem('motri.multiplayer.playerUuid', this.sessionUuid) }
+        try
+        {
+            localStorage.setItem('motri.multiplayer.playerUuid', this.sessionUuid)
+            localStorage.removeItem('motri.multiplayer.sessionUuid')
+        }
         catch {}
 
         const params = new URLSearchParams(window.location.search)
