@@ -9,6 +9,10 @@ on:
       - 'sources/Game/Server.js'
       - 'sources/Game/Game.js'
       - 'sources/Game/Options.js'
+      - 'sources/Game/Passes/cheapDOF.js'
+      - 'sources/Game/Rendering.js'
+      - 'sources/Game/Quality.js'
+      - 'sources/Game/Viewport.js'
       - 'sources/Game/Physics/Physics.js'
       - 'sources/Game/Physics/PhysicsVehicle.js'
       - 'sources/Game/WorldSync.js'
@@ -49,6 +53,10 @@ jobs:
           node --check sources/Game/World/VehicleBodyStyles.js
           node --check sources/Game/Server.js
           node --check sources/Game/Options.js
+          node --check sources/Game/Viewport.js
+          node --check sources/Game/Quality.js
+          node --check sources/Game/Rendering.js
+          node --check sources/Game/Passes/cheapDOF.js
           node --check sources/Game/Physics/Physics.js
           node --check sources/Game/Physics/PhysicsVehicle.js
           node --check multiplayer-server/src/index.js
