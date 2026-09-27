@@ -5,9 +5,6 @@ const MIN_STATE_INTERVAL_MS = 40
 const MAX_WORLD_CHANGES = 96
 const WORLD_OWNER_MOVING_MS = 1600
 const WORLD_OWNER_SLEEPING_MS = 1100
-const VEHICLE_IMPACT_COOLDOWN_MS = 180
-const VEHICLE_IMPACT_MAX = 24
-const VEHICLE_TORQUE_MAX = 5.5
 const DISCONNECT_GRACE_MS = 10 * 60 * 1000
 const PENDING_PREFIX = 'pending:'
 
@@ -41,42 +38,6 @@ function cleanArray(value, length, fallback, min, max)
         return [ ...fallback ]
 
     return value.map((item, index) => cleanNumber(item, fallback[index], min, max))
-}
-
-function cleanImpulse(value)
-{
-    if(!Array.isArray(value) || value.length !== 3)
-        return null
-
-    const impulse = value.map(item => cleanNumber(item, 0, -VEHICLE_IMPACT_MAX, VEHICLE_IMPACT_MAX))
-    const magnitude = Math.hypot(...impulse)
-    if(magnitude < 0.05)
-        return null
-
-    if(magnitude > VEHICLE_IMPACT_MAX)
-    {
-        const scale = VEHICLE_IMPACT_MAX / magnitude
-        return impulse.map(item => item * scale)
-    }
-
-    return impulse
-}
-
-function cleanTorque(value)
-{
-    if(!Array.isArray(value) || value.length !== 3)
-        return [ 0, 0, 0 ]
-
-    const torque = value.map(item => cleanNumber(item, 0, -VEHICLE_TORQUE_MAX, VEHICLE_TORQUE_MAX))
-    const magnitude = Math.hypot(...torque)
-
-    if(magnitude > VEHICLE_TORQUE_MAX)
-    {
-        const scale = VEHICLE_TORQUE_MAX / magnitude
-        return torque.map(item => item * scale)
-    }
-
-    return torque
 }
 
 function cleanState(value)
@@ -223,7 +184,6 @@ export class MotriRoom extends DurableObject
         super(ctx, env)
         this.worldOwners = new Map()
         this.worldStates = new Map()
-        this.vehicleImpactLastAt = new Map()
         this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'))
     }
 
@@ -535,54 +495,6 @@ export class MotriRoom extends DurableObject
             return
         }
 
-        if(message.type === 'vehicleImpact' && attachment.uuid)
-        {
-            const targetUuid = String(message.targetUuid || '').slice(0, 64)
-            if(!targetUuid || targetUuid === attachment.uuid)
-                return
-
-            const impulse = cleanImpulse(message.impulse)
-            if(!impulse)
-                return
-
-            const torque = cleanTorque(message.torque)
-
-            const now = Date.now()
-            const pairKey = `${attachment.uuid}>${targetUuid}`
-            const lastAt = this.vehicleImpactLastAt.get(pairKey) || 0
-            if(now - lastAt < VEHICLE_IMPACT_COOLDOWN_MS)
-                return
-
-            let targetSocket = null
-            for(const other of this.ctx.getWebSockets())
-            {
-                const otherAttachment = other.deserializeAttachment()
-                if(otherAttachment?.uuid === targetUuid)
-                {
-                    targetSocket = other
-                    break
-                }
-            }
-
-            if(!targetSocket)
-                return
-
-            this.vehicleImpactLastAt.set(pairKey, now)
-
-            try
-            {
-                targetSocket.send(JSON.stringify({
-                    type: 'vehicleImpact',
-                    sourceUuid: attachment.uuid,
-                    targetUuid,
-                    impulse,
-                    torque
-                }))
-            }
-            catch {}
-
-            return
-        }
 
         if(
             (message.type === 'worldSnapshotStart' || message.type === 'worldSnapshotEnd') &&
