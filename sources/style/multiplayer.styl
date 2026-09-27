@@ -418,36 +418,20 @@
 
 
 .multiplayer-direction-indicator
+    --player-accent #ef5a5a
     position absolute
     top 0
     left 0
     z-index 14
     display flex
     align-items center
-    gap 6px
-    max-width 150px
-    min-height 30px
-    padding 5px 8px
-    border 1px solid rgba(255, 255, 255, .24)
-    border-radius 10px
-    background rgba(18, 18, 20, .78)
-    color #fff
-    font-family Arial, sans-serif
-    font-size 10px
-    font-weight 800
-    line-height 1
-    white-space nowrap
+    gap 5px
     pointer-events none
     user-select none
-    backdrop-filter blur(5px)
     will-change transform
 
     &[hidden]
         display none
-
-    &.is-leader
-        border-color rgba(255, 213, 94, .58)
-        background rgba(38, 31, 15, .84)
 
     html.input-filter-menu &
     html.input-filter-modal &
@@ -456,35 +440,53 @@
         opacity 0
 
 .multiplayer-direction-arrow
-    display inline-block
-    width 14px
-    color #ffceca
-    font-size 14px
+    display flex
+    width 27px
+    height 27px
+    flex 0 0 27px
+    align-items center
+    justify-content center
+    border 1px solid rgba(255, 255, 255, .28)
+    border-radius 50%
+    background rgba(12, 12, 14, .72)
+    box-shadow 0 2px 9px rgba(0, 0, 0, .28), inset 0 0 0 2px color-mix(in srgb, var(--player-accent) 28%, transparent)
+    color var(--player-accent)
+    font-size 12px
     line-height 1
-    text-align center
+    text-shadow 0 1px 3px rgba(0, 0, 0, .55)
     transform-origin 50% 50%
     will-change transform
-
-.multiplayer-direction-indicator.is-leader .multiplayer-direction-arrow
-    color #ffd55e
+    backdrop-filter blur(4px)
 
 .multiplayer-direction-label
+    max-width 112px
+    padding 4px 6px
     overflow hidden
-    max-width 118px
+    border-radius 6px
+    background rgba(12, 12, 14, .60)
+    color rgba(255, 255, 255, .90)
+    font-family Arial, sans-serif
+    font-size 9px
+    font-weight 700
+    line-height 1
     text-overflow ellipsis
+    white-space nowrap
     unicode-bidi plaintext
+    backdrop-filter blur(3px)
+
+.multiplayer-direction-indicator.is-leader
+    .multiplayer-direction-arrow
+        border-color rgba(255, 213, 94, .48)
+        color #ffd55e
 
 @media (max-width: 600px)
-    .multiplayer-direction-indicator
-        min-height 28px
-        max-width 132px
-        padding 4px 7px
-        gap 5px
-        font-size 9px
+    .multiplayer-direction-arrow
+        width 25px
+        height 25px
+        flex-basis 25px
+        font-size 11px
 
     .multiplayer-direction-label
-        max-width 102px
-
-    .multiplayer-direction-arrow
-        width 12px
-        font-size 12px
+        max-width 96px
+        padding 3px 5px
+        font-size 8px
