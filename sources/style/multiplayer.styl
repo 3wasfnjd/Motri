@@ -80,3 +80,338 @@
 
 .multiplayer-player-name
     color #fff
+
+
+.multiplayer-launch-button
+    position absolute
+    top calc(12px + env(safe-area-inset-top))
+    left calc(12px + env(safe-area-inset-left))
+    z-index 17
+    min-width 72px
+    height 36px
+    padding 0 12px
+    border 1px solid rgba(255, 255, 255, .28)
+    border-radius 10px
+    background rgba(22, 18, 26, .78)
+    color #fff
+    font-size 12px
+    font-weight 800
+    direction rtl
+    backdrop-filter blur(7px)
+
+    &.is-connected
+        border-color rgba(255, 213, 94, .52)
+        color #ffd55e
+
+    html.input-filter-menu &
+    html.input-filter-modal &
+    html.input-filter-cinematic &
+    html.input-filter-intro &
+        opacity 0
+        pointer-events none
+
+.multiplayer-lobby
+    position fixed
+    inset 0
+    z-index 80
+    display flex
+    align-items center
+    justify-content center
+    padding 18px
+    font-family "Nunito", sans-serif
+    color #fff
+    direction rtl
+
+    &[hidden]
+        display none
+
+.multiplayer-lobby-backdrop
+    position absolute
+    inset 0
+    background rgba(8, 7, 10, .62)
+    backdrop-filter blur(5px)
+
+.multiplayer-lobby-panel
+    position relative
+    z-index 1
+    width min(420px, calc(100vw - 24px))
+    max-height calc(100vh - 32px)
+    padding 22px
+    border 1px solid rgba(255, 255, 255, .20)
+    border-radius 18px
+    background radial-gradient(ellipse at top left, rgba(48, 38, 52, .98), rgba(24, 20, 28, .98))
+    box-shadow 0 22px 70px rgba(0, 0, 0, .46)
+    overflow-y auto
+    -webkit-overflow-scrolling touch
+
+.multiplayer-lobby-close
+    position absolute
+    top 10px
+    left 12px
+    width 34px
+    height 34px
+    border-radius 50%
+    color rgba(255, 255, 255, .75)
+    font-size 24px
+    line-height 32px
+
+.multiplayer-lobby-title
+    padding-left 34px
+    font-size 24px
+    font-weight 900
+
+.multiplayer-lobby-subtitle
+    margin-top 4px
+    margin-bottom 18px
+    color rgba(255, 255, 255, .62)
+    font-size 12px
+    line-height 1.55
+
+.multiplayer-field
+    display block
+    margin-top 14px
+
+    > span
+        display block
+        margin-bottom 7px
+        color rgba(255, 255, 255, .72)
+        font-size 12px
+        font-weight 700
+
+.multiplayer-name-input
+.multiplayer-room-input
+    width 100%
+    height 44px
+    padding 0 12px
+    border 1px solid rgba(255, 255, 255, .20)
+    border-radius 10px
+    background rgba(255, 255, 255, .06)
+    color #fff
+    direction ltr
+    text-align left
+
+    &::placeholder
+        color rgba(255, 255, 255, .38)
+
+    &:focus
+        border-color rgba(255, 206, 202, .72)
+
+.multiplayer-car-options
+    display grid
+    grid-template-columns repeat(3, 1fr)
+    gap 7px
+
+.multiplayer-choice
+    min-height 40px
+    padding 7px
+    border 1px solid rgba(255, 255, 255, .17)
+    border-radius 9px
+    background rgba(255, 255, 255, .045)
+    color rgba(255, 255, 255, .72)
+    font-size 12px
+
+    &.is-active
+        border-color rgba(255, 206, 202, .75)
+        background rgba(194, 21, 21, .18)
+        color #fff
+
+.multiplayer-color-options
+    display flex
+    gap 10px
+
+.multiplayer-color-choice
+    position relative
+    width 34px
+    height 34px
+    border 2px solid rgba(255, 255, 255, .18)
+    border-radius 50%
+    box-shadow inset 0 0 0 2px rgba(0, 0, 0, .16)
+
+    &.is-red
+        background linear-gradient(135deg, #ff3a3a, #721551)
+
+    &.is-orange
+        background linear-gradient(135deg, #ff940d, #af0071)
+
+    &.is-white
+        background linear-gradient(135deg, #fff, #b5b5b5)
+
+    &.is-black
+        background linear-gradient(135deg, #626262, #262526)
+
+    &.is-active
+        border-color #fff
+        transform scale(1.08)
+
+        &::after
+            content '✓'
+            display flex
+            position absolute
+            inset 0
+            align-items center
+            justify-content center
+            color #fff
+            font-size 15px
+            font-weight 900
+            text-shadow 0 1px 3px rgba(0, 0, 0, .75)
+
+.multiplayer-quick
+.multiplayer-create
+.multiplayer-copy-invite
+.multiplayer-leave
+.multiplayer-join-form button
+.multiplayer-inline-actions button
+    min-height 44px
+    padding 0 14px
+    border 1px solid rgba(255, 255, 255, .22)
+    border-radius 10px
+    color #fff
+    font-size 13px
+    font-weight 800
+
+    &.primary
+        border-color rgba(255, 206, 202, .56)
+        background linear-gradient(135deg, rgba(194, 21, 21, .78), rgba(70, 18, 59, .88))
+
+    &:disabled
+        opacity .4
+        cursor default
+
+.multiplayer-quick
+.multiplayer-create
+.multiplayer-copy-invite
+.multiplayer-leave
+    width 100%
+    margin-top 12px
+
+.multiplayer-divider
+    display flex
+    align-items center
+    gap 10px
+    margin 13px 0 1px
+    color rgba(255, 255, 255, .35)
+    font-size 10px
+
+    &::before
+    &::after
+        content ''
+        height 1px
+        flex 1
+        background rgba(255, 255, 255, .10)
+
+.multiplayer-join-form
+    display grid
+    grid-template-columns 1fr auto
+    gap 7px
+    margin-top 8px
+
+    button
+        white-space nowrap
+
+.multiplayer-lobby-status
+    min-height 18px
+    margin-top 10px
+    color #ffceca
+    font-size 11px
+    text-align center
+
+.multiplayer-invite
+    margin 12px 0 16px
+    padding 13px
+    border 1px solid rgba(255, 213, 94, .34)
+    border-radius 12px
+    background rgba(255, 213, 94, .06)
+    text-align center
+
+    &[hidden]
+        display none
+
+.multiplayer-invite-label
+    color rgba(255, 255, 255, .62)
+    font-size 11px
+
+.multiplayer-invite-code
+.multiplayer-room-code
+    margin-top 4px
+    direction ltr
+    color #ffd55e
+    font-size 24px
+    font-weight 900
+    letter-spacing 2px
+    text-align center
+
+.multiplayer-inline-actions
+    display grid
+    grid-template-columns 1fr 1fr
+    gap 7px
+    margin-top 10px
+
+.multiplayer-lobby-room[hidden]
+.multiplayer-lobby-setup[hidden]
+    display none
+
+.multiplayer-room-count
+    margin-top 2px
+    color rgba(255, 255, 255, .55)
+    font-size 11px
+    text-align center
+
+.multiplayer-player-list
+    display grid
+    gap 6px
+    margin-top 16px
+
+.multiplayer-player-row
+    display flex
+    align-items center
+    min-height 38px
+    padding 0 11px
+    border 1px solid rgba(255, 255, 255, .10)
+    border-radius 9px
+    background rgba(255, 255, 255, .035)
+
+    &.is-leader
+        border-color rgba(255, 213, 94, .38)
+        background rgba(255, 213, 94, .055)
+
+.multiplayer-player-role
+    width 26px
+    color #ffd55e
+    text-align center
+
+.multiplayer-player-row-name
+    font-size 13px
+    font-weight 800
+    unicode-bidi plaintext
+
+.multiplayer-leave
+    border-color rgba(255, 106, 124, .36)
+    color #ff9aa8
+
+@media (max-width: 600px)
+    .multiplayer-launch-button
+        top calc(8px + env(safe-area-inset-top))
+        left calc(8px + env(safe-area-inset-left))
+        min-width 66px
+        height 34px
+        padding 0 10px
+        font-size 11px
+
+    .multiplayer-lobby
+        padding 10px
+
+    .multiplayer-lobby-panel
+        width min(390px, calc(100vw - 14px))
+        max-height calc(100vh - 16px)
+        padding 18px 14px
+
+    .multiplayer-lobby-title
+        font-size 21px
+
+    .multiplayer-car-options
+        gap 5px
+
+    .multiplayer-choice
+        min-height 38px
+        padding 5px
+        font-size 11px
