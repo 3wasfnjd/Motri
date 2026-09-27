@@ -243,8 +243,6 @@ export class Multiplayer
             local: true
         }
 
-        this.worldSync.update(dt)
-
         for(const remote of this.remotePlayers.values())
         {
             if(!remote.initialized)
@@ -608,6 +606,8 @@ export class Multiplayer
         const renderTime = Date.now() - INTERPOLATION_DELAY_MS
         const positionAlpha = 1 - Math.exp(-18 * dt)
         const rotationAlpha = 1 - Math.exp(-20 * dt)
+
+        this.worldSync.update(dt)
 
         for(const remote of this.remotePlayers.values())
         {
