@@ -5,9 +5,11 @@ import { Game } from './Game.js'
 
 function cleanRoom(value)
 {
-    return String(value || 'public')
+    const room = String(value || '')
         .replace(/[^a-zA-Z0-9_-]/g, '')
-        .slice(0, 32) || 'public'
+        .slice(0, 32)
+
+    return room || null
 }
 
 export class Server
@@ -34,17 +36,23 @@ export class Server
 
         const params = new URLSearchParams(window.location.search)
         this.inviteRoom = params.has('room') ? cleanRoom(params.get('room')) : null
-        this.room = cleanRoom(import.meta.env.VITE_MULTIPLAYER_ROOM || 'public')
+        this.room = null
 
         document.documentElement.classList.add('is-server-offline')
     }
 
-    start(room = this.room)
+    start(room)
     {
         if(!import.meta.env.VITE_SERVER_URL)
             return false
 
         const nextRoom = cleanRoom(room)
+        if(!nextRoom)
+        {
+            console.warn('Server > Refusing to start multiplayer without an explicit room')
+            return false
+        }
+
         if(this.active && (this.connected || this.connecting) && this.room === nextRoom)
             return true
 
@@ -83,6 +91,7 @@ export class Server
         this.connecting = false
         this.connected = false
         this.initData = null
+        this.room = null
 
         document.documentElement.classList.add('is-server-offline')
         document.documentElement.classList.remove('is-server-online')
@@ -120,7 +129,7 @@ export class Server
     getSocketUrl()
     {
         const base = String(import.meta.env.VITE_SERVER_URL || '').replace(/\/+$/, '')
-        if(!base)
+        if(!base || !this.room)
             return null
 
         if(base.includes('{room}'))
