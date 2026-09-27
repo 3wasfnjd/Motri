@@ -19,6 +19,7 @@ on:
       - '.env.example'
       - '.env.production'
       - '.github/workflows/multiplayer-check.yml'
+      - 'scripts/test-multiplayer-optin.mjs'
   workflow_dispatch:
 
 permissions:
@@ -47,6 +48,9 @@ jobs:
           node --check sources/Game/Server.js
           node --check sources/Game/Options.js
           node --check multiplayer-server/src/index.js
+
+      - name: Test opt-in multiplayer room flow
+        run: node scripts/test-multiplayer-optin.mjs
 
       - name: Install game dependencies
         run: npm ci --force --ignore-scripts --no-audit --no-fund
