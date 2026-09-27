@@ -136,6 +136,7 @@ function defaultAttachment()
 {
     return {
         uuid: null,
+        deviceUuid: null,
         name: 'MOTRI',
         state: null,
         lastStateAt: 0,
@@ -201,46 +202,111 @@ export class MotriRoom extends DurableObject
         if(message.type === 'hello')
         {
             const uuid = String(message.uuid || '').slice(0, 64)
+            const deviceUuid = String(message.deviceUuid || '').slice(0, 64)
             if(!uuid)
                 return
 
-            // A resumed browser tab may establish the new socket before Cloudflare
-            // has delivered the old socket's close event. Keep only the newest one.
+            const identityMatches = (value) =>
+                value?.uuid === uuid ||
+                (!!deviceUuid && value?.deviceUuid === deviceUuid)
+
+            let resumed = null
+            const removedUuids = new Set()
+            const rememberResume = (value) =>
+            {
+                if(!value)
+                    return
+
+                const joinedAt = Number.isFinite(value.joinedAt)
+                    ? value.joinedAt
+                    : Number.MAX_SAFE_INTEGER
+
+                if(!resumed || joinedAt < resumed.joinedAt)
+                {
+                    resumed = {
+                        uuid: value.uuid,
+                        deviceUuid: value.deviceUuid,
+                        name: value.name,
+                        state: value.state || null,
+                        joinedAt
+                    }
+                    return
+                }
+
+                const stateTs = Number(value.state?.ts || 0)
+                const resumedStateTs = Number(resumed.state?.ts || 0)
+                if(stateTs > resumedStateTs)
+                    resumed.state = value.state
+            }
+
+            // Collapse any older live socket belonging to this same logical player.
             for(const other of this.ctx.getWebSockets())
             {
                 if(other === ws)
                     continue
 
                 const otherAttachment = { ...defaultAttachment(), ...(other.deserializeAttachment() || {}) }
-                if(otherAttachment.uuid !== uuid)
+                if(!identityMatches(otherAttachment))
                     continue
+
+                rememberResume(otherAttachment)
+                if(otherAttachment.uuid && otherAttachment.uuid !== uuid)
+                    removedUuids.add(otherAttachment.uuid)
 
                 otherAttachment.suppressClose = true
                 other.serializeAttachment(otherAttachment)
-                try { other.close(4000, 'session resumed') } catch {}
+                try { other.close(4000, 'player replaced') } catch {}
             }
 
-            const pendingKey = `${PENDING_PREFIX}${uuid}`
-            const pending = await this.ctx.storage.get(pendingKey)
+            // Collapse suspended records too. This also cleans ghosts created by
+            // older builds that generated a new session UUID on every re-entry.
+            const pendingEntries = await this.ctx.storage.list({ prefix: PENDING_PREFIX })
+            for(const [ key, record ] of pendingEntries)
+            {
+                if(!identityMatches(record))
+                    continue
 
+                rememberResume(record)
+                if(record?.uuid && record.uuid !== uuid)
+                    removedUuids.add(record.uuid)
+
+                await this.ctx.storage.delete(key)
+            }
+
+            for(const oldUuid of removedUuids)
+                this.broadcast({ type: 'leave', uuid: oldUuid }, ws)
+
+            // Count logical players, not sockets. One device can never consume
+            // multiple room slots because of reconnects or stale browser sockets.
+            const ownIdentity = deviceUuid || uuid
             const logicalMembers = new Set()
+
             for(const other of this.ctx.getWebSockets())
             {
                 if(other === ws)
                     continue
-                const otherAttachment = other.deserializeAttachment()
-                if(otherAttachment?.uuid && otherAttachment.uuid !== uuid)
-                    logicalMembers.add(otherAttachment.uuid)
+
+                const otherAttachment = { ...defaultAttachment(), ...(other.deserializeAttachment() || {}) }
+                if(!otherAttachment.uuid)
+                    continue
+
+                const identity = otherAttachment.deviceUuid || otherAttachment.uuid
+                if(identity !== ownIdentity)
+                    logicalMembers.add(identity)
             }
 
-            const pendingEntries = await this.ctx.storage.list({ prefix: PENDING_PREFIX })
-            for(const record of pendingEntries.values())
+            const remainingPendingForCount = await this.ctx.storage.list({ prefix: PENDING_PREFIX })
+            for(const record of remainingPendingForCount.values())
             {
-                if(record?.uuid && record.uuid !== uuid)
-                    logicalMembers.add(record.uuid)
+                if(!record?.uuid)
+                    continue
+
+                const identity = record.deviceUuid || record.uuid
+                if(identity !== ownIdentity)
+                    logicalMembers.add(identity)
             }
 
-            if(!pending && logicalMembers.size >= MAX_PLAYERS)
+            if(!resumed && logicalMembers.size >= MAX_PLAYERS)
             {
                 ws.send(JSON.stringify({ type: 'roomFull', maxPlayers: MAX_PLAYERS }))
                 attachment.suppressClose = true
@@ -250,17 +316,15 @@ export class MotriRoom extends DurableObject
             }
 
             attachment.uuid = uuid
+            attachment.deviceUuid = deviceUuid || null
             attachment.name = cleanName(message.name)
-            attachment.joinedAt = Number.isFinite(pending?.joinedAt)
-                ? pending.joinedAt
-                : Number.isFinite(attachment.joinedAt) ? attachment.joinedAt : Date.now()
-            attachment.state = pending?.state || attachment.state || null
+            attachment.joinedAt = Number.isFinite(resumed?.joinedAt) && resumed.joinedAt !== Number.MAX_SAFE_INTEGER
+                ? resumed.joinedAt
+                : Date.now()
+            attachment.state = resumed?.state || attachment.state || null
             attachment.explicitLeave = false
             attachment.suppressClose = false
             ws.serializeAttachment(attachment)
-
-            if(pending)
-                await this.ctx.storage.delete(pendingKey)
 
             const players = new Map()
 
@@ -270,23 +334,28 @@ export class MotriRoom extends DurableObject
                     continue
 
                 const otherAttachment = { ...defaultAttachment(), ...(other.deserializeAttachment() || {}) }
-                if(otherAttachment.uuid)
-                {
-                    players.set(otherAttachment.uuid, {
-                        uuid: otherAttachment.uuid,
-                        name: otherAttachment.name,
-                        state: otherAttachment.state,
-                        suspended: false
-                    })
-                }
+                if(!otherAttachment.uuid)
+                    continue
+
+                const identity = otherAttachment.deviceUuid || otherAttachment.uuid
+                players.set(identity, {
+                    uuid: otherAttachment.uuid,
+                    name: otherAttachment.name,
+                    state: otherAttachment.state,
+                    suspended: false
+                })
             }
 
             const remainingPending = await this.ctx.storage.list({ prefix: PENDING_PREFIX })
             for(const record of remainingPending.values())
             {
-                if(record?.uuid && !players.has(record.uuid))
+                if(!record?.uuid)
+                    continue
+
+                const identity = record.deviceUuid || record.uuid
+                if(!players.has(identity))
                 {
-                    players.set(record.uuid, {
+                    players.set(identity, {
                         uuid: record.uuid,
                         name: record.name,
                         state: record.state,
@@ -304,7 +373,7 @@ export class MotriRoom extends DurableObject
                 maxPlayers: MAX_PLAYERS,
                 authorityUuid,
                 snapshotSourceUuid,
-                resumed: !!pending,
+                resumed: !!resumed,
                 players: [ ...players.values() ]
             }))
 
@@ -314,7 +383,7 @@ export class MotriRoom extends DurableObject
                 name: attachment.name,
                 authorityUuid,
                 snapshotSourceUuid,
-                resumed: !!pending
+                resumed: !!resumed
             }, ws)
 
             await this.scheduleNextAlarm()
@@ -444,6 +513,7 @@ export class MotriRoom extends DurableObject
     {
         const record = {
             uuid: attachment.uuid,
+            deviceUuid: attachment.deviceUuid || null,
             name: attachment.name,
             state: attachment.state,
             joinedAt: Number.isFinite(attachment.joinedAt) ? attachment.joinedAt : Date.now(),
