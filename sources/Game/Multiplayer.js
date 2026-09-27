@@ -210,21 +210,75 @@ export class Multiplayer
         const visualVehicle = this.game.world?.visualVehicle
         const bodyStyles = visualVehicle?.bodyStyles
         const chassis = visualVehicle?.parts?.chassis
-        if(!bodyStyles || !chassis)
+        const physicalVehicle = this.game.physicalVehicle
+        if(!bodyStyles || !chassis || !physicalVehicle?.wheels?.items?.length)
             return
 
         const currentStyle = bodyStyles.current
 
-        // Build every visual body once, then clone an H9-baseline template.
-        // This only toggles visibility synchronously and never changes physics.
+        // Build every body once so the remote template can switch body styles
+        // without touching the local vehicle or creating runtime geometry later.
         for(const style of VEHICLE_BODY_STYLES)
             bodyStyles.changeTo(style.id, false)
 
         bodyStyles.changeTo('h9', false)
-        this.remoteVehicleTemplate = chassis.clone(true)
-        this.remoteVehicleTemplate.name = 'RemoteVehicleTemplate'
-        this.remoteVehicleTemplate.removeFromParent()
 
+        const template = chassis.clone(true)
+        template.name = 'RemoteVehicleTemplate'
+        template.removeFromParent()
+
+        // The gameplay chassis contains the authored wheel template plus the four
+        // runtime wheel clones. Copying the chassis directly duplicates all five
+        // before their transforms are guaranteed to be final, which makes the
+        // remote wheels overlap. Remove every wheel container and rebuild exactly
+        // four remote wheels at the physics axle positions.
+        const staleWheelContainers = []
+        template.traverse((child) =>
+        {
+            if(/^wheelContainer/i.test(child.name))
+                staleWheelContainers.push(child)
+        })
+        for(const wheel of staleWheelContainers)
+            wheel.removeFromParent()
+
+        const defaultSuspension = physicalVehicle.suspensionsHeights.low
+
+        for(let i = 0; i < 4; i++)
+        {
+            const sourceWheel = visualVehicle.wheels.items[i]?.container
+            const physicalWheel = physicalVehicle.wheels.items[i]
+            if(!sourceWheel || !physicalWheel)
+                continue
+
+            const wheel = sourceWheel.clone(true)
+            wheel.name = `RemoteWheelContainer${i}`
+            wheel.userData = { ...wheel.userData, remoteWheelIndex: i }
+
+            const suspensionLength = Number.isFinite(physicalWheel.suspensionLength)
+                ? physicalWheel.suspensionLength
+                : defaultSuspension
+            const wheelY = Math.min(physicalWheel.basePosition.y - suspensionLength, -0.5)
+
+            wheel.position.set(
+                physicalWheel.basePosition.x,
+                wheelY,
+                physicalWheel.basePosition.z
+            )
+            wheel.rotation.set(0, i === 0 || i === 2 ? Math.PI : 0, 0)
+
+            wheel.traverse((child) =>
+            {
+                if(/^wheelCylinder/i.test(child.name))
+                    child.position.set(0, 0, 0)
+
+                if(/^wheelSuspension/i.test(child.name))
+                    child.scale.y = Math.max(0, Math.abs(wheelY) - 0.5)
+            })
+
+            template.add(wheel)
+        }
+
+        this.remoteVehicleTemplate = template
         bodyStyles.changeTo(currentStyle, false)
     }
 
@@ -456,7 +510,10 @@ export class Multiplayer
             braking: !!state.b,
             boosting: !!state.boost,
             left: !!state.l,
-            right: !!state.r
+            right: !!state.r,
+            wheelY: Array.isArray(state.wy) && state.wy.length === 4
+                ? state.wy.map(value => Number.isFinite(value) ? value : -0.88)
+                : [ -0.88, -0.88, -0.88, -0.88 ]
         }
 
         const lastSnapshot = remote.snapshots[remote.snapshots.length - 1]
@@ -506,8 +563,8 @@ export class Multiplayer
             bodyPainted: null,
             stylePainted: [],
             wheelPainted: [],
-            frontWheels: [],
-            wheelCylinders: [],
+            wheels: [],
+            stopLights: [],
             stopLights: [],
             backLights: [],
             blinkerLeft: [],
@@ -545,11 +602,25 @@ export class Multiplayer
             if(/^wheelPainted/i.test(child.name))
                 remote.wheelPainted.push(child)
 
-            if(/^wheelContainer/i.test(child.name) && child.position.x > 0)
-                remote.frontWheels.push({ object: child, baseRotationY: child.rotation.y })
+            if(Number.isInteger(child.userData?.remoteWheelIndex))
+            {
+                const index = child.userData.remoteWheelIndex
+                remote.wheels[index] = {
+                    index,
+                    container: child,
+                    baseRotationY: index === 0 || index === 2 ? Math.PI : 0,
+                    cylinder: null,
+                    suspension: null
+                }
 
-            if(/^wheelCylinder/i.test(child.name))
-                remote.wheelCylinders.push(child)
+                child.traverse((part) =>
+                {
+                    if(/^wheelCylinder/i.test(part.name))
+                        remote.wheels[index].cylinder = part
+                    else if(/^wheelSuspension/i.test(part.name))
+                        remote.wheels[index].suspension = part
+                })
+            }
 
             if(/^stopLights/i.test(child.name))
                 remote.stopLights.push(child)
@@ -667,6 +738,9 @@ export class Multiplayer
             r: inputs.get('right')?.active ? 1 : 0,
             body: visualVehicle?.bodyStyles?.current || this.selectedCar || 'h9',
             paint: this.selectedColor || 'red',
+            wy: visualVehicle?.wheels?.items?.map(wheel =>
+                Number((wheel.container?.position?.y ?? -0.88).toFixed(3))
+            ) || [ -0.88, -0.88, -0.88, -0.88 ],
             seq: ++this.sequence
         }
     }
@@ -699,7 +773,10 @@ export class Multiplayer
                 braking: t < 0.5 ? a.braking : b.braking,
                 boosting: t < 0.5 ? a.boosting : b.boosting,
                 left: t < 0.5 ? a.left : b.left,
-                right: t < 0.5 ? a.right : b.right
+                right: t < 0.5 ? a.right : b.right,
+                wheelY: a.wheelY.map((value, index) =>
+                    THREE.MathUtils.lerp(value, b.wheelY[index], t)
+                )
             }
         }
 
@@ -721,7 +798,8 @@ export class Multiplayer
             braking: latest.braking,
             boosting: latest.boosting,
             left: latest.left,
-            right: latest.right
+            right: latest.right,
+            wheelY: latest.wheelY
         }
     }
 
@@ -811,16 +889,32 @@ export class Multiplayer
                 remote.model.quaternion.slerp(state.quaternion, rotationAlpha)
             }
 
-            for(const frontWheel of remote.frontWheels)
-            {
-                const sideBase = Math.abs(frontWheel.baseRotationY) > Math.PI * 0.5 ? Math.PI : 0
-                frontWheel.object.rotation.y = sideBase + state.steering * this.game.physicalVehicle.steeringAmplitude
-            }
-
             const speed = state.velocity.length()
             const wheelRotation = speed * dt / this.game.physicalVehicle.wheels.settings.radius
-            for(const wheel of remote.wheelCylinders)
-                wheel.rotation.z += wheelRotation
+
+            for(let i = 0; i < remote.wheels.length; i++)
+            {
+                const wheel = remote.wheels[i]
+                if(!wheel)
+                    continue
+
+                const steering = i < 2
+                    ? state.steering * this.game.physicalVehicle.steeringAmplitude
+                    : 0
+
+                wheel.container.rotation.y = wheel.baseRotationY + steering
+
+                const wheelY = Number.isFinite(state.wheelY?.[i])
+                    ? state.wheelY[i]
+                    : -0.88
+                wheel.container.position.y = wheelY
+
+                if(wheel.suspension)
+                    wheel.suspension.scale.y = Math.max(0, Math.abs(wheelY) - 0.5)
+
+                if(wheel.cylinder)
+                    wheel.cylinder.rotation.z += wheelRotation * (i === 0 || i === 2 ? 1 : -1)
+            }
 
             for(const light of remote.stopLights)
                 light.visible = state.braking
