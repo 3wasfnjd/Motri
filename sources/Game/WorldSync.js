@@ -134,8 +134,13 @@ export class WorldSync
             return
 
         const states = [ ...this.entries.values() ].map(entry => this.serializeEntry(entry))
+        this.game.server.send({ type: 'worldSnapshotStart' })
+
         for(let i = 0; i < states.length; i += 48)
             this.game.server.send({ type: 'worldDelta', changes: states.slice(i, i + 48) })
+
+        this.sendAnimalsNow()
+        this.game.server.send({ type: 'worldSnapshotEnd' })
     }
 
     sendAnimalsNow()
@@ -325,7 +330,11 @@ export class WorldSync
 
     update(dt)
     {
-        if(!this.multiplayer.enabled || !this.game.server.connected)
+        if(
+            !this.multiplayer.enabled ||
+            !this.game.server.connected ||
+            !this.multiplayer.worldReady
+        )
             return
 
         this.objectAccumulator += dt
