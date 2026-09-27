@@ -5,7 +5,7 @@ import { Events } from '../sources/Game/Events.js'
 import { VirtualReality } from '../sources/Game/VirtualReality.js'
 import { readXRControls } from '../sources/Game/Inputs/XRControls.js'
 
-const original = Object.fromEntries(['window', 'document', 'navigator'].map(key =>
+const original = Object.fromEntries(['window', 'document', 'navigator', 'location'].map(key =>
     [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
 afterEach(() => {
     for(const [key, descriptor] of Object.entries(original))
@@ -26,6 +26,7 @@ function harness()
         addEventListener() {}, setAttribute(key, value) { this.attrs[key] = value } }
     const status = { textContent: '', hidden: true }
     globalThis.window = { isSecureContext: true }
+    globalThis.location = { href: 'https://motri.test/Motri/', search: '', assign(url) { this.assigned = url } }
     globalThis.document = {
         querySelector: selector => selector === '.js-vr-button' ? button : status,
         documentElement: { classList: { add: name => classes.add(name), remove: name => classes.delete(name) } },
@@ -228,4 +229,17 @@ test('permission rejection leaves normal play and the entry button usable', asyn
     assert.equal(button.attrs['aria-busy'], 'false')
     assert.equal(game.view.camera.parent, game.scene)
     assert.match(status.textContent, /لم يُسمح/)
+})
+
+test('VR explicitly prepares WebGL while preserving the current URL and requiring a fresh gesture', async () => {
+    const { vr, game } = harness()
+    await vr.supportPromise
+    game.rendering.renderer.backend.isWebGPUBackend = true
+    location.href = 'https://motri.test/Motri/?language=ar#skip'
+    let requests = 0
+    navigator.xr.requestSession = async () => { requests++ }
+    await vr.enter()
+    assert.equal(location.assigned, 'https://motri.test/Motri/?language=ar&vr=1#skip')
+    assert.equal(vr.active, false)
+    assert.equal(requests, 0)
 })

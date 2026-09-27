@@ -13,6 +13,7 @@ export class VirtualReality
         this.pending = false
         this.ready = false
         this.supported = false
+        this.requested = new URLSearchParams(location.search).get('vr') === '1'
         this.viewMode = 'roof'
         this.controls = readXRControls()
         this.origin = new THREE.Vector3()
@@ -85,10 +86,15 @@ export class VirtualReality
             return
         }
         if(!this.ready) return
-        // A headset connected after initial page load needs a compatible renderer.
+        // WebGPU and WebGL cannot share the same canvas context. Prepare the
+        // WebGL page only after the player explicitly chooses VR, and retain
+        // a fresh click after loading for the browser's session permission.
         if(this.game.rendering.renderer.backend.isWebGPUBackend)
         {
-            this.updateButton('أعد تحميل الصفحة بعد توصيل النظارة ثم اضغط VR.')
+            const url = new URL(location.href)
+            url.searchParams.set('vr', '1')
+            this.updateButton('جارٍ تجهيز VR. بعد التحميل اضغط أيقونة النظارة للدخول.')
+            location.assign(url.href)
             return
         }
 

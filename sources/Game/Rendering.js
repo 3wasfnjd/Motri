@@ -38,12 +38,12 @@ export class Rendering
 
     async setRenderer()
     {
-        // Three r183 supports immersive XR through its WebGL2 backend only.
-        const supportsVR = await this.game.vr.supportPromise
+        // Keep the original renderer for ordinary web play. XR needs WebGL2,
+        // but headset availability alone must not change the web renderer.
         this.renderer = new THREE.WebGPURenderer({
             canvas: this.game.canvasElement,
             powerPreference: 'high-performance',
-            forceWebGL: supportsVR || new URLSearchParams(location.search).get('vr') === '1',
+            forceWebGL: this.game.vr.requested,
             antialias: this.game.viewport.pixelRatio < 2
         })
         this.renderer.setSize(this.game.viewport.width, this.game.viewport.height)
