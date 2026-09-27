@@ -109,13 +109,16 @@ export class Multiplayer
         if(this.game.server.connected)
         {
             const count = Math.min(this.maxPlayers, 1 + this.peerIds.size)
-            this.hudStatus.textContent = `${this.localName} · ${count}/${this.maxPlayers}`
+            const leaderPrefix = this.isWorldAuthority() ? '👑 القائد · ' : ''
+            this.hudStatus.textContent = `${leaderPrefix}${this.localName} · ${count}/${this.maxPlayers}`
             this.hudRoom.textContent = `الغرفة: ${this.game.server.room}`
+            this.hud.classList.toggle('is-leader', this.isWorldAuthority())
         }
         else
         {
             this.hudStatus.textContent = 'اللعب الجماعي غير متصل'
             this.hudRoom.textContent = ''
+            this.hud.classList.remove('is-leader')
         }
     }
 
@@ -193,6 +196,7 @@ export class Multiplayer
             if(message.animals)
                 this.worldSync.applyAnimals(message.animals)
 
+            this.updateLeaderPresentation()
             this.updateHud()
             return
         }
@@ -215,6 +219,8 @@ export class Multiplayer
             this.peerIds.add(message.uuid)
             if(message.authorityUuid)
                 this.authorityUuid = message.authorityUuid
+
+            this.updateLeaderPresentation()
 
             // The previous room authority sends the new player one complete world
             // snapshot before authority can move to a lower-sorted session id.
@@ -239,6 +245,8 @@ export class Multiplayer
         if(message.type === 'authority')
         {
             this.authorityUuid = message.uuid || this.game.server.sessionUuid
+            this.updateLeaderPresentation()
+            this.updateHud()
             return
         }
 
@@ -248,7 +256,23 @@ export class Multiplayer
             this.removeRemotePlayer(message.uuid)
             if(this.authorityUuid === message.uuid)
                 this.authorityUuid = null
+            this.updateLeaderPresentation()
             this.updateHud()
+        }
+    }
+
+    updateLeaderPresentation()
+    {
+        const localIsLeader = this.isWorldAuthority()
+        if(this.hud)
+            this.hud.classList.toggle('is-leader', localIsLeader)
+
+        for(const remote of this.remotePlayers.values())
+        {
+            const isLeader = !!this.authorityUuid && remote.uuid === this.authorityUuid
+            remote.nameElement?.classList.toggle('is-leader', isLeader)
+            if(remote.leaderElement)
+                remote.leaderElement.hidden = !isLeader
         }
     }
 
@@ -304,7 +328,7 @@ export class Multiplayer
         if(cleanRemoteName !== remote.name)
         {
             remote.name = cleanRemoteName
-            remote.nameElement.textContent = cleanRemoteName
+            remote.playerNameElement.textContent = cleanRemoteName
         }
 
         const timestamp = Number.isFinite(state.ts) ? state.ts : Date.now()
@@ -421,13 +445,25 @@ export class Multiplayer
 
         const nameElement = document.createElement('div')
         nameElement.className = 'multiplayer-name-tag'
-        nameElement.textContent = remote.name
         nameElement.hidden = true
+
+        const leaderElement = document.createElement('span')
+        leaderElement.className = 'multiplayer-leader-badge'
+        leaderElement.textContent = '👑 القائد'
+
+        const playerNameElement = document.createElement('span')
+        playerNameElement.className = 'multiplayer-player-name'
+        playerNameElement.textContent = remote.name
+
+        nameElement.append(leaderElement, playerNameElement)
         this.game.domElement.append(nameElement)
         remote.nameElement = nameElement
+        remote.leaderElement = leaderElement
+        remote.playerNameElement = playerNameElement
 
         this.game.scene.add(model)
         this.remotePlayers.set(uuid, remote)
+        this.updateLeaderPresentation()
         this.applyRemoteBodyStyle(remote, 'h9')
         this.applyRemotePaint(remote, 'red')
         return remote
