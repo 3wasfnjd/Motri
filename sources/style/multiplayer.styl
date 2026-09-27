@@ -59,3 +59,24 @@
     .multiplayer-name-tag
         font-size 9px
         padding 3px 6px
+
+.multiplayer-hud.is-leader
+    border-color rgba(255, 213, 94, .55)
+    box-shadow 0 0 0 1px rgba(255, 213, 94, .10)
+
+.multiplayer-name-tag
+    display flex
+    align-items center
+    gap 5px
+
+    &.is-leader
+        border-color rgba(255, 213, 94, .65)
+        background rgba(38, 31, 15, .86)
+
+.multiplayer-leader-badge
+    color #ffd55e
+    font-size .88em
+    font-weight 800
+
+.multiplayer-player-name
+    color #fff
