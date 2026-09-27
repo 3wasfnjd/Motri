@@ -68,3 +68,19 @@ assert.match(worker, /this\.worldStates = new Map\(\)/, 'Server must retain cano
 assert.match(worker, /corrections\.push\(canonical\)/, 'Conflicting clients must be corrected to canonical state')
 
 console.log('Shared world object consistency OK')
+
+const physics = fs.readFileSync('sources/Game/Physics/Physics.js', 'utf8')
+const physicsVehicle = fs.readFileSync('sources/Game/Physics/PhysicsVehicle.js', 'utf8')
+
+assert.match(physics, /remoteVehicle:\s*0b0000000000010000/, 'Physics must define a dedicated remote vehicle group')
+assert.match(physics, /vehicleBumper:/, 'Local vehicle bumper must keep its own collision filter')
+assert.match(physics, /remoteVehicle:[\s\S]*this\.groups\.vehicle/, 'Remote vehicles must collide only with player vehicles')
+assert.match(physicsVehicle, /category:\s*'vehicle'/, 'Local chassis must opt into multiplayer vehicle contacts')
+assert.match(physicsVehicle, /category:\s*'vehicleBumper'/, 'Local bumper must opt into multiplayer vehicle contacts')
+assert.match(multiplayer, /createRemoteCollisionBody\(uuid\)/, 'Remote players must get physical collision proxies')
+assert.match(multiplayer, /type:\s*'kinematicPositionBased'/, 'Remote collision proxy must be kinematic')
+assert.match(multiplayer, /category:\s*'remoteVehicle'/, 'Remote collision proxy must use isolated collision category')
+assert.match(multiplayer, /setNextKinematicTranslation/, 'Remote collision proxy must follow network interpolation')
+assert.match(multiplayer, /destroyRemoteCollisionBody\(remote\)/, 'Remote collision bodies must be cleaned up on leave')
+
+console.log('Multiplayer vehicle collision proxies OK')
