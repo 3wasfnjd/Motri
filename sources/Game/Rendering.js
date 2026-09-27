@@ -10,6 +10,9 @@ export class Rendering
     constructor()
     {
         this.game = Game.getInstance()
+        this.dynamicPixelRatio = null
+        this.usePostProcessing = false
+        this.adaptiveResolution = null
 
         if(this.game.debug.active)
         {
@@ -23,9 +26,11 @@ export class Rendering
     start()
     {
         this.setStats()
+        this.setAdaptiveResolution()
 
         this.game.ticker.events.on('tick', () =>
         {
+            this.updateAdaptiveResolution()
             this.render()
         }, 998)
 
@@ -41,10 +46,14 @@ export class Rendering
             canvas: this.game.canvasElement,
             powerPreference: 'high-performance',
             forceWebGL: false,
-            antialias: this.game.viewport.pixelRatio < 2
+            antialias:
+                this.game.quality.level === 0 &&
+                this.game.viewport.pixelRatio <= 1.25
         })
+
+        this.dynamicPixelRatio = this.game.viewport.pixelRatio
+        this.renderer.setPixelRatio(this.dynamicPixelRatio)
         this.renderer.setSize(this.game.viewport.width, this.game.viewport.height)
-        this.renderer.setPixelRatio(this.game.viewport.pixelRatio)
         this.renderer.sortObjects = false
 
         this.renderer.domElement.classList.add('experience')
@@ -79,7 +88,7 @@ export class Rendering
         const scenePassColor = scenePass.getTextureNode('output')
 
         this.bloomPass = bloom(scenePassColor)
-        this.bloomPass._nMips = this.game.quality.level === 0 ? 5 : 2
+        this.bloomPass._nMips = 4
         this.bloomPass.threshold.value = 1
         this.bloomPass.strength.value = 0.25
         this.bloomPass.smoothWidth.value = 1
@@ -89,13 +98,18 @@ export class Rendering
         // Quality
         const qualityChange = (level) =>
         {
+            this.usePostProcessing = level === 0
+
             if(level === 0)
             {
-                this.postProcessing.outputNode = this.cheapDOFPass.add(this.bloomPass)
+                this.postProcessing.outputNode =
+                    this.cheapDOFPass.add(this.bloomPass)
             }
-            else if(level === 1)
+            else
             {
-                this.postProcessing.outputNode = scenePassColor.add(this.bloomPass)
+                // Low quality renders the scene directly in render(). This avoids
+                // allocating and processing full-screen bloom/DOF passes every frame.
+                this.postProcessing.outputNode = scenePassColor
             }
 
             this.postProcessing.needsUpdate = true
@@ -128,6 +142,129 @@ export class Rendering
             blurPanel.addBinding(this.cheapDOFPass.repeats, 'value', { label: 'repeats', min: 1, max: 100, step: 1 })
             blurPanel.addBinding(this.cheapDOFPass.amount, 'value', { label: 'amount', min: 0, max: 0.02, step: 0.0001 })
         }
+    }
+
+    setAdaptiveResolution()
+    {
+        const now = performance.now()
+
+        this.dynamicPixelRatio =
+            this.dynamicPixelRatio || this.game.viewport.pixelRatio
+
+        this.adaptiveResolution = {
+            lastTime: now,
+            elapsed: 0,
+            frames: 0,
+            cooldownUntil: now + 6000,
+            fastWindows: 0
+        }
+    }
+
+    applyPixelRatio(value)
+    {
+        const viewport = this.game.viewport
+        const min = viewport.pixelRatioMin || 0.65
+        const max = viewport.pixelRatio
+
+        const next = Math.round(
+            Math.max(min, Math.min(max, value)) * 20
+        ) / 20
+
+        if(
+            Number.isFinite(this.dynamicPixelRatio) &&
+            Math.abs(next - this.dynamicPixelRatio) < 0.049
+        )
+            return
+
+        this.dynamicPixelRatio = next
+        this.renderer.setPixelRatio(this.dynamicPixelRatio)
+        this.renderer.setSize(
+            viewport.width,
+            viewport.height,
+            false
+        )
+    }
+
+    updateAdaptiveResolution()
+    {
+        const adaptive = this.adaptiveResolution
+        if(!adaptive)
+            return
+
+        const now = performance.now()
+        const frameTime = now - adaptive.lastTime
+        adaptive.lastTime = now
+
+        if(
+            document.hidden ||
+            frameTime <= 0 ||
+            frameTime > 250
+        )
+        {
+            adaptive.elapsed = 0
+            adaptive.frames = 0
+            adaptive.fastWindows = 0
+            return
+        }
+
+        adaptive.elapsed += frameTime
+        adaptive.frames++
+
+        if(adaptive.elapsed < 1500)
+            return
+
+        const averageFrameTime =
+            adaptive.elapsed / Math.max(1, adaptive.frames)
+
+        adaptive.elapsed = 0
+        adaptive.frames = 0
+
+        if(now < adaptive.cooldownUntil)
+            return
+
+        if(averageFrameTime >= 34)
+        {
+            if(this.game.quality.level === 0)
+                this.game.quality.changeLevel(1, 'performance')
+
+            this.applyPixelRatio(this.dynamicPixelRatio - 0.2)
+            adaptive.cooldownUntil = now + 2500
+            adaptive.fastWindows = 0
+            return
+        }
+
+        if(averageFrameTime >= 24)
+        {
+            if(
+                averageFrameTime >= 28 &&
+                this.game.quality.level === 0
+            )
+                this.game.quality.changeLevel(1, 'performance')
+
+            this.applyPixelRatio(this.dynamicPixelRatio - 0.1)
+            adaptive.cooldownUntil = now + 2500
+            adaptive.fastWindows = 0
+            return
+        }
+
+        if(averageFrameTime <= 17.5)
+        {
+            adaptive.fastWindows++
+
+            if(
+                adaptive.fastWindows >= 4 &&
+                this.dynamicPixelRatio < this.game.viewport.pixelRatio
+            )
+            {
+                this.applyPixelRatio(this.dynamicPixelRatio + 0.05)
+                adaptive.cooldownUntil = now + 3500
+                adaptive.fastWindows = 0
+            }
+
+            return
+        }
+
+        adaptive.fastWindows = 0
     }
 
     setStats()
@@ -164,14 +301,33 @@ export class Rendering
 
     resize()
     {
-        this.renderer.setSize(this.game.viewport.width, this.game.viewport.height)
-        this.renderer.setPixelRatio(this.game.viewport.pixelRatio)
+        const viewport = this.game.viewport
+
+        if(!Number.isFinite(this.dynamicPixelRatio))
+            this.dynamicPixelRatio = viewport.pixelRatio
+        else
+            this.dynamicPixelRatio = Math.min(
+                this.dynamicPixelRatio,
+                viewport.pixelRatio
+            )
+
+        this.renderer.setPixelRatio(this.dynamicPixelRatio)
+        this.renderer.setSize(
+            viewport.width,
+            viewport.height,
+            false
+        )
     }
 
     async render()
     {
-        // this.renderer.render(this.game.scene, this.game.view.camera)
-        this.postProcessing.render()
+        if(this.usePostProcessing)
+            this.postProcessing.render()
+        else
+            this.renderer.render(
+                this.game.scene,
+                this.game.view.camera
+            )
 
         if(this.stats)
             this.stats.update()
