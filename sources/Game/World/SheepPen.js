@@ -35,6 +35,7 @@ export class SheepPen {
         this.time = 0; this.accumulator = 0
         this.position = new THREE.Vector3(); this.rotation = new THREE.Quaternion(); this.up = new THREE.Vector3(0, 1, 0)
         this.carLocal = { x: 0, z: 0 }
+        this.centerPosition = new THREE.Vector3(...SHEEP_PEN.center)
         // Set kinematic targets before Physics (priority 3) consumes this frame.
         this.game.ticker.events.on('tick', () => this.update(), 2)
         this.game.respawns.items.set('sheepPen', {
@@ -66,11 +67,28 @@ export class SheepPen {
         if(inside && !this.wasInsideAchievementZone)
             this.game.achievements.setProgress('sheepPenVisit', 1)
         this.wasInsideAchievementZone = inside
+
+        const multiplayer = this.game.multiplayer
+        if(multiplayer?.worldSync && !multiplayer.isWorldAuthority())
+        {
+            const dt = Math.max(0, Math.min(this.game.ticker.delta, .1))
+            this.time += dt
+            this.accumulator += dt
+            if(this.accumulator >= 1 / 20)
+            {
+                this.flock.pose(this.motion.states, this.time)
+                this.accumulator = 0
+            }
+            return
+        }
+
         if(Math.hypot(p.x - SHEEP_PEN.center[0], p.z - SHEEP_PEN.center[2]) > 45) return
         const dt = Math.max(0, Math.min(this.game.ticker.delta, .1))
         this.time += dt; this.accumulator += dt
         if(this.accumulator < 1 / 20) return
-        const car = this.game.physicalVehicle?.chassis.physical.body.translation() ?? p
+
+        const sharedVehicle = multiplayer?.getClosestVehicleState(this.centerPosition)
+        const car = sharedVehicle?.position ?? this.game.physicalVehicle?.chassis.physical.body.translation() ?? p
         this.carLocal.x = car.x - SHEEP_PEN.center[0]; this.carLocal.z = car.z - SHEEP_PEN.center[2]
         this.motion.update(this.accumulator, car.y < 4 ? this.carLocal : null)
         this.accumulator = 0
