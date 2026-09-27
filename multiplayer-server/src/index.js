@@ -2,6 +2,8 @@ import { DurableObject } from 'cloudflare:workers'
 
 const MAX_PLAYERS = 6
 const MIN_STATE_INTERVAL_MS = 40
+const MAX_WORLD_CHANGES = 96
+const MAX_WORLD_ENTRIES = 256
 
 function cleanName(value)
 {
@@ -47,6 +49,71 @@ function cleanState(value)
     }
 }
 
+function cleanWorldChange(value)
+{
+    if(!value || typeof value !== 'object')
+        return null
+
+    const id = String(value.id || '').replace(/[^a-z0-9:_-]/gi, '').slice(0, 64)
+    if(!id)
+        return null
+
+    return {
+        id,
+        p: cleanArray(value.p, 3, [ 0, 0, 0 ], -4000, 4000),
+        q: cleanArray(value.q, 4, [ 0, 0, 0, 1 ], -1.5, 1.5),
+        v: cleanArray(value.v, 3, [ 0, 0, 0 ], -500, 500),
+        w: cleanArray(value.w, 3, [ 0, 0, 0 ], -100, 100),
+        e: value.e ? 1 : 0,
+        sl: value.sl ? 1 : 0,
+        t: value.t === 'fixed' ? 'fixed' : value.t === 'kinematic' ? 'kinematic' : 'dynamic',
+        ts: Date.now()
+    }
+}
+
+function cleanAnimalRows(value, expectedLength, maxRows)
+{
+    if(!Array.isArray(value))
+        return null
+
+    return value.slice(0, maxRows).map(row =>
+    {
+        if(!Array.isArray(row) || row.length < expectedLength)
+            return null
+
+        return row.slice(0, expectedLength).map((item, index) =>
+        {
+            if(index === expectedLength - 1 && typeof item === 'string')
+                return item.replace(/[^a-z_-]/gi, '').slice(0, 16)
+            return cleanNumber(item, 0, -10000, 10000)
+        })
+    }).filter(Boolean)
+}
+
+function cleanAnimals(value)
+{
+    if(!value || typeof value !== 'object')
+        return null
+
+    return {
+        ts: Date.now(),
+        sheep: cleanAnimalRows(value.sheep, 8, 24),
+        poultry: cleanAnimalRows(value.poultry, 9, 24)
+    }
+}
+
+function defaultAttachment()
+{
+    return {
+        uuid: null,
+        name: 'MOTRI',
+        state: null,
+        lastStateAt: 0,
+        world: {},
+        animals: null
+    }
+}
+
 export default {
     async fetch(request, env)
     {
@@ -81,12 +148,7 @@ export class MotriRoom extends DurableObject
         const [ client, server ] = Object.values(pair)
 
         this.ctx.acceptWebSocket(server)
-        server.serializeAttachment({
-            uuid: null,
-            name: 'MOTRI',
-            state: null,
-            lastStateAt: 0
-        })
+        server.serializeAttachment(defaultAttachment())
 
         return new Response(null, { status: 101, webSocket: client })
     }
@@ -106,12 +168,7 @@ export class MotriRoom extends DurableObject
             return
         }
 
-        const attachment = ws.deserializeAttachment() || {
-            uuid: null,
-            name: 'MOTRI',
-            state: null,
-            lastStateAt: 0
-        }
+        const attachment = { ...defaultAttachment(), ...(ws.deserializeAttachment() || {}) }
 
         if(message.type === 'hello')
         {
@@ -124,13 +181,16 @@ export class MotriRoom extends DurableObject
             ws.serializeAttachment(attachment)
 
             const players = []
+            const world = {}
+            let animals = null
+
             for(const other of this.ctx.getWebSockets())
             {
                 if(other === ws)
                     continue
 
-                const otherAttachment = other.deserializeAttachment()
-                if(otherAttachment?.uuid)
+                const otherAttachment = { ...defaultAttachment(), ...(other.deserializeAttachment() || {}) }
+                if(otherAttachment.uuid)
                 {
                     players.push({
                         uuid: otherAttachment.uuid,
@@ -138,13 +198,24 @@ export class MotriRoom extends DurableObject
                         state: otherAttachment.state
                     })
                 }
+
+                for(const [ id, state ] of Object.entries(otherAttachment.world || {}))
+                {
+                    if(!world[id] || Number(state.ts || 0) >= Number(world[id].ts || 0))
+                        world[id] = state
+                }
+
+                if(otherAttachment.animals && (!animals || Number(otherAttachment.animals.ts || 0) >= Number(animals.ts || 0)))
+                    animals = otherAttachment.animals
             }
 
             ws.send(JSON.stringify({
                 type: 'welcome',
                 uuid: attachment.uuid,
                 maxPlayers: MAX_PLAYERS,
-                players
+                players,
+                world,
+                animals
             }))
 
             this.broadcast({
@@ -174,6 +245,65 @@ export class MotriRoom extends DurableObject
                 uuid: attachment.uuid,
                 name: attachment.name,
                 state
+            }, ws)
+            return
+        }
+
+        if(message.type === 'worldDelta' && attachment.uuid)
+        {
+            const changes = (Array.isArray(message.changes) ? message.changes : [])
+                .slice(0, MAX_WORLD_CHANGES)
+                .map(cleanWorldChange)
+                .filter(Boolean)
+
+            if(!changes.length)
+                return
+
+            for(const socket of this.ctx.getWebSockets())
+            {
+                const socketAttachment = { ...defaultAttachment(), ...(socket.deserializeAttachment() || {}) }
+                const nextWorld = { ...(socketAttachment.world || {}) }
+
+                for(const change of changes)
+                    nextWorld[change.id] = change
+
+                const ids = Object.keys(nextWorld)
+                if(ids.length > MAX_WORLD_ENTRIES)
+                {
+                    ids.sort((a, b) => Number(nextWorld[a]?.ts || 0) - Number(nextWorld[b]?.ts || 0))
+                    for(const id of ids.slice(0, ids.length - MAX_WORLD_ENTRIES))
+                        delete nextWorld[id]
+                }
+
+                socketAttachment.world = nextWorld
+                socket.serializeAttachment(socketAttachment)
+            }
+
+            this.broadcast({
+                type: 'worldDelta',
+                uuid: attachment.uuid,
+                changes
+            }, ws)
+            return
+        }
+
+        if(message.type === 'animalState' && attachment.uuid)
+        {
+            const animals = cleanAnimals(message.animals)
+            if(!animals)
+                return
+
+            for(const socket of this.ctx.getWebSockets())
+            {
+                const socketAttachment = { ...defaultAttachment(), ...(socket.deserializeAttachment() || {}) }
+                socketAttachment.animals = animals
+                socket.serializeAttachment(socketAttachment)
+            }
+
+            this.broadcast({
+                type: 'animalState',
+                uuid: attachment.uuid,
+                animals
             }, ws)
         }
     }
