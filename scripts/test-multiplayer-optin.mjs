@@ -55,3 +55,16 @@ assert.match(worker, /state\.paint\s*=\s*attachment\.paint/, 'Room server must e
 assert.match(worker, /paint:\s*attachment\.paint/, 'Join profile must broadcast selected player color')
 
 console.log('Multiplayer color profile sync OK')
+
+const worldSync = fs.readFileSync('sources/Game/WorldSync.js', 'utf8')
+
+assert.match(worldSync, /toilet-cabin:0/, 'Toilet cabin must be part of shared world sync')
+assert.match(worldSync, /for\(const \[ key, object \] of this\.game\.objects\.list\)/, 'Dynamic visual world props must be auto-registered')
+assert.match(worldSync, /registeredObjects = new WeakSet\(\)/, 'Shared objects must not be registered twice')
+assert.match(worldSync, /RigidBodyType\.KinematicPositionBased/, 'Kinematic shared props must preserve their physics type')
+assert.match(worker, /WORLD_OWNER_MOVING_MS/, 'Server must lease moving world objects to one player')
+assert.match(worker, /this\.worldOwners = new Map\(\)/, 'Server must track temporary object ownership')
+assert.match(worker, /this\.worldStates = new Map\(\)/, 'Server must retain canonical in-memory object state')
+assert.match(worker, /corrections\.push\(canonical\)/, 'Conflicting clients must be corrected to canonical state')
+
+console.log('Shared world object consistency OK')
