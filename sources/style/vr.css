@@ -1,31 +1,28 @@
 .vr-entry {
     position: fixed;
-    left: max(18px, env(safe-area-inset-left));
-    top: 50%;
-    transform: translateY(-50%);
+    right: max(18px, env(safe-area-inset-right));
+    bottom: max(18px, env(safe-area-inset-bottom));
     z-index: 12;
     direction: rtl;
     font-family: Tahoma, Arial, sans-serif;
 }
 .vr-button {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    width: 72px;
-    min-height: 76px;
-    padding: 10px 6px;
+    box-sizing: border-box;
+    width: 58px;
+    height: 58px;
+    padding: 10px;
     border: 1px solid #ffffff66;
     border-radius: 18px;
     background: #17272dea;
     box-shadow: 0 4px 18px #0004;
     color: #fff;
-    font: 700 11px Tahoma, Arial, sans-serif;
     cursor: pointer;
     touch-action: manipulation;
 }
-.vr-button svg { width: 36px; height: 28px; }
+.vr-button svg { width: 32px; height: 26px; }
 .vr-button.is-ready { border-color: #99e5c8; }
 .vr-button:hover, .vr-button:focus-visible {
     background: #285349;
@@ -35,8 +32,8 @@
 .vr-button:disabled { opacity: .6; cursor: wait; }
 .vr-status {
     position: absolute;
-    left: 0;
-    top: calc(100% + 10px);
+    right: 0;
+    bottom: calc(100% + 10px);
     width: min(260px, calc(100vw - 44px));
     padding: 12px;
     border-radius: 12px;
@@ -48,6 +45,9 @@
 .vr-status[hidden], .is-vr .vr-entry { display: none; }
 .is-vr .mobile-boost, .is-vr .touch-buttons { display: none !important; }
 @media (max-width: 600px) {
-    .vr-entry { left: max(10px, env(safe-area-inset-left)); }
-    .vr-button { width: 62px; min-height: 68px; border-radius: 15px; font-size: 10px; }
+    .vr-entry {
+        right: max(10px, env(safe-area-inset-right));
+        bottom: max(10px, env(safe-area-inset-bottom));
+    }
+    .vr-button { width: 54px; height: 54px; border-radius: 15px; }
 }
