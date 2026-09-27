@@ -84,3 +84,15 @@ assert.match(multiplayer, /setNextKinematicTranslation/, 'Remote collision proxy
 assert.match(multiplayer, /destroyRemoteCollisionBody\(remote\)/, 'Remote collision bodies must be cleaned up on leave')
 
 console.log('Multiplayer vehicle collision proxies OK')
+
+assert.match(multiplayer, /handleRemoteVehicleCollision\(remoteUuid, force = 0\)/, 'Remote collision must calculate a targeted impact')
+assert.match(multiplayer, /type:\s*'vehicleImpact'/, 'Client must send vehicleImpact events')
+assert.match(multiplayer, /targetUuid:\s*remoteUuid/, 'Vehicle impact must target the struck player')
+assert.match(multiplayer, /applyIncomingVehicleImpact\(message\)/, 'Target client must handle incoming impact events')
+assert.match(multiplayer, /body\.applyImpulse\(/, 'Incoming impact must apply a Rapier impulse to the local vehicle')
+assert.match(multiplayer, /IMPACT_COOLDOWN_MS/, 'Client must rate-limit repeated collision impulses')
+assert.match(worker, /VEHICLE_IMPACT_COOLDOWN_MS/, 'Server must rate-limit vehicle impact messages')
+assert.match(worker, /cleanImpulse\(message\.impulse\)/, 'Server must sanitize vehicle impact vectors')
+assert.match(worker, /targetSocket\.send\(JSON\.stringify\(\{[\s\S]*type:\s*'vehicleImpact'/, 'Server must route impact only to the target socket')
+
+console.log('Multiplayer impact force exchange OK')
