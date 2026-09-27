@@ -61,6 +61,12 @@ export class Multiplayer
         this.game.server.events.on('message', (message) => this.onMessage(message))
         this.game.server.events.on('disconnected', () => this.onDisconnected())
 
+        this.game.achievements.events.on('rewardActiveChange', () =>
+        {
+            if(this.game.server.active)
+                this.applyLocalAppearance()
+        })
+
         this.game.ticker.events.on('tick', () => this.update(), 9)
 
         if(this.enabled && this.game.server.resumeRoom)
@@ -287,9 +293,13 @@ export class Multiplayer
         this.worldReady = false
         this.updateHud()
 
+        this.applyLocalAppearance()
+
         this.game.server.send({
             type: 'hello',
-            name: this.localName
+            name: this.localName,
+            body: this.selectedCar,
+            paint: this.selectedColor
         })
     }
 
@@ -558,6 +568,7 @@ export class Multiplayer
             initialized: false,
             bodyStyle: null,
             paint: null,
+            paintMaterials: new Map(),
             h9Parts: [],
             styleGroups: new Map(),
             bodyPainted: null,
@@ -680,11 +691,18 @@ export class Multiplayer
         if(!choices)
             return
 
-        const fallback = choices.red
-        const material = choices[paintName] || fallback
         const normalizedName = choices[paintName] ? paintName : 'red'
         if(remote.paint === normalizedName)
             return
+
+        let material = remote.paintMaterials.get(normalizedName)
+        if(!material)
+        {
+            const source = choices[normalizedName] || choices.red
+            material = source.clone()
+            material.name = `Remote_${remote.uuid}_${normalizedName}`
+            remote.paintMaterials.set(normalizedName, material)
+        }
 
         if(remote.bodyPainted && !remote.bodyPainted.userData.fixedPaint)
             remote.bodyPainted.material = material
@@ -706,6 +724,11 @@ export class Multiplayer
 
         remote.model.removeFromParent()
         remote.nameElement?.remove()
+
+        for(const material of remote.paintMaterials?.values?.() || [])
+            material.dispose()
+
+        remote.paintMaterials?.clear?.()
         this.remotePlayers.delete(uuid)
     }
 
