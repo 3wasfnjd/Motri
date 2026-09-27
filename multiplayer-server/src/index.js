@@ -222,17 +222,21 @@ export class MotriRoom extends DurableObject
                 }
             }
 
+            const authorityUuid = this.getAuthorityUuid()
+
             ws.send(JSON.stringify({
                 type: 'welcome',
                 uuid: attachment.uuid,
                 maxPlayers: MAX_PLAYERS,
+                authorityUuid,
                 players
             }))
 
             this.broadcast({
                 type: 'join',
                 uuid: attachment.uuid,
-                name: attachment.name
+                name: attachment.name,
+                authorityUuid
             }, ws)
             return
         }
@@ -296,7 +300,10 @@ export class MotriRoom extends DurableObject
     {
         const attachment = ws.deserializeAttachment()
         if(attachment?.uuid)
+        {
             this.broadcast({ type: 'leave', uuid: attachment.uuid }, ws)
+            this.broadcast({ type: 'authority', uuid: this.getAuthorityUuid(ws) }, ws)
+        }
 
         try { ws.close(1000, 'closed') } catch {}
     }
@@ -305,9 +312,27 @@ export class MotriRoom extends DurableObject
     {
         const attachment = ws.deserializeAttachment()
         if(attachment?.uuid)
+        {
             this.broadcast({ type: 'leave', uuid: attachment.uuid }, ws)
+            this.broadcast({ type: 'authority', uuid: this.getAuthorityUuid(ws) }, ws)
+        }
 
         try { ws.close(1011, 'error') } catch {}
+    }
+
+    getAuthorityUuid(except = null)
+    {
+        for(const socket of this.ctx.getWebSockets())
+        {
+            if(socket === except)
+                continue
+
+            const attachment = socket.deserializeAttachment()
+            if(attachment?.uuid)
+                return attachment.uuid
+        }
+
+        return null
     }
 
     broadcast(message, except = null)
