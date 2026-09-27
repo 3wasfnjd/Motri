@@ -267,6 +267,18 @@ export class MotriRoom extends DurableObject
             return
         }
 
+        if(
+            (message.type === 'worldSnapshotStart' || message.type === 'worldSnapshotEnd') &&
+            attachment.uuid
+        )
+        {
+            if(attachment.uuid !== this.getAuthorityUuid())
+                return
+
+            this.broadcast({ type: message.type, uuid: attachment.uuid }, ws)
+            return
+        }
+
         if(message.type === 'worldDelta' && attachment.uuid)
         {
             const changes = (Array.isArray(message.changes) ? message.changes : [])
@@ -287,6 +299,9 @@ export class MotriRoom extends DurableObject
 
         if(message.type === 'animalState' && attachment.uuid)
         {
+            if(attachment.uuid !== this.getAuthorityUuid())
+                return
+
             const animals = cleanAnimals(message.animals)
             if(!animals)
                 return
