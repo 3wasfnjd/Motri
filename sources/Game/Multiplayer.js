@@ -563,7 +563,734 @@ export class Multiplayer
             remote.model.position.copy(snapshot.position)
             remote.model.quaternion.copy(snapshot.quaternion)
 
-            this.updateRemoteCollisionBody(remote, dt)
+            if(remote.physical?.body)
+            {
+                remote.physical.body.setTranslation({
+                    x: snapshot.position.x,
+                    y: snapshot.position.y,
+                    z: snapshot.position.z
+                }, true)
+                remote.physical.body.setRotation({
+                    x: snapshot.quaternion.x,
+                    y: snapshot.quaternion.y,
+                    z: snapshot.quaternion.z,
+                    w: snapshot.quaternion.w
+                }, true)
+                remote.physical.body.setEnabled(true)
+            }
+
+            remote.initialized = true
+        }
+    }
+
+
+    createRemoteCollisionBody(uuid)
+    {
+        const physical = this.game.physics.getPhysical({
+            type: 'kinematicVelocityBased',
+            position: { x: 0, y: -1000, z: 0 },
+            enabled: false,
+            canSleep: false,
+            friction: 0.42,
+            restitution: 0.08,
+            linearDamping: 0,
+            angularDamping: 0,
+            waterGravityMultiplier: 0,
+            colliders: [
+                {
+                    shape: 'cuboid',
+                    parameters: [ 1.3, 0.4, 0.85 ],
+                    position: { x: 0, y: -0.1, z: 0 },
+                    category: 'remoteVehicle'
+                },
+                {
+                    shape: 'cuboid',
+                    parameters: [ 0.5, 0.15, 0.65 ],
+                    position: { x: 0, y: 0.4, z: 0 },
+                    category: 'remoteVehicle'
+                }
+            ]
+        })
+
+        physical.body.userData = {
+            multiplayerRemoteUuid: uuid
+        }
+
+        return physical
+    }
+
+    destroyRemoteCollisionBody(remote)
+    {
+        const physical = remote?.physical
+        if(!physical)
+            return
+
+        const index = this.game.physics.physicals.indexOf(physical)
+        if(index !== -1)
+            this.game.physics.physicals.splice(index, 1)
+
+        try
+        {
+            this.game.physics.world.removeRigidBody(physical.body)
+        }
+        catch {}
+
+        remote.physical = null
+    }
+
+    updateRemoteCollisionBody(remote)
+    {
+        const body = remote?.physical?.body
+        const latest = remote?.snapshots?.[remote.snapshots.length - 1]
+        if(!body || !latest)
+            return
+
+        if(!body.isEnabled())
+            body.setEnabled(true)
+
+        this.tempCollisionPosition
+            .copy(latest.position)
+            .addScaledVector(latest.velocity, COLLISION_PREDICTION_SECONDS)
+
+        const currentPosition = body.translation()
+        this.tempCollisionError.set(
+            this.tempCollisionPosition.x - currentPosition.x,
+            this.tempCollisionPosition.y - currentPosition.y,
+            this.tempCollisionPosition.z - currentPosition.z
+        )
+
+        const errorDistance = this.tempCollisionError.length()
+
+        if(errorDistance > 4.5)
+        {
+            body.setTranslation({
+                x: this.tempCollisionPosition.x,
+                y: this.tempCollisionPosition.y,
+                z: this.tempCollisionPosition.z
+            }, true)
+            body.setRotation({
+                x: latest.quaternion.x,
+                y: latest.quaternion.y,
+                z: latest.quaternion.z,
+                w: latest.quaternion.w
+            }, true)
+            body.setLinvel({
+                x: latest.velocity.x,
+                y: latest.velocity.y,
+                z: latest.velocity.z
+            }, true)
+            body.setAngvel({ x: 0, y: 0, z: 0 }, true)
+            return
+        }
+
+        this.tempCollisionVelocity
+            .copy(latest.velocity)
+
+        const correction = this.tempCollisionError.clone()
+            .multiplyScalar(COLLISION_POSITION_GAIN)
+
+        if(correction.length() > COLLISION_MAX_CORRECTION_SPEED)
+            correction.setLength(COLLISION_MAX_CORRECTION_SPEED)
+
+        this.tempCollisionVelocity.add(correction)
+
+        body.setLinvel({
+            x: this.tempCollisionVelocity.x,
+            y: this.tempCollisionVelocity.y,
+            z: this.tempCollisionVelocity.z
+        }, true)
+
+        const currentRotation = body.rotation()
+        this.tempRotationCurrent.set(
+            currentRotation.x,
+            currentRotation.y,
+            currentRotation.z,
+            currentRotation.w
+        ).normalize()
+
+        this.tempRotationInverse
+            .copy(this.tempRotationCurrent)
+            .invert()
+
+        this.tempRotationError
+            .copy(latest.quaternion)
+            .multiply(this.tempRotationInverse)
+            .normalize()
+
+        if(this.tempRotationError.w < 0)
+        {
+            this.tempRotationError.set(
+                -this.tempRotationError.x,
+                -this.tempRotationError.y,
+                -this.tempRotationError.z,
+                -this.tempRotationError.w
+            )
+        }
+
+        const angle = 2 * Math.acos(
+            THREE.MathUtils.clamp(this.tempRotationError.w, -1, 1)
+        )
+        const sinHalf = Math.sqrt(
+            Math.max(0, 1 - this.tempRotationError.w * this.tempRotationError.w)
+        )
+
+        if(angle > 0.0005 && sinHalf > 0.0001)
+        {
+            this.tempRotationAxis.set(
+                this.tempRotationError.x / sinHalf,
+                this.tempRotationError.y / sinHalf,
+                this.tempRotationError.z / sinHalf
+            )
+
+            const angularSpeed = Math.min(
+                COLLISION_MAX_ANGULAR_SPEED,
+                angle * COLLISION_ROTATION_GAIN
+            )
+
+            this.tempRotationAxis.multiplyScalar(angularSpeed)
+            body.setAngvel({
+                x: this.tempRotationAxis.x,
+                y: this.tempRotationAxis.y,
+                z: this.tempRotationAxis.z
+            }, true)
+        }
+        else
+        {
+            body.setAngvel({ x: 0, y: 0, z: 0 }, true)
+        }
+    }
+
+    createRemotePlayer(uuid, name)
+    {
+        if(!this.remoteVehicleTemplate)
+            this.prepareRemoteVehicleTemplate()
+
+        if(!this.remoteVehicleTemplate)
+            return null
+
+        const model = this.remoteVehicleTemplate.clone(true)
+        model.name = `RemoteVehicle_${uuid}`
+
+        const remote = {
+            uuid,
+            name: cleanName(name) || 'MOTRI',
+            model,
+            snapshots: [],
+            initialized: false,
+            bodyStyle: null,
+            paint: null,
+            paintMaterials: new Map(),
+            physical: this.createRemoteCollisionBody(uuid),
+            h9Parts: [],
+            styleGroups: new Map(),
+            bodyPainted: null,
+            stylePainted: [],
+            wheelPainted: [],
+            wheels: [],
+            stopLights: [],
+            backLights: [],
+            blinkerLeft: [],
+            blinkerRight: [],
+            directionIndicator: null,
+            directionArrow: null,
+            directionLabel: null,
+            indicatorX: 0,
+            indicatorY: 0,
+            indicatorAngle: 0,
+            indicatorReady: false
+        }
+
+        model.traverse((child) =>
+        {
+            child.userData = { ...child.userData }
+
+            if(child.isMesh)
+            {
+                child.castShadow = true
+                child.receiveShadow = true
+            }
+
+            if(/^bodyPainted/i.test(child.name))
+            {
+                remote.bodyPainted = child
+                remote.h9Parts.push({ object: child, visible: child.visible })
+            }
+            else if(H9_BODY_NAMES.has(child.name))
+            {
+                remote.h9Parts.push({ object: child, visible: child.visible })
+            }
+
+            if(child.name === 'Shas_BodyStyle')
+                remote.styleGroups.set('shas', child)
+            else if(child.name === 'Datsun_BodyStyle')
+                remote.styleGroups.set('datsun', child)
+
+            if(/_BodyPaint$/i.test(child.name))
+                remote.stylePainted.push(child)
+
+            if(/^wheelPainted/i.test(child.name))
+                remote.wheelPainted.push(child)
+
+            if(Number.isInteger(child.userData?.remoteWheelIndex))
+            {
+                const index = child.userData.remoteWheelIndex
+                remote.wheels[index] = {
+                    index,
+                    container: child,
+                    baseRotationY: index === 0 || index === 2 ? Math.PI : 0,
+                    cylinder: null,
+                    suspension: null
+                }
+
+                child.traverse((part) =>
+                {
+                    if(/^wheelCylinder/i.test(part.name))
+                        remote.wheels[index].cylinder = part
+                    else if(/^wheelSuspension/i.test(part.name))
+                        remote.wheels[index].suspension = part
+                })
+            }
+
+            if(/^stopLights/i.test(child.name))
+                remote.stopLights.push(child)
+            if(/^backLights/i.test(child.name))
+                remote.backLights.push(child)
+            if(/^blinkerLeft/i.test(child.name))
+                remote.blinkerLeft.push(child)
+            if(/^blinkerRight/i.test(child.name))
+                remote.blinkerRight.push(child)
+        })
+
+        const nameElement = document.createElement('div')
+        nameElement.className = 'multiplayer-name-tag'
+        nameElement.hidden = true
+
+        const leaderElement = document.createElement('span')
+        leaderElement.className = 'multiplayer-leader-badge'
+        leaderElement.textContent = '👑 القائد'
+
+        const playerNameElement = document.createElement('span')
+        playerNameElement.className = 'multiplayer-player-name'
+        playerNameElement.textContent = remote.name
+
+        nameElement.append(leaderElement, playerNameElement)
+        this.game.domElement.append(nameElement)
+        remote.nameElement = nameElement
+        remote.leaderElement = leaderElement
+        remote.playerNameElement = playerNameElement
+
+        const directionIndicator = document.createElement('div')
+        directionIndicator.className = 'multiplayer-direction-indicator'
+        directionIndicator.hidden = true
+
+        const directionArrow = document.createElement('span')
+        directionArrow.className = 'multiplayer-direction-arrow'
+        directionArrow.textContent = '▲'
+
+        const directionLabel = document.createElement('span')
+        directionLabel.className = 'multiplayer-direction-label'
+
+        directionIndicator.append(directionArrow, directionLabel)
+        this.game.domElement.append(directionIndicator)
+
+        remote.directionIndicator = directionIndicator
+        remote.directionArrow = directionArrow
+        remote.directionLabel = directionLabel
+
+        this.game.scene.add(model)
+        this.remotePlayers.set(uuid, remote)
+        this.updateLeaderPresentation()
+        this.applyRemoteBodyStyle(remote, 'h9')
+        this.applyRemotePaint(remote, 'red')
+        return remote
+    }
+
+    applyRemoteBodyStyle(remote, styleId)
+    {
+        const id = VEHICLE_BODY_STYLES.some(style => style.id === styleId) ? styleId : 'h9'
+        if(remote.bodyStyle === id)
+            return
+
+        for(const part of remote.h9Parts)
+            part.object.visible = id === 'h9' && part.visible
+
+        for(const [ bodyId, body ] of remote.styleGroups)
+            body.visible = bodyId === id
+
+        remote.bodyStyle = id
+        // Re-apply paint because H9 body visibility may have changed.
+        remote.paint = null
+    }
+
+    applyRemotePaint(remote, paintName)
+    {
+        const choices = this.game.world?.visualVehicle?.paints?.choices
+        if(!choices)
+            return
+
+        const normalizedName = choices[paintName] ? paintName : 'red'
+        if(remote.paint === normalizedName)
+            return
+
+        let material = remote.paintMaterials.get(normalizedName)
+        if(!material)
+        {
+            const source = choices[normalizedName] || choices.red
+            material = source.clone()
+            material.name = `Remote_${remote.uuid}_${normalizedName}`
+            remote.paintMaterials.set(normalizedName, material)
+        }
+
+        if(remote.bodyPainted && !remote.bodyPainted.userData.fixedPaint)
+            remote.bodyPainted.material = material
+
+        for(const bodyPaint of remote.stylePainted)
+            bodyPaint.material = material
+
+        for(const wheel of remote.wheelPainted)
+            wheel.material = material
+
+        remote.paint = normalizedName
+    }
+
+    removeRemotePlayer(uuid)
+    {
+        const remote = this.remotePlayers.get(uuid)
+        if(!remote)
+            return
+
+        this.destroyRemoteCollisionBody(remote)
+        remote.model.removeFromParent()
+        remote.nameElement?.remove()
+        remote.directionIndicator?.remove()
+
+        for(const material of remote.paintMaterials?.values?.() || [])
+            material.dispose()
+
+        remote.paintMaterials?.clear?.()
+        this.remotePlayers.delete(uuid)
+    }
+
+    clearRemotePlayers(updateHud = true)
+    {
+        for(const uuid of [ ...this.remotePlayers.keys() ])
+            this.removeRemotePlayer(uuid)
+
+        if(updateHud)
+            this.updateHud()
+    }
+
+    buildLocalState()
+    {
+        const vehicle = this.game.physicalVehicle
+        const player = this.game.player
+        const visualVehicle = this.game.world?.visualVehicle
+        const inputs = this.game.inputs.actions
+
+        const rapierVelocity = vehicle.chassis?.physical?.body?.linvel?.() || { x: 0, y: 0, z: 0 }
+
+        return {
+            p: vehicle.position.toArray().map(value => Number(value.toFixed(3))),
+            q: vehicle.quaternion.toArray().map(value => Number(value.toFixed(4))),
+            v: [ rapierVelocity.x, rapierVelocity.y, rapierVelocity.z ]
+                .map(value => Number(value.toFixed(3))),
+            s: Number(player.steering.toFixed(3)),
+            a: Number(player.accelerating.toFixed(3)),
+            b: player.braking > 0 ? 1 : 0,
+            boost: player.boosting > 0 ? 1 : 0,
+            l: inputs.get('left')?.active ? 1 : 0,
+            r: inputs.get('right')?.active ? 1 : 0,
+            body: visualVehicle?.bodyStyles?.current || this.selectedCar || 'h9',
+            paint: this.selectedColor || 'red',
+            wy: visualVehicle?.wheels?.items?.map(wheel =>
+                Number((wheel.container?.position?.y ?? -0.88).toFixed(3))
+            ) || [ -0.88, -0.88, -0.88, -0.88 ],
+            seq: ++this.sequence
+        }
+    }
+
+    getRenderState(remote, renderTime)
+    {
+        const snapshots = remote.snapshots
+        if(!snapshots.length)
+            return null
+
+        while(snapshots.length >= 3 && snapshots[1].ts <= renderTime)
+            snapshots.shift()
+
+        if(snapshots.length >= 2 && snapshots[0].ts <= renderTime && renderTime <= snapshots[1].ts)
+        {
+            const a = snapshots[0]
+            const b = snapshots[1]
+            const span = Math.max(1, b.ts - a.ts)
+            const t = Math.max(0, Math.min(1, (renderTime - a.ts) / span))
+
+            const seconds = span / 1000
+            const t2 = t * t
+            const t3 = t2 * t
+            const h00 = 2 * t3 - 3 * t2 + 1
+            const h10 = t3 - 2 * t2 + t
+            const h01 = -2 * t3 + 3 * t2
+            const h11 = t3 - t2
+
+            this.tempPosition
+                .copy(a.position)
+                .multiplyScalar(h00)
+                .add(this.tempHermite0.copy(a.velocity).multiplyScalar(h10 * seconds))
+                .add(this.tempHermite1.copy(b.position).multiplyScalar(h01))
+                .add(this.tempHermite2.copy(b.velocity).multiplyScalar(h11 * seconds))
+
+            this.tempQuaternion.copy(a.quaternion).slerp(b.quaternion, t)
+
+            return {
+                position: this.tempPosition,
+                quaternion: this.tempQuaternion,
+                velocity: this.tempHermite3.copy(a.velocity).lerp(b.velocity, t),
+                steering: THREE.MathUtils.lerp(a.steering, b.steering, t),
+                accelerating: THREE.MathUtils.lerp(a.accelerating, b.accelerating, t),
+                braking: t < 0.5 ? a.braking : b.braking,
+                boosting: t < 0.5 ? a.boosting : b.boosting,
+                left: t < 0.5 ? a.left : b.left,
+                right: t < 0.5 ? a.right : b.right,
+                wheelY: a.wheelY.map((value, index) =>
+                    THREE.MathUtils.lerp(value, b.wheelY[index], t)
+                )
+            }
+        }
+
+        const latest = snapshots[snapshots.length - 1]
+        const extrapolation = Math.max(0, Math.min(
+            MAX_EXTRAPOLATION_SECONDS,
+            (renderTime - latest.ts) / 1000
+        ))
+
+        this.tempPosition.copy(latest.position).addScaledVector(latest.velocity, extrapolation)
+        this.tempQuaternion.copy(latest.quaternion)
+
+        return {
+            position: this.tempPosition,
+            quaternion: this.tempQuaternion,
+            velocity: latest.velocity,
+            steering: latest.steering,
+            accelerating: latest.accelerating,
+            braking: latest.braking,
+            boosting: latest.boosting,
+            left: latest.left,
+            right: latest.right,
+            wheelY: latest.wheelY
+        }
+    }
+
+    updateRemoteNameTag(remote)
+    {
+        if(!remote.initialized)
+        {
+            remote.nameElement.hidden = true
+            return
+        }
+
+        const camera = this.game.view.camera
+        this.tempProjected.copy(remote.model.position)
+        this.tempProjected.y += 2.15
+
+        const distance = this.tempProjected.distanceTo(camera.position)
+        this.tempCameraSpace.copy(this.tempProjected).applyMatrix4(camera.matrixWorldInverse)
+        if(distance > MAX_NAME_TAG_DISTANCE || this.tempCameraSpace.z >= 0)
+        {
+            remote.nameElement.hidden = true
+            return
+        }
+
+        this.tempProjected.project(camera)
+        if(
+            this.tempProjected.z < -1 || this.tempProjected.z > 1 ||
+            Math.abs(this.tempProjected.x) > 1.15 ||
+            Math.abs(this.tempProjected.y) > 1.15
+        )
+        {
+            remote.nameElement.hidden = true
+            return
+        }
+
+        const rect = this.game.domElement.getBoundingClientRect()
+        const x = (this.tempProjected.x * 0.5 + 0.5) * rect.width
+        const y = (-this.tempProjected.y * 0.5 + 0.5) * rect.height
+
+        remote.nameElement.hidden = false
+        remote.nameElement.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0) translate(-50%, -115%)`
+    }
+
+    updateRemoteDirectionIndicator(remote, dt)
+    {
+        const indicator = remote.directionIndicator
+        if(!indicator || !remote.initialized || !this.game.server.active)
+        {
+            if(indicator)
+                indicator.hidden = true
+            remote.indicatorReady = false
+            return
+        }
+
+        const camera = this.game.view.camera
+
+        this.tempCameraSpace
+            .copy(remote.model.position)
+            .applyMatrix4(camera.matrixWorldInverse)
+
+        this.tempProjected
+            .copy(remote.model.position)
+            .project(camera)
+
+        const behind = this.tempCameraSpace.z >= -0.05
+        const onScreen =
+            !behind &&
+            this.tempProjected.z >= -1 &&
+            this.tempProjected.z <= 1 &&
+            Math.abs(this.tempProjected.x) < 0.86 &&
+            Math.abs(this.tempProjected.y) < 0.80
+
+        if(onScreen)
+        {
+            indicator.hidden = true
+            remote.indicatorReady = false
+            return
+        }
+
+        let dx = Number.isFinite(this.tempProjected.x)
+            ? this.tempProjected.x
+            : 0
+        let dy = Number.isFinite(this.tempProjected.y)
+            ? -this.tempProjected.y
+            : 0
+
+        if(behind)
+        {
+            dx = -dx
+            dy = -dy
+        }
+
+        if(Math.abs(dx) + Math.abs(dy) < 0.001)
+        {
+            dx = this.tempCameraSpace.x
+            dy = behind ? 1 : -1
+        }
+
+        const length = Math.hypot(dx, dy) || 1
+        dx /= length
+        dy /= length
+
+        const rect = this.game.domElement.getBoundingClientRect()
+        const halfWidth = rect.width * 0.5
+        const halfHeight = rect.height * 0.5
+        const safeX = Math.max(28, halfWidth - 42)
+        const safeY = Math.max(28, halfHeight - 54)
+
+        const edgeScale = Math.min(
+            safeX / Math.max(0.001, Math.abs(dx)),
+            safeY / Math.max(0.001, Math.abs(dy))
+        )
+
+        const targetX = halfWidth + dx * edgeScale
+        const targetY = halfHeight + dy * edgeScale
+        const targetAngle = Math.atan2(dx, -dy)
+
+        if(!remote.indicatorReady)
+        {
+            remote.indicatorX = targetX
+            remote.indicatorY = targetY
+            remote.indicatorAngle = targetAngle
+            remote.indicatorReady = true
+        }
+        else
+        {
+            const positionAlpha = 1 - Math.exp(-10 * dt)
+            const rotationAlpha = 1 - Math.exp(-12 * dt)
+
+            remote.indicatorX = THREE.MathUtils.lerp(
+                remote.indicatorX,
+                targetX,
+                positionAlpha
+            )
+            remote.indicatorY = THREE.MathUtils.lerp(
+                remote.indicatorY,
+                targetY,
+                positionAlpha
+            )
+
+            const deltaAngle = Math.atan2(
+                Math.sin(targetAngle - remote.indicatorAngle),
+                Math.cos(targetAngle - remote.indicatorAngle)
+            )
+            remote.indicatorAngle += deltaAngle * rotationAlpha
+        }
+
+        const distance = Math.round(
+            this.game.physicalVehicle.position.distanceTo(remote.model.position)
+        )
+        const leader = this.authorityUuid === remote.uuid ? '👑 ' : ''
+
+        indicator.hidden = false
+        indicator.style.transform =
+            `translate3d(${remote.indicatorX.toFixed(1)}px, ${remote.indicatorY.toFixed(1)}px, 0) translate(-50%, -50%)`
+        remote.directionArrow.style.transform =
+            `rotate(${remote.indicatorAngle.toFixed(3)}rad)`
+        remote.directionLabel.textContent =
+            `${leader}${remote.name} · ${distance}م`
+        indicator.classList.toggle(
+            'is-leader',
+            this.authorityUuid === remote.uuid
+        )
+    }
+
+    update()
+    {
+        if(!this.enabled)
+            return
+
+        const dt = Math.max(0, Math.min(this.game.ticker.delta, 0.1))
+
+        if(this.game.server.connected)
+        {
+            this.sendAccumulator += dt
+            if(this.sendAccumulator >= SEND_INTERVAL)
+            {
+                this.sendAccumulator %= SEND_INTERVAL
+                this.game.server.send({
+                    type: 'state',
+                    state: this.buildLocalState()
+                })
+            }
+        }
+
+        const renderTime = Date.now() - INTERPOLATION_DELAY_MS
+        const positionAlpha = 1 - Math.exp(-26 * dt)
+        const rotationAlpha = 1 - Math.exp(-28 * dt)
+
+        this.worldSync.update(dt)
+
+        for(const remote of this.remotePlayers.values())
+        {
+            const state = this.getRenderState(remote, renderTime)
+            if(!state)
+            {
+                this.updateRemoteNameTag(remote)
+                this.updateRemoteDirectionIndicator(remote, dt)
+                continue
+            }
+
+            if(!remote.initialized || remote.model.position.distanceTo(state.position) > TELEPORT_DISTANCE)
+            {
+                remote.model.position.copy(state.position)
+                remote.model.quaternion.copy(state.quaternion)
+                remote.initialized = true
+            }
+            else
+            {
+                remote.model.position.lerp(state.position, positionAlpha)
+                remote.model.quaternion.slerp(state.quaternion, rotationAlpha)
+            }
+
+            this.updateRemoteCollisionBody(remote)
 
             const speed = state.velocity.length()
             const wheelRotation = speed * dt / this.game.physicalVehicle.wheels.settings.radius
