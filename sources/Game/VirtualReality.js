@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu'
+import { Howler } from 'howler'
 import { readXRControls } from './Inputs/XRControls.js'
 
 const actionNames = ['interact', 'suspensions', 'honk', 'respawn', 'boost']
@@ -96,6 +97,9 @@ export class VirtualReality
         let session
         try
         {
+            // Resume audio within the click gesture. Reveal owns initialization;
+            // entering VR again must not register another playlist/ambient set.
+            Howler.ctx?.resume().catch(() => {})
             // Keep requestSession directly in the click gesture (no awaited work first).
             session = await navigator.xr.requestSession('immersive-vr', {
                 optionalFeatures: ['local-floor']
@@ -156,7 +160,6 @@ export class VirtualReality
         this.updateArea()
         game.viewport.events.trigger('throttleChange')
         this.createHUD()
-        game.audio.init()
         if(game.reveal.step === 0) game.reveal.start?.()
         this.session.addEventListener('visibilitychange', () =>
         {

@@ -202,6 +202,19 @@ test('opening an HTML menu exits VR so its controls remain accessible in the bro
     assert.equal(vr.session, null)
 })
 
+test('re-entering VR does not duplicate ambient audio or playlists', async () => {
+    const { vr, game, session } = harness()
+    await vr.supportPromise
+    game.reveal.step = 2
+    let initializations = 0
+    game.audio.init = () => initializations++
+    vr.begin()
+    await vr.exit()
+    vr.session = session
+    vr.begin()
+    assert.equal(initializations, 0)
+})
+
 test('permission rejection leaves normal play and the entry button usable', async () => {
     const { vr, game, button, status } = harness()
     await vr.supportPromise
