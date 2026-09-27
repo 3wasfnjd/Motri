@@ -70,22 +70,50 @@ function cleanWorldChange(value)
     }
 }
 
-function cleanAnimalRows(value, expectedLength, maxRows)
+function cleanSheepRows(value)
 {
     if(!Array.isArray(value))
         return null
 
-    return value.slice(0, maxRows).map(row =>
+    return value.slice(0, 24).map(row =>
     {
-        if(!Array.isArray(row) || row.length < expectedLength)
+        if(!Array.isArray(row) || row.length < 8)
             return null
 
-        return row.slice(0, expectedLength).map((item, index) =>
-        {
-            if(index === expectedLength - 1 && typeof item === 'string')
-                return item.replace(/[^a-z_-]/gi, '').slice(0, 16)
-            return cleanNumber(item, 0, -10000, 10000)
-        })
+        return [
+            cleanNumber(row[0], 0, -100, 100),
+            cleanNumber(row[1], 0, -100, 100),
+            cleanNumber(row[2], 0, -10, 10),
+            cleanNumber(row[3], 0, 0, 20),
+            cleanNumber(row[4], 0, 0, 2),
+            cleanNumber(row[5], 0, -100000, 100000),
+            cleanNumber(row[6], 0, 0, 1),
+            String(row[7] || 'idle').replace(/[^a-z_-]/gi, '').slice(0, 16) || 'idle'
+        ]
+    }).filter(Boolean)
+}
+
+function cleanPoultryRows(value)
+{
+    if(!Array.isArray(value))
+        return null
+
+    return value.slice(0, 24).map(row =>
+    {
+        if(!Array.isArray(row) || row.length < 9)
+            return null
+
+        return [
+            cleanNumber(row[0], 0, -100, 100),
+            cleanNumber(row[1], 0, -100, 100),
+            cleanNumber(row[2], 0, -10, 10),
+            cleanNumber(row[3], 0, 0, 20),
+            String(row[4] || 'walk').replace(/[^a-z_-]/gi, '').slice(0, 16) || 'walk',
+            cleanNumber(row[5], 0, -100000, 100000),
+            cleanNumber(row[6], 0, -100000, 100000),
+            row[7] ? 1 : 0,
+            cleanNumber(row[8], 0, 0, 100)
+        ]
     }).filter(Boolean)
 }
 
@@ -96,8 +124,8 @@ function cleanAnimals(value)
 
     return {
         ts: Date.now(),
-        sheep: cleanAnimalRows(value.sheep, 8, 24),
-        poultry: cleanAnimalRows(value.poultry, 9, 24)
+        sheep: cleanSheepRows(value.sheep),
+        poultry: cleanPoultryRows(value.poultry)
     }
 }
 
