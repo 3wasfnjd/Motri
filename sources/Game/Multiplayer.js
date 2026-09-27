@@ -8,7 +8,6 @@ const SEND_INTERVAL = 1 / 20
 const INTERPOLATION_DELAY_MS = 55
 const MAX_EXTRAPOLATION_SECONDS = 0.12
 const MAX_SNAPSHOTS = 20
-const TELEPORT_DISTANCE = 22
 const MAX_NAME_LENGTH = 12
 const MAX_NAME_TAG_DISTANCE = 75
 const COLLISION_PREDICTION_SECONDS = 0.045
@@ -16,6 +15,13 @@ const COLLISION_POSITION_GAIN = 7.5
 const COLLISION_MAX_CORRECTION_SPEED = 10
 const COLLISION_ROTATION_GAIN = 10
 const COLLISION_MAX_ANGULAR_SPEED = 7
+
+const MARKER_COLORS = {
+    red: '#ef5a5a',
+    orange: '#f2a044',
+    white: '#f1f1f1',
+    black: '#8b8b8b'
+}
 
 const H9_BODY_NAMES = new Set([
     'H9_Body_trim',
@@ -950,6 +956,12 @@ export class Multiplayer
         for(const wheel of remote.wheelPainted)
             wheel.material = material
 
+        if(remote.directionIndicator)
+            remote.directionIndicator.style.setProperty(
+                '--player-accent',
+                MARKER_COLORS[normalizedName] || MARKER_COLORS.red
+            )
+
         remote.paint = normalizedName
     }
 
@@ -1263,9 +1275,6 @@ export class Multiplayer
         }
 
         const renderTime = Date.now() - INTERPOLATION_DELAY_MS
-        const positionAlpha = 1 - Math.exp(-26 * dt)
-        const rotationAlpha = 1 - Math.exp(-28 * dt)
-
         this.worldSync.update(dt)
 
         for(const remote of this.remotePlayers.values())
@@ -1278,17 +1287,9 @@ export class Multiplayer
                 continue
             }
 
-            if(!remote.initialized || remote.model.position.distanceTo(state.position) > TELEPORT_DISTANCE)
-            {
-                remote.model.position.copy(state.position)
-                remote.model.quaternion.copy(state.quaternion)
-                remote.initialized = true
-            }
-            else
-            {
-                remote.model.position.lerp(state.position, positionAlpha)
-                remote.model.quaternion.slerp(state.quaternion, rotationAlpha)
-            }
+            remote.model.position.copy(state.position)
+            remote.model.quaternion.copy(state.quaternion)
+            remote.initialized = true
 
             this.updateRemoteCollisionBody(remote)
 
