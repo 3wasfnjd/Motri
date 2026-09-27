@@ -85,7 +85,7 @@ assert.match(multiplayer, /destroyRemoteCollisionBody\(remote\)/, 'Remote collis
 
 console.log('Multiplayer vehicle collision proxies OK')
 
-assert.match(multiplayer, /handleRemoteVehicleCollision\(remoteUuid, force = 0\)/, 'Remote collision must calculate a targeted impact')
+assert.match(multiplayer, /handleRemoteVehicleContact\(remoteUuid, force = 0\)/, 'Confirmed Rapier contact must calculate a targeted impact')
 assert.match(multiplayer, /type:\s*'vehicleImpact'/, 'Client must send vehicleImpact events')
 assert.match(multiplayer, /targetUuid:\s*remoteUuid/, 'Vehicle impact must target the struck player')
 assert.match(multiplayer, /applyIncomingVehicleImpact\(message\)/, 'Target client must handle incoming impact events')
@@ -101,8 +101,15 @@ assert.match(multiplayer, /body\.linvel\(\)/, 'Impact calculation must use real 
 assert.match(multiplayer, /rapierVelocity = vehicle\.chassis\?\.physical\?\.body\?\.linvel/, 'Network state must send real Rapier velocity')
 assert.match(multiplayer, /closingSpeed \* mass \* 0\.95/, 'Impact strength must scale from real relative momentum')
 assert.match(multiplayer, /applyTorqueImpulse\(/, 'Side impacts must apply a bounded yaw torque')
-assert.match(multiplayer, /IMPACT_MAX_IMPULSE = 20/, 'Client impact cap must allow a clearly visible push')
-assert.match(worker, /VEHICLE_IMPACT_MAX = 20/, 'Server impact cap must match the client')
+assert.match(multiplayer, /IMPACT_MAX_IMPULSE = 24/, 'Client impact cap must allow a clearly visible push')
+assert.match(worker, /VEHICLE_IMPACT_MAX = 24/, 'Server impact cap must match the client')
 assert.match(worker, /cleanTorque\(message\.torque\)/, 'Server must sanitize impact torque')
 
 console.log('Real Rapier impact velocity OK')
+
+assert.match(physics, /handleRemoteVehicleContact\([\s\S]*event\.maxForceMagnitude\(\)/, 'Rapier contact events must directly route multiplayer vehicle impacts')
+assert.doesNotMatch(multiplayer, /handleRemoteVehicleCollision\(/, 'Legacy generic collision callback path must be removed')
+assert.match(multiplayer, /IMPACT_MIN_RELATIVE_SPEED = 0\.3/, 'Side and rear impacts must not depend on centre-line closing speed')
+assert.match(multiplayer, /body\.setLinvel\(/, 'Incoming impacts must preserve a visible velocity delta after controller damping')
+
+console.log('Confirmed Rapier contact routing OK')
