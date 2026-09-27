@@ -545,8 +545,79 @@ export class Multiplayer
         {
             remote.model.position.copy(snapshot.position)
             remote.model.quaternion.copy(snapshot.quaternion)
+
+            if(remote.physical?.body)
+            {
+                remote.physical.body.setTranslation({
+                    x: snapshot.position.x,
+                    y: snapshot.position.y,
+                    z: snapshot.position.z
+                }, true)
+                remote.physical.body.setRotation({
+                    x: snapshot.quaternion.x,
+                    y: snapshot.quaternion.y,
+                    z: snapshot.quaternion.z,
+                    w: snapshot.quaternion.w
+                }, true)
+                remote.physical.body.setEnabled(true)
+            }
+
             remote.initialized = true
         }
+    }
+
+    createRemoteCollisionBody(uuid)
+    {
+        const physical = this.game.physics.getPhysical({
+            type: 'kinematicPositionBased',
+            position: { x: 0, y: -1000, z: 0 },
+            enabled: false,
+            canSleep: false,
+            friction: 0.42,
+            restitution: 0.08,
+            linearDamping: 0,
+            angularDamping: 0,
+            waterGravityMultiplier: 0,
+            colliders: [
+                {
+                    shape: 'cuboid',
+                    parameters: [ 1.3, 0.4, 0.85 ],
+                    position: { x: 0, y: -0.1, z: 0 },
+                    category: 'remoteVehicle'
+                },
+                {
+                    shape: 'cuboid',
+                    parameters: [ 0.5, 0.15, 0.65 ],
+                    position: { x: 0, y: 0.4, z: 0 },
+                    category: 'remoteVehicle'
+                }
+            ]
+        })
+
+        physical.body.userData = {
+            multiplayerRemoteUuid: uuid
+        }
+
+        return physical
+    }
+
+    destroyRemoteCollisionBody(remote)
+    {
+        const physical = remote?.physical
+        if(!physical)
+            return
+
+        const index = this.game.physics.physicals.indexOf(physical)
+        if(index !== -1)
+            this.game.physics.physicals.splice(index, 1)
+
+        try
+        {
+            this.game.physics.world.removeRigidBody(physical.body)
+        }
+        catch {}
+
+        remote.physical = null
     }
 
     createRemotePlayer(uuid, name)
@@ -569,6 +640,7 @@ export class Multiplayer
             bodyStyle: null,
             paint: null,
             paintMaterials: new Map(),
+            physical: this.createRemoteCollisionBody(uuid),
             h9Parts: [],
             styleGroups: new Map(),
             bodyPainted: null,
@@ -722,6 +794,7 @@ export class Multiplayer
         if(!remote)
             return
 
+        this.destroyRemoteCollisionBody(remote)
         remote.model.removeFromParent()
         remote.nameElement?.remove()
 
@@ -909,6 +982,24 @@ export class Multiplayer
             {
                 remote.model.position.lerp(state.position, positionAlpha)
                 remote.model.quaternion.slerp(state.quaternion, rotationAlpha)
+            }
+
+            if(remote.physical?.body)
+            {
+                if(!remote.physical.body.isEnabled())
+                    remote.physical.body.setEnabled(true)
+
+                remote.physical.body.setNextKinematicTranslation({
+                    x: remote.model.position.x,
+                    y: remote.model.position.y,
+                    z: remote.model.position.z
+                })
+                remote.physical.body.setNextKinematicRotation({
+                    x: remote.model.quaternion.x,
+                    y: remote.model.quaternion.y,
+                    z: remote.model.quaternion.z,
+                    w: remote.model.quaternion.w
+                })
             }
 
             const speed = state.velocity.length()
