@@ -128,6 +128,27 @@ export class WorldSync
         return changes
     }
 
+    sendFullSnapshot()
+    {
+        if(!this.game.server.connected)
+            return
+
+        const states = [ ...this.entries.values() ].map(entry => this.serializeEntry(entry))
+        for(let i = 0; i < states.length; i += 48)
+            this.game.server.send({ type: 'worldDelta', changes: states.slice(i, i + 48) })
+    }
+
+    sendAnimalsNow()
+    {
+        if(!this.game.server.connected)
+            return
+
+        this.game.server.send({
+            type: 'animalState',
+            animals: this.serializeAnimals()
+        })
+    }
+
     applySnapshot(snapshot)
     {
         if(!snapshot || typeof snapshot !== 'object')
