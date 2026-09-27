@@ -38,3 +38,9 @@ assert.match(worker, /removedUuids/, 'Worker must remove stale remote player ide
 assert.match(worker, /logicalMembers/, 'Room capacity must count logical players instead of sockets')
 
 console.log('Multiplayer player identity deduplication OK')
+
+assert.match(worker, /legacy session cleanup/, 'Worker must retire legacy live ghost sockets')
+assert.match(worker, /legacyPending/, 'Worker must delete legacy suspended ghost sessions')
+assert.match(worker, /legacyUuids/, 'Worker must broadcast removal of legacy ghost players')
+
+console.log('Legacy multiplayer ghost cleanup OK')
