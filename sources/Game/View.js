@@ -212,11 +212,6 @@ export class View
 
         this.optimalArea.update = () =>
         {
-            if(this.game.vr?.active)
-            {
-                this.game.vr.updateArea()
-                return
-            }
             // Save state
             const savedPosition = this.defaultCamera.position.clone()
             const savedQuaternion = this.defaultCamera.quaternion.clone()
@@ -624,11 +619,6 @@ export class View
 
     update()
     {
-        if(this.game.vr?.active)
-        {
-            this.game.vr.updateView()
-            return
-        }
         // Gamepad Joystick map controls
         if(this.mode === View.MODE_DEFAULT && this.game.inputs.gamepad.joysticks.right.active && !this.cinematic.active)
         {

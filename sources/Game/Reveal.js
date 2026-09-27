@@ -106,12 +106,10 @@ export class Reveal
                     // Next function
                     const next = () =>
                     {
-                        if(this.step !== 0) return
                         this.updateStep(1)
                         this.game.inputs.events.off('introStart', inputCallback)
                         this.game.rayCursor.removeIntersect(intersect)
                     }
-                    this.start = next
 
                     // Input callback
                     const inputCallback = () =>
@@ -146,7 +144,6 @@ export class Reveal
             // { name: 'right',                 categories: [ 'wandering', 'racing', 'cinematic' ], keys: [ 'Keyboard.ArrowRight', 'Keyboard.KeyD', 'Gamepad.right' ] },
                     this.game.inputs.events.on('introStart', inputCallback)
                 }
-                this.game.vr?.setReady()
             })
         }
         else if(step === 1)

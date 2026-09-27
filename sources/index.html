@@ -42,7 +42,6 @@
     <link rel="preload" href="./palette.ktx" as="fetch" crossorigin>
     <link rel="stylesheet" href="./localization/ar.css">
     <link rel="stylesheet" href="./style/mobileBoost.css">
-    <link rel="stylesheet" href="./style/vr.css">
 </head>
 <body>
     <!-- MOTRI2_REFERENCE_BASELINE: the world and driving remain upstream. -->
@@ -57,18 +56,6 @@
     <div class="game">
 
         <canvas class="js-canvas"></canvas>
-
-        <div class="vr-entry">
-            <button class="js-vr-button vr-button" type="button" aria-label="الدخول إلى الواقع الافتراضي VR" aria-describedby="vr-status">
-                <svg viewBox="0 0 48 36" fill="none" aria-hidden="true" focusable="false">
-                    <path d="M10 8h28a6 6 0 0 1 6 6v13a5 5 0 0 1-5 5H30l-6-7-6 7H9a5 5 0 0 1-5-5V14a6 6 0 0 1 6-6Z" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
-                    <circle cx="15" cy="19" r="5" stroke="currentColor" stroke-width="2.5"/>
-                    <circle cx="33" cy="19" r="5" stroke="currentColor" stroke-width="2.5"/>
-                    <path d="M15 7V4h18v3" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-                </svg>
-            </button>
-            <div id="vr-status" class="js-vr-status vr-status" role="status" hidden></div>
-        </div>
 
         <!-- Touch buttons -->
         <div class="js-touch-buttons touch-buttons">

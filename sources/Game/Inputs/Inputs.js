@@ -331,11 +331,6 @@ export class Inputs
 
     update()
     {
-        if(this.game.vr?.active)
-        {
-            this.game.vr.updateInputs()
-            return
-        }
         this.pointer.update()
         this.gamepad.update()
         this.nipple.update()

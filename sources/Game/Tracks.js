@@ -79,24 +79,14 @@ export class Tracks
         this.camera.position.z = this.focusPoint.y
 
         // Render
-        const renderer = this.game.rendering.renderer
-        const rendererState = THREE.RendererUtils.resetRendererState(renderer)
-        const xrEnabled = renderer.xr.enabled
-        try
-        {
-            // This texture is a top-down ground map, including during XR.
-            // RendererUtils does not save XR state: leaving it enabled replaces
-            // the orthographic camera with the headset and mutates that camera.
-            renderer.xr.enabled = false
-            renderer.setPixelRatio(1)
-            renderer.setRenderTarget(this.renderTarget)
-            renderer.render(this.scene, this.camera)
-        }
-        finally
-        {
-            THREE.RendererUtils.restoreRendererState(renderer, rendererState)
-            renderer.xr.enabled = xrEnabled
-        }
+        const rendererState = THREE.RendererUtils.resetRendererState(this.game.rendering.renderer)
+
+        this.game.rendering.renderer.setPixelRatio(1)
+        this.game.rendering.renderer.setRenderTarget(this.renderTarget)
+        this.game.rendering.renderer.render(this.scene, this.camera)
+        this.game.rendering.renderer.setRenderTarget(null)
+
+        THREE.RendererUtils.restoreRendererState(this.game.rendering.renderer, rendererState)
     }
 }
 

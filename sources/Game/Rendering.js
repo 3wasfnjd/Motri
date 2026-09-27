@@ -4,7 +4,6 @@ import { bloom } from 'three/addons/tsl/display/BloomNode.js'
 import { Game } from './Game.js'
 import { cheapDOF } from './Passes/cheapDOF.js'
 import { Inspector } from 'three/addons/inspector/Inspector.js'
-import gsap from 'gsap'
 
 export class Rendering
 {
@@ -38,15 +37,12 @@ export class Rendering
 
     async setRenderer()
     {
-        // Keep the original renderer for ordinary web play. XR needs WebGL2,
-        // but headset availability alone must not change the web renderer.
         this.renderer = new THREE.WebGPURenderer({
             canvas: this.game.canvasElement,
             powerPreference: 'high-performance',
-            forceWebGL: this.game.vr.requested,
+            forceWebGL: false,
             antialias: this.game.viewport.pixelRatio < 2
         })
-        this.game.graphicsDiagnostics?.attachRenderer(this.renderer)
         this.renderer.setSize(this.game.viewport.width, this.game.viewport.height)
         this.renderer.setPixelRatio(this.game.viewport.pixelRatio)
         this.renderer.sortObjects = false
@@ -69,13 +65,7 @@ export class Rendering
         }
 
         // Make the renderer control the ticker
-        this.renderer.setAnimationLoop((elapsedTime, xrFrame) =>
-        {
-            this.game.graphicsDiagnostics?.frame(elapsedTime, xrFrame)
-            // Keep reveal/respawn tweens running if window RAF pauses in VR.
-            if(this.game.vr?.active) gsap.ticker.tick()
-            this.game.ticker.update(elapsedTime)
-        })
+        this.renderer.setAnimationLoop((elapsedTime) => { this.game.ticker.update(elapsedTime) })
 
         return this.renderer
             .init()
@@ -174,20 +164,14 @@ export class Rendering
 
     resize()
     {
-        if(this.renderer.xr.isPresenting) return
         this.renderer.setSize(this.game.viewport.width, this.game.viewport.height)
         this.renderer.setPixelRatio(this.game.viewport.pixelRatio)
     }
 
     async render()
     {
-        // WebXR owns both eye targets; flat-screen post-processing stays unchanged.
-        if(this.renderer.xr.isPresenting)
-            this.renderer.render(this.game.scene, this.game.view.camera)
-        else
-            this.postProcessing.render()
-
-        this.game.graphicsDiagnostics?.rendered()
+        // this.renderer.render(this.game.scene, this.game.view.camera)
+        this.postProcessing.render()
 
         if(this.stats)
             this.stats.update()

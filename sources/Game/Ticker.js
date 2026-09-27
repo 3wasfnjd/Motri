@@ -28,10 +28,6 @@ export class Ticker
 
     update(elapsed)
     {
-        // Three restarts the browser animation loop without a timestamp when
-        // an XR session ends. Never propagate that callback (or a stale frame)
-        // into physics, camera transforms or material time uniforms.
-        if(!Number.isFinite(elapsed) || elapsed / 1000 <= this.elapsed) return
         const elapsedSeconds = elapsed / 1000
         this.delta = Math.min(elapsedSeconds - this.elapsed, this.maxDelta)
         this.elapsed = elapsedSeconds
