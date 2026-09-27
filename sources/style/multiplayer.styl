@@ -415,3 +415,76 @@
         min-height 38px
         padding 5px
         font-size 11px
+
+
+.multiplayer-direction-indicator
+    position absolute
+    top 0
+    left 0
+    z-index 14
+    display flex
+    align-items center
+    gap 6px
+    max-width 150px
+    min-height 30px
+    padding 5px 8px
+    border 1px solid rgba(255, 255, 255, .24)
+    border-radius 10px
+    background rgba(18, 18, 20, .78)
+    color #fff
+    font-family Arial, sans-serif
+    font-size 10px
+    font-weight 800
+    line-height 1
+    white-space nowrap
+    pointer-events none
+    user-select none
+    backdrop-filter blur(5px)
+    will-change transform
+
+    &[hidden]
+        display none
+
+    &.is-leader
+        border-color rgba(255, 213, 94, .58)
+        background rgba(38, 31, 15, .84)
+
+    html.input-filter-menu &
+    html.input-filter-modal &
+    html.input-filter-cinematic &
+    html.input-filter-intro &
+        opacity 0
+
+.multiplayer-direction-arrow
+    display inline-block
+    width 14px
+    color #ffceca
+    font-size 14px
+    line-height 1
+    text-align center
+    transform-origin 50% 50%
+    will-change transform
+
+.multiplayer-direction-indicator.is-leader .multiplayer-direction-arrow
+    color #ffd55e
+
+.multiplayer-direction-label
+    overflow hidden
+    max-width 118px
+    text-overflow ellipsis
+    unicode-bidi plaintext
+
+@media (max-width: 600px)
+    .multiplayer-direction-indicator
+        min-height 28px
+        max-width 132px
+        padding 4px 7px
+        gap 5px
+        font-size 9px
+
+    .multiplayer-direction-label
+        max-width 102px
+
+    .multiplayer-direction-arrow
+        width 12px
+        font-size 12px
