@@ -32,18 +32,21 @@ export class Server
         this.initData = null
         this.events = new Events()
 
-        let storedSessionUuid = null
+        let storedPlayerUuid = null
         let storedRoom = null
         try
         {
-            storedSessionUuid = localStorage.getItem('motri.multiplayer.sessionUuid')
+            storedPlayerUuid = localStorage.getItem('motri.multiplayer.playerUuid')
             storedRoom = cleanRoom(localStorage.getItem('motri.multiplayer.activeRoom'))
         }
         catch {}
 
-        this.sessionUuid = storedSessionUuid || uuidv4()
+        this.sessionUuid = storedPlayerUuid || uuidv4()
         this.resumeRoom = storedRoom
         this.reconnectInterval = null
+
+        try { localStorage.setItem('motri.multiplayer.playerUuid', this.sessionUuid) }
+        catch {}
 
         const params = new URLSearchParams(window.location.search)
         this.inviteRoom = params.has('room') ? cleanRoom(params.get('room')) : null
@@ -86,21 +89,15 @@ export class Server
         if(this.active || this.connected || this.connecting)
             this.stop(false)
 
-        const isResume = this.resumeRoom === nextRoom && !!this.sessionUuid
-
         this.room = nextRoom
         this.active = true
         this.initData = null
-
-        if(!isResume)
-            this.sessionUuid = uuidv4()
-
         this.resumeRoom = nextRoom
 
         try
         {
             localStorage.setItem('motri.multiplayer.activeRoom', nextRoom)
-            localStorage.setItem('motri.multiplayer.sessionUuid', this.sessionUuid)
+            localStorage.setItem('motri.multiplayer.playerUuid', this.sessionUuid)
         }
         catch {}
 
@@ -153,7 +150,6 @@ export class Server
         try
         {
             localStorage.removeItem('motri.multiplayer.activeRoom')
-            localStorage.removeItem('motri.multiplayer.sessionUuid')
         }
         catch {}
 
