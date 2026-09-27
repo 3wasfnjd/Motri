@@ -5,11 +5,13 @@ on:
     branches: [multiplayer-prototype]
     paths:
       - 'sources/Game/Multiplayer.js'
+      - 'sources/Game/MultiplayerLobby.js'
       - 'sources/Game/Server.js'
       - 'sources/Game/Game.js'
       - 'sources/Game/WorldSync.js'
       - 'sources/Game/World/SheepPen.js'
       - 'sources/Game/World/RestHousePoultry.js'
+      - 'sources/Game/World/VehicleBodyStyles.js'
       - 'sources/style/multiplayer.styl'
       - 'sources/style/index.styl'
       - 'multiplayer-server/**'
@@ -36,9 +38,11 @@ jobs:
       - name: Syntax check multiplayer files
         run: |
           node --check sources/Game/Multiplayer.js
+          node --check sources/Game/MultiplayerLobby.js
           node --check sources/Game/WorldSync.js
           node --check sources/Game/World/SheepPen.js
           node --check sources/Game/World/RestHousePoultry.js
+          node --check sources/Game/World/VehicleBodyStyles.js
           node --check sources/Game/Server.js
           node --check multiplayer-server/src/index.js
 
