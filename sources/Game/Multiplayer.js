@@ -53,7 +53,6 @@ export class Multiplayer
         this.prepareRemoteVehicleTemplate()
         this.worldSync = new WorldSync(this.game, this)
         this.setHud()
-        this.applyLocalAppearance()
 
         if(this.enabled)
             this.lobby = new MultiplayerLobby(this.game, this)
@@ -322,10 +321,7 @@ export class Multiplayer
             // The previous room authority sends the new player one complete world
             // snapshot before authority can move to a lower-sorted session id.
             if(wasWorldAuthority)
-            {
                 this.worldSync.sendFullSnapshot()
-                this.worldSync.sendAnimalsNow()
-            }
 
             this.updateHud()
             return
