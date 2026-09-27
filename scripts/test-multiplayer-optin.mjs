@@ -13,3 +13,16 @@ assert.match(lobby, /this\.server\.start\(room\)/, 'Lobby must be the component 
 assert.match(lobby, /joinRoom\('public', 'quick'\)/, 'Only quick join may explicitly choose public')
 
 console.log('Multiplayer opt-in room flow OK')
+
+const worker = fs.readFileSync('multiplayer-server/src/index.js', 'utf8')
+
+assert.match(server, /motri\.multiplayer\.activeRoom/, 'Active room must persist for app/background resume')
+assert.match(server, /motri\.multiplayer\.sessionUuid/, 'Session UUID must persist for reconnect')
+assert.match(server, /visibilitychange/, 'Foregrounding the app must trigger reconnect logic')
+assert.match(server, /type:\s*'leaveRoom'/, 'Explicit room exit must notify the server')
+assert.match(worker, /DISCONNECT_GRACE_MS/, 'Worker must keep temporary disconnects in a grace period')
+assert.match(worker, /deferDisconnect\(attachment\)/, 'Unexpected close must defer logout')
+assert.match(worker, /message\.type === 'leaveRoom'/, 'Worker must distinguish explicit logout')
+assert.match(worker, /PENDING_PREFIX/, 'Worker must retain suspended sessions for reconnect')
+
+console.log('Multiplayer background-resume flow OK')
