@@ -206,7 +206,17 @@ export class Multiplayer
 
         if(message.type === 'join' && message.uuid && message.uuid !== this.game.server.sessionUuid)
         {
+            const wasWorldAuthority = this.isWorldAuthority()
             this.peerIds.add(message.uuid)
+
+            // The previous room authority sends the new player one complete world
+            // snapshot before authority can move to a lower-sorted session id.
+            if(wasWorldAuthority)
+            {
+                this.worldSync.sendFullSnapshot()
+                this.worldSync.sendAnimalsNow()
+            }
+
             this.updateHud()
             return
         }
