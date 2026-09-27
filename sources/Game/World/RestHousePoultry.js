@@ -31,16 +31,21 @@ export class RestHousePoultry {
     }
 
     update() {
+        const multiplayer = this.game.multiplayer
+        if(multiplayer?.worldSync && !multiplayer.isWorldAuthority())
+            return
+
         // The birds are decorative and never create road-blocking rigid bodies.
         // Finish returning escaped birds even if the car drives out of view.
         // Once the flock is home it can sleep without leaving birds stranded.
-        const player = this.game.player.position
+        const sharedVehicle = multiplayer?.getClosestVehicleState(this.centre)
+        const player = sharedVehicle?.position ?? this.game.player.position
         const nearby = Math.hypot(player.x - this.centre.x, player.z - this.centre.z) <= 45
         if(!nearby && !this.motion.needsReturn()) return
         this.car.copy(player).applyMatrix4(this.inverse)
         const vehicle = this.game.physicalVehicle
         // PhysicsVehicle.velocity is displacement per frame, not metres/second.
-        this.carVelocity.copy(vehicle?.velocity || { x: 0, y: 0, z: 0 })
+        this.carVelocity.copy(sharedVehicle?.velocity || vehicle?.velocity || { x: 0, y: 0, z: 0 })
             .multiplyScalar(1 / Math.max(this.game.ticker.delta, 1 / 240))
             .applyQuaternion(this.inverseRotation)
         this.car.vx = this.carVelocity.x
