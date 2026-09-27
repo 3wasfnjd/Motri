@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu'
 import { Game } from './Game.js'
 import { VEHICLE_BODY_STYLES } from './World/VehicleBodyStyles.js'
 import { WorldSync } from './WorldSync.js'
+import { MultiplayerLobby } from './MultiplayerLobby.js'
 
 const SEND_INTERVAL = 1 / 12
 const INTERPOLATION_DELAY_MS = 120
@@ -39,7 +40,10 @@ export class Multiplayer
         this.sequence = 0
         this.maxPlayers = 6
         this.authorityUuid = null
+        this.worldReady = false
         this.localName = this.resolveLocalName()
+        this.selectedCar = this.resolveSelectedCar()
+        this.selectedColor = this.resolveSelectedColor()
         this.remoteVehicleTemplate = null
         this.tempPosition = new THREE.Vector3()
         this.tempQuaternion = new THREE.Quaternion()
@@ -49,6 +53,10 @@ export class Multiplayer
         this.prepareRemoteVehicleTemplate()
         this.worldSync = new WorldSync(this.game, this)
         this.setHud()
+        this.applyLocalAppearance()
+
+        if(this.enabled)
+            this.lobby = new MultiplayerLobby(this.game, this)
 
         this.game.server.events.on('connected', () => this.onConnected())
         this.game.server.events.on('message', (message) => this.onMessage(message))
@@ -78,6 +86,75 @@ export class Multiplayer
         return `MOTRI-${this.game.server.sessionUuid.slice(0, 4).toUpperCase()}`
     }
 
+    resolveSelectedCar()
+    {
+        let stored = ''
+        try { stored = localStorage.getItem('motri.multiplayer.car') || '' }
+        catch {}
+
+        if(VEHICLE_BODY_STYLES.some(style => style.id === stored))
+            return stored
+
+        return this.game.world?.visualVehicle?.bodyStyles?.current || 'h9'
+    }
+
+    resolveSelectedColor()
+    {
+        const allowed = new Set([ 'red', 'orange', 'white', 'black' ])
+        let stored = ''
+        try { stored = localStorage.getItem('motri.multiplayer.color') || '' }
+        catch {}
+
+        return allowed.has(stored) ? stored : 'red'
+    }
+
+    setLocalName(value)
+    {
+        const name = cleanName(value) || this.localName || 'MOTRI'
+        this.localName = name
+
+        try { localStorage.setItem('multiplayerName', name) }
+        catch {}
+
+        this.updateHud()
+        return name
+    }
+
+    setAppearance(car, paint)
+    {
+        if(!VEHICLE_BODY_STYLES.some(style => style.id === car))
+            car = 'h9'
+
+        const choices = this.game.world?.visualVehicle?.paints?.choices || {}
+        if(![ 'red', 'orange', 'white', 'black' ].includes(paint) || !choices[paint])
+            paint = 'red'
+
+        this.selectedCar = car
+        this.selectedColor = paint
+
+        try
+        {
+            localStorage.setItem('motri.multiplayer.car', car)
+            localStorage.setItem('motri.multiplayer.color', paint)
+        }
+        catch {}
+
+        this.applyLocalAppearance()
+        return { car, paint }
+    }
+
+    applyLocalAppearance()
+    {
+        const visualVehicle = this.game.world?.visualVehicle
+        const material = visualVehicle?.paints?.choices?.[this.selectedColor]
+        if(!visualVehicle || !material)
+            return
+
+        visualVehicle.paints.changeTo(this.selectedColor)
+        visualVehicle.bodyStyles.setPaintMaterial(material)
+        visualVehicle.bodyStyles.changeTo(this.selectedCar)
+    }
+
     setHud()
     {
         this.hud = document.createElement('div')
@@ -103,7 +180,7 @@ export class Multiplayer
             return
         }
 
-        this.hud.hidden = false
+        this.hud.hidden = !this.game.server.connected
         this.hud.classList.toggle('is-connected', this.game.server.connected)
 
         if(this.game.server.connected)
@@ -116,10 +193,12 @@ export class Multiplayer
         }
         else
         {
-            this.hudStatus.textContent = 'اللعب الجماعي غير متصل'
+            this.hudStatus.textContent = ''
             this.hudRoom.textContent = ''
             this.hud.classList.remove('is-leader')
         }
+
+        this.lobby?.update()
     }
 
     prepareRemoteVehicleTemplate()
@@ -149,6 +228,7 @@ export class Multiplayer
     {
         this.peerIds.clear()
         this.authorityUuid = null
+        this.worldReady = false
         this.clearRemotePlayers(false)
         this.updateHud()
 
@@ -162,6 +242,7 @@ export class Multiplayer
     {
         this.peerIds.clear()
         this.authorityUuid = null
+        this.worldReady = false
         this.clearRemotePlayers(false)
         this.updateHud()
     }
@@ -173,10 +254,14 @@ export class Multiplayer
 
         if(message.type === 'welcome')
         {
+            if(this.lobby && !this.lobby.onWelcome(message))
+                return
+
             if(Number.isFinite(message.maxPlayers))
                 this.maxPlayers = Math.max(2, Math.min(12, Math.floor(message.maxPlayers)))
 
             this.authorityUuid = message.authorityUuid || this.game.server.sessionUuid
+            this.worldReady = !Array.isArray(message.players) || message.players.length === 0
 
             if(Array.isArray(message.players))
             {
@@ -198,6 +283,18 @@ export class Multiplayer
 
             this.updateLeaderPresentation()
             this.updateHud()
+            return
+        }
+
+        if(message.type === 'worldSnapshotStart')
+        {
+            this.worldReady = false
+            return
+        }
+
+        if(message.type === 'worldSnapshotEnd')
+        {
+            this.worldReady = true
             return
         }
 
@@ -390,6 +487,7 @@ export class Multiplayer
             h9Parts: [],
             styleGroups: new Map(),
             bodyPainted: null,
+            stylePainted: [],
             wheelPainted: [],
             frontWheels: [],
             wheelCylinders: [],
@@ -423,6 +521,9 @@ export class Multiplayer
                 remote.styleGroups.set('shas', child)
             else if(child.name === 'Datsun_BodyStyle')
                 remote.styleGroups.set('datsun', child)
+
+            if(/_BodyPaint$/i.test(child.name))
+                remote.stylePainted.push(child)
 
             if(/^wheelPainted/i.test(child.name))
                 remote.wheelPainted.push(child)
@@ -498,8 +599,11 @@ export class Multiplayer
         if(remote.paint === normalizedName)
             return
 
-        if(remote.bodyStyle === 'h9' && remote.bodyPainted && !remote.bodyPainted.userData.fixedPaint)
+        if(remote.bodyPainted && !remote.bodyPainted.userData.fixedPaint)
             remote.bodyPainted.material = material
+
+        for(const bodyPaint of remote.stylePainted)
+            bodyPaint.material = material
 
         for(const wheel of remote.wheelPainted)
             wheel.material = material
@@ -544,8 +648,8 @@ export class Multiplayer
             boost: player.boosting > 0 ? 1 : 0,
             l: inputs.get('left')?.active ? 1 : 0,
             r: inputs.get('right')?.active ? 1 : 0,
-            body: visualVehicle?.bodyStyles?.current || 'h9',
-            paint: this.game.achievements?.rewards?.current?.name || 'red',
+            body: visualVehicle?.bodyStyles?.current || this.selectedCar || 'h9',
+            paint: this.selectedColor || 'red',
             seq: ++this.sequence
         }
     }
