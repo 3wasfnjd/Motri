@@ -38,6 +38,7 @@ export class Multiplayer
         this.sendAccumulator = 0
         this.sequence = 0
         this.maxPlayers = 6
+        this.authorityUuid = null
         this.localName = this.resolveLocalName()
         this.remoteVehicleTemplate = null
         this.tempPosition = new THREE.Vector3()
@@ -144,6 +145,7 @@ export class Multiplayer
     onConnected()
     {
         this.peerIds.clear()
+        this.authorityUuid = null
         this.clearRemotePlayers(false)
         this.updateHud()
 
@@ -156,6 +158,7 @@ export class Multiplayer
     onDisconnected()
     {
         this.peerIds.clear()
+        this.authorityUuid = null
         this.clearRemotePlayers(false)
         this.updateHud()
     }
@@ -169,6 +172,8 @@ export class Multiplayer
         {
             if(Number.isFinite(message.maxPlayers))
                 this.maxPlayers = Math.max(2, Math.min(12, Math.floor(message.maxPlayers)))
+
+            this.authorityUuid = message.authorityUuid || this.game.server.sessionUuid
 
             if(Array.isArray(message.players))
             {
@@ -208,6 +213,8 @@ export class Multiplayer
         {
             const wasWorldAuthority = this.isWorldAuthority()
             this.peerIds.add(message.uuid)
+            if(message.authorityUuid)
+                this.authorityUuid = message.authorityUuid
 
             // The previous room authority sends the new player one complete world
             // snapshot before authority can move to a lower-sorted session id.
@@ -229,18 +236,25 @@ export class Multiplayer
             return
         }
 
+        if(message.type === 'authority')
+        {
+            this.authorityUuid = message.uuid || this.game.server.sessionUuid
+            return
+        }
+
         if(message.type === 'leave' && message.uuid)
         {
             this.peerIds.delete(message.uuid)
             this.removeRemotePlayer(message.uuid)
+            if(this.authorityUuid === message.uuid)
+                this.authorityUuid = null
             this.updateHud()
         }
     }
 
     isWorldAuthority()
     {
-        const ids = [ this.game.server.sessionUuid, ...this.peerIds ].filter(Boolean).sort()
-        return ids.length === 0 || ids[0] === this.game.server.sessionUuid
+        return !this.authorityUuid || this.authorityUuid === this.game.server.sessionUuid
     }
 
     getClosestVehicleState(target)
