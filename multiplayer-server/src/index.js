@@ -3,6 +3,8 @@ import { DurableObject } from 'cloudflare:workers'
 const MAX_PLAYERS = 6
 const MIN_STATE_INTERVAL_MS = 40
 const MAX_WORLD_CHANGES = 96
+const WORLD_OWNER_MOVING_MS = 1600
+const WORLD_OWNER_SLEEPING_MS = 1100
 const DISCONNECT_GRACE_MS = 10 * 60 * 1000
 const PENDING_PREFIX = 'pending:'
 
@@ -180,6 +182,8 @@ export class MotriRoom extends DurableObject
     constructor(ctx, env)
     {
         super(ctx, env)
+        this.worldOwners = new Map()
+        this.worldStates = new Map()
         this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'))
     }
 
@@ -502,19 +506,69 @@ export class MotriRoom extends DurableObject
 
         if(message.type === 'worldDelta' && attachment.uuid)
         {
-            const changes = (Array.isArray(message.changes) ? message.changes : [])
+            const incoming = (Array.isArray(message.changes) ? message.changes : [])
                 .slice(0, MAX_WORLD_CHANGES)
                 .map(cleanWorldChange)
                 .filter(Boolean)
 
-            if(!changes.length)
+            if(!incoming.length)
                 return
 
-            this.broadcast({
-                type: 'worldDelta',
-                uuid: attachment.uuid,
-                changes
-            }, ws)
+            const now = Date.now()
+            const accepted = []
+            const corrections = []
+
+            for(const change of incoming)
+            {
+                const owner = this.worldOwners.get(change.id)
+
+                if(
+                    owner &&
+                    owner.uuid !== attachment.uuid &&
+                    owner.until > now
+                )
+                {
+                    const canonical = this.worldStates.get(change.id)
+                    if(canonical)
+                        corrections.push(canonical)
+                    continue
+                }
+
+                const motion =
+                    Math.abs(change.v[0]) + Math.abs(change.v[1]) + Math.abs(change.v[2]) +
+                    Math.abs(change.w[0]) + Math.abs(change.w[1]) + Math.abs(change.w[2])
+                const moving = !change.sl || motion > 0.015
+                const lease = moving ? WORLD_OWNER_MOVING_MS : WORLD_OWNER_SLEEPING_MS
+
+                this.worldOwners.set(change.id, {
+                    uuid: attachment.uuid,
+                    until: now + lease
+                })
+                this.worldStates.set(change.id, change)
+                accepted.push(change)
+            }
+
+            if(corrections.length)
+            {
+                try
+                {
+                    ws.send(JSON.stringify({
+                        type: 'worldDelta',
+                        uuid: 'server',
+                        changes: corrections
+                    }))
+                }
+                catch {}
+            }
+
+            if(accepted.length)
+            {
+                this.broadcast({
+                    type: 'worldDelta',
+                    uuid: attachment.uuid,
+                    changes: accepted
+                }, ws)
+            }
             return
         }
 
