@@ -46,6 +46,7 @@ export class Rendering
             forceWebGL: this.game.vr.requested,
             antialias: this.game.viewport.pixelRatio < 2
         })
+        this.game.graphicsDiagnostics?.attachRenderer(this.renderer)
         this.renderer.setSize(this.game.viewport.width, this.game.viewport.height)
         this.renderer.setPixelRatio(this.game.viewport.pixelRatio)
         this.renderer.sortObjects = false
@@ -68,8 +69,9 @@ export class Rendering
         }
 
         // Make the renderer control the ticker
-        this.renderer.setAnimationLoop((elapsedTime) =>
+        this.renderer.setAnimationLoop((elapsedTime, xrFrame) =>
         {
+            this.game.graphicsDiagnostics?.frame(elapsedTime, xrFrame)
             // Keep reveal/respawn tweens running if window RAF pauses in VR.
             if(this.game.vr?.active) gsap.ticker.tick()
             this.game.ticker.update(elapsedTime)
@@ -184,6 +186,8 @@ export class Rendering
             this.renderer.render(this.game.scene, this.game.view.camera)
         else
             this.postProcessing.render()
+
+        this.game.graphicsDiagnostics?.rendered()
 
         if(this.stats)
             this.stats.update()

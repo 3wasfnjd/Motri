@@ -49,6 +49,7 @@ import { Options } from './Options.js'
 import gsap from 'gsap'
 import { Map } from './Map.js'
 import { VirtualReality } from './VirtualReality.js'
+import { GraphicsDiagnostics } from './GraphicsDiagnostics.js'
 
 export class Game
 {
@@ -74,6 +75,8 @@ export class Game
         this.domElement = document.querySelector('.game')
         this.canvasElement = this.domElement.querySelector('.js-canvas')
         document.documentElement.classList.add('is-started')
+        if(new URLSearchParams(location.search).get('graphics-check') === '1')
+            this.graphicsDiagnostics = new GraphicsDiagnostics(this)
         this.vr = new VirtualReality(this)
 
         // First batch for intro
@@ -267,7 +270,6 @@ export class Game
         })
     }
 }
-
 
 
 

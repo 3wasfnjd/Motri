@@ -117,6 +117,7 @@ export class VirtualReality
         }
         catch(error)
         {
+            this.game.graphicsDiagnostics?.capture('XR session', error)
             if(session) await session.end().catch(() => {})
             this.restore()
             this.updateButton(error?.name === 'NotAllowedError'

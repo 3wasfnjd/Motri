@@ -5,6 +5,8 @@ import * as THREE from 'three/webgpu'
 import { Events } from '../sources/Game/Events.js'
 import { Tracks } from '../sources/Game/Tracks.js'
 import { Rendering } from '../sources/Game/Rendering.js'
+import { Ticker } from '../sources/Game/Ticker.js'
+import Animation from 'three/src/renderers/common/Animation.js'
 
 const canvas = () => ({ width: 800, height: 600, style: {}, classList: { add() {} } })
 
@@ -69,4 +71,39 @@ finally
     THREE.WebGPURenderer.prototype.init = init
     THREE.WebGPURenderer.prototype.setAnimationLoop = animationLoop
 }
-console.log('VR rendering: ground-map camera/state recovery and web/VR backend selection passed')
+// Three restarts its ordinary animation loop synchronously after sessionend.
+// The first callback has no timestamp; it must not advance physics or poison
+// the shared time uniforms with NaN before the next real browser frame.
+const ticker = new Ticker()
+let ticks = 0
+ticker.events.on('tick', () => {
+    ticks++
+    for(const value of [ticker.elapsed, ticker.delta, ticker.deltaScaled,
+        ticker.elapsedScaledUniform.value, ticker.deltaUniform.value])
+        assert.ok(Number.isFinite(value), 'XR transitions must keep simulation time finite')
+    assert.ok(ticker.delta > 0 && ticker.delta <= ticker.maxDelta)
+})
+ticker.update(1000)
+let nextFrame
+const animation = new Animation(
+    { _inspector: { begin() {}, finish() {} } },
+    { nodeFrame: { frameId: 0, update() { this.frameId++ } } },
+    { autoReset: false }
+)
+animation.setContext({
+    requestAnimationFrame(callback) { nextFrame = callback; return 1 },
+    cancelAnimationFrame() {}
+})
+animation.setAnimationLoop(time => ticker.update(time))
+animation.start()
+assert.equal(ticks, 1, 'The untimed start callback must not tick the game')
+nextFrame(1014)
+assert.equal(ticks, 2, 'The next real frame must resume the game')
+for(const timestamp of [undefined, NaN, Infinity, 1014, 1000]) ticker.update(timestamp)
+assert.equal(ticks, 2, 'Invalid, duplicate and stale callbacks must not tick the game')
+animation.stop()
+animation.start()
+nextFrame(1030)
+assert.equal(ticks, 3, 'Repeated VR exits must still resume correctly')
+animation.stop()
+console.log('VR rendering: ground-map state, backend selection and real animation restart passed')
