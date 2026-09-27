@@ -30,6 +30,9 @@ export class VehicleBodyStyles
         this.createMaterials = createMaterials
         this.current = 'h9'
         this.bodies = new Map()
+        this.paintedBody = paintedBody
+        this.paintOverride = null
+        this.ownedMaterials = new Set()
         const bodyNames = new Set(['H9_Body_trim', 'H9_Body_glass', 'H9_Body_metal',
             'H9_HavalBadge', 'H9_GWMBadge'])
         this.h9 = [{ object: paintedBody, visible: paintedBody.visible }]
@@ -46,7 +49,13 @@ export class VehicleBodyStyles
         if(builders[id] && !this.bodies.has(id))
         {
             const { paint, details } = this.createMaterials(style)
+            this.ownedMaterials.add(paint)
+            this.ownedMaterials.add(details)
             const body = builders[id](paint, details)
+
+            if(this.paintOverride)
+                this.applyPaintToBody(body, this.paintOverride)
+
             this.bodies.set(id, body)
             this.chassis.add(body)
         }
@@ -61,6 +70,39 @@ export class VehicleBodyStyles
         return true
     }
 
+    applyPaintToBody(body, material)
+    {
+        body.traverse(child =>
+        {
+            if(!child.isMesh || !/_BodyPaint$/i.test(child.name))
+                return
+
+            const previous = child.material
+            child.material = material
+
+            if(this.ownedMaterials.has(previous))
+            {
+                previous.dispose()
+                this.ownedMaterials.delete(previous)
+            }
+        })
+    }
+
+    setPaintMaterial(material)
+    {
+        if(!material)
+            return false
+
+        this.paintOverride = material
+        if(this.paintedBody && !this.paintedBody.userData.fixedPaint)
+            this.paintedBody.material = material
+
+        for(const body of this.bodies.values())
+            this.applyPaintToBody(body, material)
+
+        return true
+    }
+
     destroy()
     {
         for(const { object, visible } of this.h9) object.visible = visible
@@ -68,10 +110,16 @@ export class VehicleBodyStyles
         {
             body.traverse(child =>
             {
-                if(child.isMesh) { child.geometry.dispose(); child.material.dispose() }
+                if(child.isMesh)
+                    child.geometry.dispose()
             })
             body.removeFromParent()
         }
+
+        for(const material of this.ownedMaterials)
+            material.dispose()
+
+        this.ownedMaterials.clear()
         this.bodies.clear()
     }
 }
