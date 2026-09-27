@@ -111,3 +111,23 @@ assert.match(multiplayerStyle, /multiplayer-direction-arrow/, 'Direction marker 
 assert.match(multiplayerStyle, /backdrop-filter blur\(4px\)/, 'Direction marker must use a lightweight HUD treatment')
 
 console.log('Smooth multiplayer player tracking indicator OK')
+
+
+const viewport = fs.readFileSync('sources/Game/Viewport.js', 'utf8')
+const quality = fs.readFileSync('sources/Game/Quality.js', 'utf8')
+const rendering = fs.readFileSync('sources/Game/Rendering.js', 'utf8')
+const cheapDof = fs.readFileSync('sources/Game/Passes/cheapDOF.js', 'utf8')
+
+assert.match(viewport, /pixelRatioMax = lowHardware[\s\S]*\? 1[\s\S]*\? 1\.25[\s\S]*: 1\.5/, 'Render DPR must be capped by device class')
+assert.match(viewport, /pixelBudget = lowHardware[\s\S]*1200000[\s\S]*1600000[\s\S]*2200000/, 'Render buffer must obey explicit pixel budgets')
+assert.match(viewport, /Math\.sqrt\(this\.pixelBudget \/ cssPixels\)/, 'Pixel ratio must scale down for high-resolution screens')
+assert.match(quality, /lowHardware[\s\S]*cores <= 4/, 'Weak CPU devices must start in low quality')
+assert.match(quality, /this\.level = \(isMobile \|\| lowHardware\) \? 1 : 0/, 'Mobile and weak hardware must default to low quality')
+assert.match(rendering, /this\.usePostProcessing = level === 0/, 'Low quality must bypass post-processing')
+assert.match(rendering, /this\.renderer\.render\([\s\S]*this\.game\.scene[\s\S]*this\.game\.view\.camera/, 'Low quality must render the scene directly')
+assert.match(rendering, /averageFrameTime >= 34/, 'Adaptive resolution must react to severe frame drops')
+assert.match(rendering, /applyPixelRatio\(this\.dynamicPixelRatio - 0\.2\)/, 'Severe frame drops must lower render resolution')
+assert.match(rendering, /changeLevel\(1, 'performance'\)/, 'Sustained slow rendering must auto-downgrade quality')
+assert.match(cheapDof, /this\.repeats = uniform\(12\)/, 'High quality DOF sample count must stay reduced')
+
+console.log('Adaptive render performance safeguards OK')
