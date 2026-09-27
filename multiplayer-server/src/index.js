@@ -3,6 +3,8 @@ import { DurableObject } from 'cloudflare:workers'
 const MAX_PLAYERS = 6
 const MIN_STATE_INTERVAL_MS = 40
 const MAX_WORLD_CHANGES = 96
+const DISCONNECT_GRACE_MS = 10 * 60 * 1000
+const PENDING_PREFIX = 'pending:'
 
 function cleanName(value)
 {
@@ -136,7 +138,9 @@ function defaultAttachment()
         name: 'MOTRI',
         state: null,
         lastStateAt: 0,
-        joinedAt: null
+        joinedAt: null,
+        explicitLeave: false,
+        suppressClose: false
     }
 }
 
@@ -167,9 +171,6 @@ export class MotriRoom extends DurableObject
 
     async fetch()
     {
-        if(this.ctx.getWebSockets().length >= MAX_PLAYERS)
-            return new Response('Room full.', { status: 503 })
-
         const pair = new WebSocketPair()
         const [ client, server ] = Object.values(pair)
 
@@ -179,7 +180,7 @@ export class MotriRoom extends DurableObject
         return new Response(null, { status: 101, webSocket: client })
     }
 
-    webSocketMessage(ws, rawMessage)
+    async webSocketMessage(ws, rawMessage)
     {
         if(typeof rawMessage !== 'string')
             return
@@ -202,13 +203,66 @@ export class MotriRoom extends DurableObject
             if(!uuid)
                 return
 
+            // A resumed browser tab may establish the new socket before Cloudflare
+            // has delivered the old socket's close event. Keep only the newest one.
+            for(const other of this.ctx.getWebSockets())
+            {
+                if(other === ws)
+                    continue
+
+                const otherAttachment = { ...defaultAttachment(), ...(other.deserializeAttachment() || {}) }
+                if(otherAttachment.uuid !== uuid)
+                    continue
+
+                otherAttachment.suppressClose = true
+                other.serializeAttachment(otherAttachment)
+                try { other.close(4000, 'session resumed') } catch {}
+            }
+
+            const pendingKey = `${PENDING_PREFIX}${uuid}`
+            const pending = await this.ctx.storage.get(pendingKey)
+
+            const logicalMembers = new Set()
+            for(const other of this.ctx.getWebSockets())
+            {
+                if(other === ws)
+                    continue
+                const otherAttachment = other.deserializeAttachment()
+                if(otherAttachment?.uuid && otherAttachment.uuid !== uuid)
+                    logicalMembers.add(otherAttachment.uuid)
+            }
+
+            const pendingEntries = await this.ctx.storage.list({ prefix: PENDING_PREFIX })
+            for(const record of pendingEntries.values())
+            {
+                if(record?.uuid && record.uuid !== uuid)
+                    logicalMembers.add(record.uuid)
+            }
+
+            if(!pending && logicalMembers.size >= MAX_PLAYERS)
+            {
+                ws.send(JSON.stringify({ type: 'roomFull', maxPlayers: MAX_PLAYERS }))
+                attachment.suppressClose = true
+                ws.serializeAttachment(attachment)
+                try { ws.close(4001, 'room full') } catch {}
+                return
+            }
+
             attachment.uuid = uuid
             attachment.name = cleanName(message.name)
-            if(!Number.isFinite(attachment.joinedAt))
-                attachment.joinedAt = Date.now()
+            attachment.joinedAt = Number.isFinite(pending?.joinedAt)
+                ? pending.joinedAt
+                : Number.isFinite(attachment.joinedAt) ? attachment.joinedAt : Date.now()
+            attachment.state = pending?.state || attachment.state || null
+            attachment.explicitLeave = false
+            attachment.suppressClose = false
             ws.serializeAttachment(attachment)
 
-            const players = []
+            if(pending)
+                await this.ctx.storage.delete(pendingKey)
+
+            const players = new Map()
+
             for(const other of this.ctx.getWebSockets())
             {
                 if(other === ws)
@@ -217,30 +271,68 @@ export class MotriRoom extends DurableObject
                 const otherAttachment = { ...defaultAttachment(), ...(other.deserializeAttachment() || {}) }
                 if(otherAttachment.uuid)
                 {
-                    players.push({
+                    players.set(otherAttachment.uuid, {
                         uuid: otherAttachment.uuid,
                         name: otherAttachment.name,
-                        state: otherAttachment.state
+                        state: otherAttachment.state,
+                        suspended: false
                     })
                 }
             }
 
-            const authorityUuid = this.getAuthorityUuid()
+            const remainingPending = await this.ctx.storage.list({ prefix: PENDING_PREFIX })
+            for(const record of remainingPending.values())
+            {
+                if(record?.uuid && !players.has(record.uuid))
+                {
+                    players.set(record.uuid, {
+                        uuid: record.uuid,
+                        name: record.name,
+                        state: record.state,
+                        suspended: true
+                    })
+                }
+            }
+
+            const authorityUuid = await this.getAuthorityUuid()
+            const snapshotSourceUuid = this.getSnapshotSourceUuid(ws, authorityUuid)
 
             ws.send(JSON.stringify({
                 type: 'welcome',
                 uuid: attachment.uuid,
                 maxPlayers: MAX_PLAYERS,
                 authorityUuid,
-                players
+                snapshotSourceUuid,
+                resumed: !!pending,
+                players: [ ...players.values() ]
             }))
 
             this.broadcast({
                 type: 'join',
                 uuid: attachment.uuid,
                 name: attachment.name,
-                authorityUuid
+                authorityUuid,
+                snapshotSourceUuid,
+                resumed: !!pending
             }, ws)
+
+            await this.scheduleNextAlarm()
+            return
+        }
+
+        if(message.type === 'leaveRoom' && attachment.uuid)
+        {
+            attachment.explicitLeave = true
+            ws.serializeAttachment(attachment)
+
+            await this.ctx.storage.delete(`${PENDING_PREFIX}${attachment.uuid}`)
+            this.broadcast({ type: 'leave', uuid: attachment.uuid }, ws)
+
+            const authorityUuid = await this.getAuthorityUuid(attachment.uuid)
+            this.broadcast({ type: 'authority', uuid: authorityUuid }, ws)
+
+            await this.scheduleNextAlarm()
+            try { ws.close(1000, 'left room') } catch {}
             return
         }
 
@@ -272,9 +364,6 @@ export class MotriRoom extends DurableObject
             attachment.uuid
         )
         {
-            if(attachment.uuid !== this.getAuthorityUuid())
-                return
-
             this.broadcast({ type: message.type, uuid: attachment.uuid }, ws)
             return
         }
@@ -299,9 +388,6 @@ export class MotriRoom extends DurableObject
 
         if(message.type === 'animalState' && attachment.uuid)
         {
-            if(attachment.uuid !== this.getAuthorityUuid())
-                return
-
             const animals = cleanAnimals(message.animals)
             if(!animals)
                 return
@@ -314,55 +400,147 @@ export class MotriRoom extends DurableObject
         }
     }
 
-    webSocketClose(ws)
+    async webSocketClose(ws)
     {
-        const attachment = ws.deserializeAttachment()
-        if(attachment?.uuid)
-        {
-            this.broadcast({ type: 'leave', uuid: attachment.uuid }, ws)
-            this.broadcast({ type: 'authority', uuid: this.getAuthorityUuid(ws) }, ws)
-        }
+        const attachment = { ...defaultAttachment(), ...(ws.deserializeAttachment() || {}) }
+
+        if(
+            attachment?.uuid &&
+            !attachment.explicitLeave &&
+            !attachment.suppressClose
+        )
+            await this.deferDisconnect(attachment)
 
         try { ws.close(1000, 'closed') } catch {}
     }
 
-    webSocketError(ws)
+    async webSocketError(ws)
     {
-        const attachment = ws.deserializeAttachment()
-        if(attachment?.uuid)
-        {
-            this.broadcast({ type: 'leave', uuid: attachment.uuid }, ws)
-            this.broadcast({ type: 'authority', uuid: this.getAuthorityUuid(ws) }, ws)
-        }
+        const attachment = { ...defaultAttachment(), ...(ws.deserializeAttachment() || {}) }
+
+        if(
+            attachment?.uuid &&
+            !attachment.explicitLeave &&
+            !attachment.suppressClose
+        )
+            await this.deferDisconnect(attachment)
 
         try { ws.close(1011, 'error') } catch {}
     }
 
-    getAuthorityUuid(except = null)
+    async deferDisconnect(attachment)
+    {
+        const record = {
+            uuid: attachment.uuid,
+            name: attachment.name,
+            state: attachment.state,
+            joinedAt: Number.isFinite(attachment.joinedAt) ? attachment.joinedAt : Date.now(),
+            expiresAt: Date.now() + DISCONNECT_GRACE_MS
+        }
+
+        await this.ctx.storage.put(`${PENDING_PREFIX}${attachment.uuid}`, record)
+        await this.scheduleNextAlarm()
+        // Intentionally no leave/authority event here: backgrounding is not logout.
+    }
+
+    async alarm()
+    {
+        const now = Date.now()
+        const pending = await this.ctx.storage.list({ prefix: PENDING_PREFIX })
+        let expiredAny = false
+
+        for(const [ key, record ] of pending)
+        {
+            if(!record?.uuid || Number(record.expiresAt || 0) > now)
+                continue
+
+            expiredAny = true
+            await this.ctx.storage.delete(key)
+            this.broadcast({ type: 'leave', uuid: record.uuid })
+        }
+
+        if(expiredAny)
+        {
+            const authorityUuid = await this.getAuthorityUuid()
+            this.broadcast({ type: 'authority', uuid: authorityUuid })
+        }
+
+        await this.scheduleNextAlarm()
+    }
+
+    async scheduleNextAlarm()
+    {
+        const pending = await this.ctx.storage.list({ prefix: PENDING_PREFIX })
+        let next = Infinity
+
+        for(const record of pending.values())
+        {
+            const expiresAt = Number(record?.expiresAt || 0)
+            if(expiresAt > 0)
+                next = Math.min(next, expiresAt)
+        }
+
+        if(Number.isFinite(next))
+            await this.ctx.storage.setAlarm(Math.max(Date.now() + 1000, next))
+        else
+            await this.ctx.storage.deleteAlarm()
+    }
+
+    async getAuthorityUuid(exceptUuid = null)
     {
         let leader = null
+        const consider = (uuid, joinedAt) =>
+        {
+            if(!uuid || uuid === exceptUuid)
+                return
+
+            const at = Number.isFinite(joinedAt) ? joinedAt : Number.MAX_SAFE_INTEGER
+            if(
+                !leader ||
+                at < leader.joinedAt ||
+                (at === leader.joinedAt && uuid < leader.uuid)
+            )
+                leader = { uuid, joinedAt: at }
+        }
 
         for(const socket of this.ctx.getWebSockets())
         {
-            if(socket === except)
+            const attachment = socket.deserializeAttachment()
+            consider(attachment?.uuid, attachment?.joinedAt)
+        }
+
+        const pending = await this.ctx.storage.list({ prefix: PENDING_PREFIX })
+        for(const record of pending.values())
+            consider(record?.uuid, record?.joinedAt)
+
+        return leader?.uuid || null
+    }
+
+    getSnapshotSourceUuid(exceptSocket, authorityUuid)
+    {
+        let fallback = null
+
+        for(const socket of this.ctx.getWebSockets())
+        {
+            if(socket === exceptSocket)
                 continue
 
             const attachment = socket.deserializeAttachment()
             if(!attachment?.uuid)
                 continue
 
-            const joinedAt = Number.isFinite(attachment.joinedAt) ? attachment.joinedAt : Number.MAX_SAFE_INTEGER
-            if(
-                !leader ||
-                joinedAt < leader.joinedAt ||
-                (joinedAt === leader.joinedAt && attachment.uuid < leader.uuid)
-            )
-            {
-                leader = { uuid: attachment.uuid, joinedAt }
-            }
+            if(attachment.uuid === authorityUuid)
+                return attachment.uuid
+
+            const joinedAt = Number.isFinite(attachment.joinedAt)
+                ? attachment.joinedAt
+                : Number.MAX_SAFE_INTEGER
+
+            if(!fallback || joinedAt < fallback.joinedAt)
+                fallback = { uuid: attachment.uuid, joinedAt }
         }
 
-        return leader?.uuid || null
+        return fallback?.uuid || null
     }
 
     broadcast(message, except = null)
