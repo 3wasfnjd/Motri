@@ -24,6 +24,7 @@ export class MultiplayerLobby
         this.server = game.server
         this.createAttempt = 0
         this.joinMode = null
+        this.previousFilters = null
         this.pendingInvite = this.server.inviteRoom
 
         this.build()
@@ -256,6 +257,13 @@ export class MultiplayerLobby
 
     open(fromInvite = false)
     {
+        if(this.root.hidden)
+        {
+            this.previousFilters = [ ...this.game.inputs.filters ]
+            this.game.inputs.filters.clear()
+            this.game.inputs.filters.add('multiplayer')
+        }
+
         this.root.hidden = false
         this.nameInput.value = this.multiplayer.localName
 
@@ -275,6 +283,14 @@ export class MultiplayerLobby
     close()
     {
         this.root.hidden = true
+
+        if(this.previousFilters)
+        {
+            this.game.inputs.filters.clear()
+            for(const filter of this.previousFilters)
+                this.game.inputs.filters.add(filter)
+            this.previousFilters = null
+        }
     }
 
     setStatus(text)
