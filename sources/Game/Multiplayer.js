@@ -11,6 +11,9 @@ const MAX_SNAPSHOTS = 20
 const TELEPORT_DISTANCE = 22
 const MAX_NAME_LENGTH = 12
 const MAX_NAME_TAG_DISTANCE = 75
+const IMPACT_COOLDOWN_MS = 260
+const IMPACT_MIN_CLOSING_SPEED = 0.65
+const IMPACT_MAX_IMPULSE = 11
 
 const H9_BODY_NAMES = new Set([
     'H9_Body_trim',
@@ -49,6 +52,9 @@ export class Multiplayer
         this.tempQuaternion = new THREE.Quaternion()
         this.tempProjected = new THREE.Vector3()
         this.tempCameraSpace = new THREE.Vector3()
+        this.lastImpactSentAt = new Map()
+        this.tempImpactDirection = new THREE.Vector3()
+        this.tempImpactRelativeVelocity = new THREE.Vector3()
 
         this.prepareRemoteVehicleTemplate()
         this.worldSync = new WorldSync(this.game, this)
@@ -413,6 +419,12 @@ export class Multiplayer
             return
         }
 
+        if(message.type === 'vehicleImpact')
+        {
+            this.applyIncomingVehicleImpact(message)
+            return
+        }
+
         if(message.type === 'roomFull')
         {
             this.lobby?.setStatus(`الغرفة ممتلئة (${message.maxPlayers || this.maxPlayers} لاعبين).`)
@@ -566,6 +578,110 @@ export class Multiplayer
         }
     }
 
+    handleRemoteVehicleCollision(remoteUuid, force = 0)
+    {
+        if(!this.game.server.connected)
+            return
+
+        const remote = this.remotePlayers.get(remoteUuid)
+        const latest = remote?.snapshots?.[remote.snapshots.length - 1]
+        if(!remote?.initialized || !latest)
+            return
+
+        const now = Date.now()
+        const previous = this.lastImpactSentAt.get(remoteUuid) || 0
+        if(now - previous < IMPACT_COOLDOWN_MS)
+            return
+
+        const localVehicle = this.game.physicalVehicle
+        const localVelocity = localVehicle.velocity
+        const remoteVelocity = latest.velocity || this.tempImpactRelativeVelocity.set(0, 0, 0)
+
+        const localSpeed = localVelocity.length()
+        const remoteSpeed = remoteVelocity.length()
+
+        // Only one side sends the event. The faster car owns the impact; when
+        // speeds are practically equal, UUID ordering breaks the tie.
+        const speedGap = localSpeed - remoteSpeed
+        if(speedGap < -0.2)
+            return
+        if(
+            Math.abs(speedGap) <= 0.2 &&
+            this.game.server.sessionUuid > remoteUuid
+        )
+            return
+
+        this.tempImpactDirection
+            .copy(remote.model.position)
+            .sub(localVehicle.position)
+        this.tempImpactDirection.y = 0
+
+        if(this.tempImpactDirection.lengthSq() < 0.0001)
+            this.tempImpactDirection.copy(localVehicle.forward)
+
+        this.tempImpactDirection.normalize()
+
+        this.tempImpactRelativeVelocity
+            .copy(localVelocity)
+            .sub(remoteVelocity)
+
+        const closingSpeed = this.tempImpactRelativeVelocity.dot(this.tempImpactDirection)
+        if(closingSpeed < IMPACT_MIN_CLOSING_SPEED)
+            return
+
+        const measuredForce = Number.isFinite(force) ? Math.max(0, force) : 0
+        const mass = Math.max(1, Number(localVehicle.chassis?.mass) || 2.5)
+        const magnitude = THREE.MathUtils.clamp(
+            closingSpeed * mass * 0.62 + Math.min(measuredForce, 4) * 0.18,
+            0.7,
+            IMPACT_MAX_IMPULSE
+        )
+
+        const impulse = this.tempImpactDirection.clone().multiplyScalar(magnitude)
+        impulse.y = Math.min(0.35, magnitude * 0.025)
+
+        this.lastImpactSentAt.set(remoteUuid, now)
+        this.game.server.send({
+            type: 'vehicleImpact',
+            targetUuid: remoteUuid,
+            impulse: impulse.toArray().map(value => Number(value.toFixed(3)))
+        })
+    }
+
+    applyIncomingVehicleImpact(message)
+    {
+        if(
+            message.targetUuid !== this.game.server.sessionUuid ||
+            !Array.isArray(message.impulse) ||
+            message.impulse.length !== 3
+        )
+            return
+
+        const impulse = new THREE.Vector3(
+            Number(message.impulse[0]) || 0,
+            Number(message.impulse[1]) || 0,
+            Number(message.impulse[2]) || 0
+        )
+
+        const magnitude = impulse.length()
+        if(magnitude <= 0)
+            return
+
+        if(magnitude > IMPACT_MAX_IMPULSE)
+            impulse.multiplyScalar(IMPACT_MAX_IMPULSE / magnitude)
+
+        const body = this.game.physicalVehicle?.chassis?.physical?.body
+        if(!body)
+            return
+
+        this.game.physicalVehicle.rest?.wake?.()
+        body.applyImpulse({
+            x: impulse.x,
+            y: impulse.y,
+            z: impulse.z
+        }, true)
+    }
+
     createRemoteCollisionBody(uuid)
     {
         const physical = this.game.physics.getPhysical({
@@ -578,6 +694,11 @@ export class Multiplayer
             linearDamping: 0,
             angularDamping: 0,
             waterGravityMultiplier: 0,
+            contactThreshold: 0.5,
+            onCollision: (force) =>
+            {
+                this.handleRemoteVehicleCollision(uuid, force)
+            },
             colliders: [
                 {
                     shape: 'cuboid',
@@ -595,7 +716,8 @@ export class Multiplayer
         })
 
         physical.body.userData = {
-            multiplayerRemoteUuid: uuid
+            multiplayerRemoteUuid: uuid,
+            object: { physical }
         }
 
         return physical
@@ -802,6 +924,7 @@ export class Multiplayer
             material.dispose()
 
         remote.paintMaterials?.clear?.()
+        this.lastImpactSentAt.delete(uuid)
         this.remotePlayers.delete(uuid)
     }
 
