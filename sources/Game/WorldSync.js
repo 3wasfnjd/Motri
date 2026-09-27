@@ -27,6 +27,7 @@ export class WorldSync
         this.game = game
         this.multiplayer = multiplayer
         this.entries = new Map()
+        this.registeredObjects = new WeakSet()
         this.lastSent = new Map()
         this.lastApplied = new Map()
         this.objectAccumulator = 0
@@ -66,16 +67,38 @@ export class WorldSync
             this.registerObject('bowling-bumpers:0', bowling.bumpers.object)
 
         addObjects('cookie', world.areas?.cookie?.cookies?.objects)
+
+        const toilet = world.areas?.toilet
+        const toiletObject = toilet?.cabin?.body?.userData?.object
+        if(toiletObject)
+            this.registerObject('toilet-cabin:0', toiletObject, { kind: 'toilet-cabin', source: toilet })
+
+        // Safety net for the rest of the shared physical world. Any dynamic or
+        // kinematic visual object created during deterministic world setup is
+        // shared automatically, so a newly-added prop cannot silently become
+        // local-only just because it was omitted from this file.
+        for(const [ key, object ] of this.game.objects.list)
+        {
+            const type = object?.physical?.type
+            if(
+                !object?.visual?.object3D ||
+                (type !== 'dynamic' && type !== 'kinematicPositionBased')
+            )
+                continue
+
+            this.registerObject(`shared:${key}`, object)
+        }
     }
 
     registerObject(id, object, meta = {})
     {
         const body = object?.physical?.body
-        if(!body)
+        if(!body || this.registeredObjects.has(object))
             return
 
         const entry = { id, object, body, meta }
         this.entries.set(id, entry)
+        this.registeredObjects.add(object)
         this.lastSent.set(id, this.signature(this.serializeEntry(entry)))
     }
 
@@ -218,6 +241,11 @@ export class WorldSync
                 this.game.world.camelCamp.motion.activeCount++
             }
         }
+        else if(state.t === 'kinematic' && object.physical.type !== 'kinematicPositionBased')
+        {
+            body.setBodyType(this.game.RAPIER.RigidBodyType.KinematicPositionBased, true)
+            object.physical.type = 'kinematicPositionBased'
+        }
         else if(state.t === 'fixed' && object.physical.type !== 'fixed')
         {
             body.setBodyType(this.game.RAPIER.RigidBodyType.Fixed, true)
@@ -233,6 +261,14 @@ export class WorldSync
 
         body.setTranslation({ x: state.p[0], y: state.p[1], z: state.p[2] }, true)
         body.setRotation({ x: state.q[0], y: state.q[1], z: state.q[2], w: state.q[3] }, true)
+
+        if(meta.kind === 'toilet-cabin')
+        {
+            const up = new THREE.Vector3(0, 1, 0).applyQuaternion(
+                new THREE.Quaternion(state.q[0], state.q[1], state.q[2], state.q[3])
+            )
+            meta.source.cabin.down = up.y < 0.4
+        }
 
         if(Array.isArray(state.v))
             body.setLinvel({ x: state.v[0], y: state.v[1], z: state.v[2] }, true)
