@@ -90,6 +90,9 @@ try {
     await page.goto('http://127.0.0.1:4174/xr/', { waitUntil: 'domcontentloaded' })
     await page.waitForFunction(() => window.game?.xr)
     console.log('XR ready')
+    // The world follows wall-clock time. Fix its grade for pixel assertions so a
+    // valid blue night scene cannot fail the warm-terrain daylight threshold.
+    await page.evaluate(() => game.dayCycles.override.start({ progress: .05 }, 0))
     if(process.env.MOTRI_XR_AGENT_BROWSER) {
         const run = (...args) => execFileSync(process.env.MOTRI_XR_AGENT_BROWSER, ['--cdp', '9222', ...args], { encoding: 'utf8', timeout: 30000 })
         console.log(run('snapshot', '-i'))
@@ -162,6 +165,10 @@ try {
     await button('left', 'y-button')
     await page.waitForFunction(() => game.xr.vehicleCamera.mode === 'chase' && !game.xr.vehicleCamera.cabin.visible)
     await page.screenshot({ path: path.join(artifacts, 'vr-chase.png') })
+    await page.evaluate(() => game.dayCycles.override.start({ progress: .45 }, 0))
+    await page.waitForFunction(() => Math.abs(game.dayCycles.progress - .45) < .001)
+    await page.screenshot({ path: path.join(artifacts, 'vr-chase-night.png') })
+    await page.evaluate(() => game.dayCycles.override.start({ progress: .05 }, 0))
     console.log('VR camera selector, driving, Y switching, and cabin visibility passed')
     assert.equal(await page.evaluate(() => game.world.visualVehicle.parts.chassis.visible), true)
     // Start the existing race by driving to its proximity trigger and pressing A.
