@@ -63,6 +63,22 @@ const button = async (side, id) => {
     await page.waitForTimeout(350)
     await page.evaluate(([side, id]) => xrDevice.controllers[side].updateButtonValue(id, 0), [side, id])
 }
+const menuChoose = async id => {
+    const count = await page.evaluate(id => {
+        const menu = game.xr.menu
+        const target = menu.items.findIndex(item => item.id === id)
+        if(target < 0) throw new Error(`Missing XR menu item: ${id}`)
+        return (target - menu.selected + menu.items.length) % menu.items.length
+    }, id)
+    for(let i = 0; i < count; i++) {
+        const previous = await page.evaluate(() => game.xr.menu.selected)
+        await page.evaluate(() => xrDevice.controllers.left.updateAxes('thumbstick', 0, .9))
+        await page.waitForFunction(previous => game.xr.menu.selected !== previous, previous)
+        await page.evaluate(() => xrDevice.controllers.left.updateAxes('thumbstick', 0, 0))
+        await page.waitForFunction(() => !game.xr.menu.navHeld)
+    }
+    await button('left', 'trigger')
+}
 // Observe a completed production draw. Counting lit terrain pixels catches the
 // prior failure where placement state succeeded but only the dark base rendered.
 async function visibleWorld() {
@@ -106,6 +122,42 @@ try {
     await page.waitForFunction(() => game.xr.placed)
     await visibleWorld()
     await page.screenshot({ path: path.join(artifacts, 'ar-world.png') })
+    const anchorBeforeMenu = await page.evaluate(() => game.xr.anchorPosition.toArray())
+    await button('left', 'x-button')
+    await page.waitForFunction(() => game.xr.menu.opened && game.player.braking === 1)
+    await menuChoose('cars')
+    await menuChoose('shas')
+    await page.waitForFunction(() => game.world.visualVehicle.bodyStyles.current === 'shas')
+    await menuChoose('datsun')
+    await page.waitForFunction(() => game.world.visualVehicle.bodyStyles.current === 'datsun')
+    await page.screenshot({ path: path.join(artifacts, 'xr-cars-menu.png') })
+    assert.deepEqual(await page.evaluate(() => game.xr.anchorPosition.toArray()), anchorBeforeMenu)
+    assert.equal(await page.evaluate(() => game.world.visualVehicle.underglow.strips.visible), false)
+    assert.equal(await page.evaluate(() => game.player.accelerating), 0)
+    await menuChoose('h9')
+    await button('left', 'y-button')
+    await menuChoose('settings')
+    const muted = await page.evaluate(() => game.audio.mute.active)
+    await menuChoose('sound')
+    assert.equal(await page.evaluate(() => game.audio.mute.active), !muted)
+    await button('left', 'x-button')
+    await page.waitForFunction(() => !game.xr.menu.opened && !game.xr.menuReleaseRequired)
+    const bounds = await page.evaluate(() => {
+        const R = game.RAPIER, world = game.physics.world, b = game.xr.worldBounds
+        const checks = []
+        for(const [x,z,dx,dz] of [[b.minX+4,16,-1,0],[b.maxX-4,16,1,0],[16,b.minZ+4,0,-1],[16,b.maxZ-4,0,1]]) {
+            const body = world.createRigidBody(R.RigidBodyDesc.dynamic().setTranslation(x,20,z).setCcdEnabled(true))
+            world.createCollider(R.ColliderDesc.ball(.5).setRestitution(0), body)
+            body.setLinvel({x:dx*80,y:0,z:dz*80},true)
+            for(let i=0;i<12;i++) world.step()
+            const p = body.translation()
+            checks.push(p.x>b.minX && p.x<b.maxX && p.z>b.minZ && p.z<b.maxZ)
+            world.removeRigidBody(body)
+        }
+        return checks
+    })
+    assert.deepEqual(bounds, [true,true,true,true])
+    console.log('X menu, all three cars, sound, braking, anchor preservation, no underglow and four physical boundaries passed')
     // A real Rapier vehicle/crate contact must complete its delayed explosion.
     await page.evaluate(() => {
         const crates = game.world.explosiveCrates.items
@@ -144,6 +196,8 @@ try {
     console.log('AR stick rotation/scale and two-controller resizing passed')
     await page.evaluate(() => { testRoomMode = 'empty' })
     await button('left', 'x-button')
+    await menuChoose('settings')
+    await menuChoose('view')
     await page.waitForFunction(() => !game.xr.placed && !game.xr.reticle.visible)
     await button('right', 'trigger')
     assert.equal(await page.evaluate(() => game.xr.placed), false)
@@ -154,12 +208,22 @@ try {
     await page.check('[name="xr-camera"][value="chase"]')
     await page.click('#xr-vr')
     await page.waitForFunction(() => game.xr.tracking && game.xr.vehicleCamera.mode === 'chase')
+    await button('left', 'x-button')
+    await page.waitForFunction(() => game.xr.menu.opened)
+    await menuChoose('cars')
+    await menuChoose('shas')
+    await page.screenshot({ path: path.join(artifacts, 'vr-cars-menu.png') })
+    await button('left', 'x-button')
+    await page.waitForFunction(() => !game.xr.menu.opened && !game.xr.menuReleaseRequired)
+    assert.equal(await page.evaluate(() => game.world.visualVehicle.bodyStyles.current), 'shas')
     const initial = await page.evaluate(() => game.physicalVehicle.position.toArray())
     await page.evaluate(() => xrDevice.controllers.right.updateButtonValue('trigger', .8))
     await page.waitForFunction(initial => game.physicalVehicle.position.clone().sub({ x: initial[0], y: initial[1], z: initial[2] }).length() > .5, initial)
     await button('left', 'y-button')
     await page.waitForFunction(() => game.xr.vehicleCamera.mode === 'driver' && game.xr.vehicleCamera.cabin.visible)
     assert.ok(await page.evaluate(() => game.player.accelerating > .7))
+    assert.deepEqual(await page.evaluate(() => game.world.floor.mesh.position.toArray()), [16, 0, 16])
+    assert.equal(await page.evaluate(() => game.world.visualVehicle.underglow.strips.visible), false)
     await page.evaluate(() => xrDevice.controllers.right.updateButtonValue('trigger', 0))
     await page.screenshot({ path: path.join(artifacts, 'vr-driver.png') })
     await button('left', 'y-button')

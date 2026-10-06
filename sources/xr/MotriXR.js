@@ -3,8 +3,10 @@ import { installXRFramebufferCompatibility, installXRBindingCompatibility } from
 import { VehicleCamera } from './VehicleCamera.js'
 import { AnimationClock } from './AnimationClock.js'
 import { XRActions } from './Actions.js'
-import { contactPosition, contactDirection, contactStrength } from './ContactShadow.js'
+import { contactStrength } from './ContactShadow.js'
 import { XRSky } from './Sky.js'
+import { XRMenu } from './Menu.js'
+import { XRWorldBounds } from './WorldBounds.js'
 import { clampWidth, WORLD_SPAN, WORLD_CENTER, roomToWorld, horizontalPlaneHit, readControllers } from './math.js'
 
 const FORWARD = new THREE.Vector3(0, 0, -1)
@@ -47,6 +49,8 @@ export class MotriXR {
         this.setWorldGeometry()
         this.vehicleCamera = new VehicleCamera(game)
         this.sky = new XRSky(game)
+        this.menu = new XRMenu(this)
+        this.worldBounds = new XRWorldBounds(game)
         this.setModalHandling()
         const physical = game.physicalVehicle.chassis.physical
         const onCollision = physical.onCollision
@@ -173,7 +177,7 @@ export class MotriXR {
             this.renderer.setClearColor(0x000000, mode === 'immersive-ar' ? 0 : 1)
             this.renderer.shadowMap.enabled = false
             this.game.ticker.scale = 1
-            this.game.world.floor.mesh.geometry = mode === 'immersive-ar' ? this.fullFloor : this.vrFloor
+            this.game.world.floor.mesh.geometry = this.fullFloor
             for(const object of [this.game.overlay.mesh, this.game.view.speedLines.mesh, this.game.world.grass.mesh, this.game.world.windLines.mesh, this.game.world.rain.mesh, this.game.world.snow.mesh]) {
                 if(object) { this.savedVisibility.set(object, object.visible); object.visible = false }
             }
@@ -214,7 +218,7 @@ export class MotriXR {
             this.renderer.xr.setReferenceSpace(this.referenceSpace)
             this.ui.classList.add('xr-entered')
             this.ui.querySelector('.xr-toolbar').hidden = mode !== 'immersive-ar' || !session.domOverlayState
-            this.hint(mode === 'immersive-ar' ? 'وجّه يدك إلى سطح مستوٍ ثم اضغط الزناد' : 'الزناد: قيادة • A: تفاعل / قفز • Y: الكاميرا', 8)
+            this.hint(mode === 'immersive-ar' ? 'وجّه يدك إلى سطح واضغط الزناد • X: القائمة' : 'X: القائمة والسيارات • الزناد: قيادة • Y: الكاميرا', 8)
             if(mode === 'immersive-ar') this.syncHitSources()
             if(session.supportedFrameRates?.includes(72)) session.updateTargetFrameRate(72).catch(() => {})
         } catch(error) {
@@ -267,21 +271,34 @@ export class MotriXR {
             this.headCalibrated = true
         }
         this.controls = readControllers(this.session.inputSources)
-        if(this.edge('exit', this.controls.right?.upper)) { this.exit(); return }
+        if(this.edge('menu', this.controls.left?.lower)) this.menu.toggle()
+        if(this.edge('exit', this.controls.right?.upper)) { this.menu.opened ? this.menu.back() : this.exit(); return }
+        const secondary = this.edge('secondary', this.controls.left?.upper)
+        if(this.menu.opened) {
+            if(secondary) this.menu.back()
+            else this.menu.update(this.controls)
+            if(this.mode === 'immersive-ar' && this.placed) this.updateAnchor(frame)
+            this.reticle.visible = false; this.hud.visible = false
+            for(const handle of this.handles) handle.ray.visible = false
+            return
+        }
+        if(this.menuReleaseRequired) {
+            const { left, right } = this.controls
+            if([left, right].some(c => c && (c.trigger > .1 || c.grip > .1 || Math.abs(c.x) > .1 || Math.abs(c.y) > .1 || c.lower || c.upper))) return
+            this.menuReleaseRequired = false
+        }
         if(this.mode === 'immersive-ar') {
-            if(this.edge('replace', this.controls.left?.lower)) this.reposition()
-            if(this.edge('scan', this.controls.left?.upper)) this.captureRoom()
+            if(secondary) this.captureRoom()
             if(!this.placed) this.findSurface(frame)
             else {
                 this.updateAnchor(frame)
                 this.updateScale(frame)
             }
         } else {
-            if(this.edge('camera', this.controls.left?.upper)) this.setCameraMode(this.vehicleCamera.mode === 'driver' ? 'chase' : 'driver')
+            if(secondary) this.setCameraMode(this.vehicleCamera.mode === 'driver' ? 'chase' : 'driver')
             const turn = this.controls.right?.x || 0
             if(Math.abs(turn) > 0.65 && !this.snapHeld) this.lookYaw -= Math.sign(turn) * Math.PI / 6
             this.snapHeld = Math.abs(turn) > 0.3
-            if(this.edge('recenter', this.controls.left?.lower)) { this.lookYaw = 0; this.headOrigin.copy(this.viewerPosition) }
         }
         this.updateActions(now)
         if(this.hintUntil < now && (this.mode !== 'immersive-ar' || this.placed)) this.hud.visible = false
@@ -348,10 +365,17 @@ export class MotriXR {
             this.actions.release()
         })
         this.game.modals.events.on('close', () => {
-            if(this.session) this.game.modals.onTransitionEnded()
+            if(this.session) queueMicrotask(() => this.game.modals.onTransitionEnded())
             this.ui.classList.remove('xr-modal-open')
             document.documentElement.classList.remove('xr-modal-open')
             this.hintUntil = 0
+        })
+        this.game.menu.events.on('close', () => {
+            if(!document.documentElement.classList.contains('xr-browser-menu')) return
+            queueMicrotask(() => {
+                this.game.menu.onTransitionEnded()
+                document.documentElement.classList.remove('xr-browser-menu')
+            })
         })
     }
 
@@ -394,7 +418,7 @@ export class MotriXR {
     }
 
     onSelect(event) {
-        if(this.mode !== 'immersive-ar' || this.placed || !this.tracking || performance.now() - this.startedAt < 500) return
+        if(this.menu.opened || this.menuReleaseRequired || this.mode !== 'immersive-ar' || this.placed || !this.tracking || performance.now() - this.startedAt < 500) return
         // Resolve at the selection frame; never reuse a stale reticle after tracking loss.
         this.findSurface(event.frame, event.inputSource)
         if(!this.surfaceHit) return
@@ -406,7 +430,7 @@ export class MotriXR {
         this.anchorHeading = null
         this.anchorTracked = true
         this.createAnchor(event.frame, this.surfaceHit)
-        this.hint('العصا اليمنى: الحجم والدوران • X: سطح آخر • B: خروج', 10)
+        this.hint('العصا اليمنى: الحجم والدوران • X: القائمة والسيارات', 10)
     }
 
     async createAnchor(frame, hit) {
@@ -489,7 +513,7 @@ export class MotriXR {
         if(!this.session || !this.game.player) return
         const player = this.game.player
         player.accelerating = 0; player.steering = 0; player.boosting = 0; player.braking = 1
-        if(!this.tracking || !this.controls || player.state !== 1 || this.game.inputs.filters.has('modal')) return
+        if(this.menu.opened || this.menuReleaseRequired || !this.tracking || !this.controls || player.state !== 1 || this.game.inputs.filters.has('modal')) return
         const { left, right } = this.controls
         const targetSteering = -(left?.x || 0)
         const speedLimit = 1 / (1 + Math.max(0, this.game.physicalVehicle.xzSpeed - 8) * 0.025)
@@ -511,17 +535,13 @@ export class MotriXR {
         if(!this.session || !this.saved) return
         const world = this.game.world
         const vehicle = this.game.physicalVehicle
-        const contacts = vehicle.wheels.items.filter(wheel => wheel.inContact && wheel.contactPoint)
-        contactStrength.value = contacts.length ? 0.5 : 0
-        if(contacts.length) {
-            contactPosition.value.copy(vehicle.position)
-            contactPosition.value.y = contacts.reduce((sum, wheel) => sum + wheel.contactPoint.y, 0) / contacts.length
-            contactDirection.value.set(vehicle.forward.x, vehicle.forward.z).normalize()
-        }
+        world.floor.mesh.geometry = this.fullFloor
+        contactStrength.value = 0
+        this.worldBounds.update()
         this.game.overlay.mesh.visible = false
         this.game.view.speedLines.mesh.visible = false
         const item = this.game.interactivePoints.activeItem
-        if(item?.state === 4 && !this.game.modals.current?.isOpen) this.hint(`${item.text} • A`, 1)
+        if(item?.state === 4 && !this.menu.opened && !this.game.modals.current?.isOpen) this.hint(`${item.text} • A`, 1)
         for(const point of this.game.interactivePoints.items) {
             if(this.mode === 'immersive-ar') {
                 if(!this.savedVisibility.has(point.group)) this.savedVisibility.set(point.group, point.group.visible)
@@ -554,11 +574,10 @@ export class MotriXR {
             const vehicle = this.game.physicalVehicle
             this.vehicleCamera.update(vehicle, this.headOrigin, this.rig, this.lookYaw, this.game.player.steering, this.dt)
             this.sky.update(this.vehicleCamera.position)
-            world.floor.mesh.position.x = vehicle.position.x
-            world.floor.mesh.position.z = vehicle.position.z
-            world.waterSurface.mesh.position.x = vehicle.position.x
-            world.waterSurface.mesh.position.z = vehicle.position.z
-            world.waterSurface.mesh.scale.setScalar(320)
+            world.floor.mesh.position.set(WORLD_CENTER.x, 0, WORLD_CENTER.z)
+            world.waterSurface.mesh.position.x = WORLD_CENTER.x
+            world.waterSurface.mesh.position.z = WORLD_CENTER.z
+            world.waterSurface.mesh.scale.setScalar(WORLD_SPAN)
             this.game.fog.near.value = 90
             this.game.fog.far.value = 220
             this.game.scene.background.copy(this.game.dayCycles.properties.fogColorA.value)
@@ -597,6 +616,8 @@ export class MotriXR {
 
     onEnd(session) {
         if(this.session !== session) return
+        this.menu.close()
+        this.menuReleaseRequired = false
         this.session = null
         contactStrength.value = 0
         this.sky.mesh.visible = false
@@ -642,5 +663,11 @@ export class MotriXR {
             this.game.modals.element.classList.add('is-visible')
         }
         this.game.rendering.resize()
+        if(this.browserMenu) {
+            const name = this.browserMenu
+            this.browserMenu = null
+            document.documentElement.classList.add('xr-browser-menu')
+            this.game.menu.open(name)
+        }
     }
 }

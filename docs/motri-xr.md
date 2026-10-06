@@ -14,19 +14,20 @@ The `/xr/` entry reuses the current Motri world, Haval vehicle, Rapier physics a
 | VR | Right stick left/right | 30° view turns |
 | Both | A / hold A | Interact nearby or jump / recover car |
 | VR | Left grip / left stick click | Boost / horn |
-| VR | X | Recenter view |
+| Both | X (left hand) | Open/close the in-headset menu, including direct H9/Shas/Datsun selection |
+| Menu | Left stick + either trigger / A | Navigate + select; Y or B goes back |
 | VR | Camera selector before entry, or Y while driving | Driver's seat / camera behind the car |
 | AR | Ray + trigger/pinch | Place on a detected horizontal surface |
 | AR | Right stick up/down | Scale the world from 0.5 to 6 metres wide |
 | AR | Right stick left/right | Rotate around the selected surface point |
 | AR | Both grips or both hand pinches | Scale by changing hand separation |
-| AR | X / Y | Place again / request room capture |
+| AR | Menu → Settings / Y | Place again / request room capture |
 | AR | Left stick | Drive the miniature car |
 | Both | B | End the session |
 
 ## Rendering and placement
 
-Three r183's XR manager requires the WebGL2 backend. The XR entry selects `forceWebGL`, uses the renderer's XR animation loop and bypasses the monoscopic postprocessing pipeline while presenting. Wheel-track offscreen rendering is paused during XR; overlays, speed lines, dense grass and weather particles are hidden. Stereo rendering uses native framebuffer scale, MSAA, moderate fixed foveation (0.35), ACES tone mapping and a dedicated balanced daylight/night palette. A surface-following vehicle contact shadow runs in the existing material pass without shadow-map rendering. Dynamic shadow maps stay disabled. These choices target Quest; actual headset frame rate must be measured on hardware.
+Three r183's XR manager requires the WebGL2 backend. The XR entry selects `forceWebGL`, uses the renderer's XR animation loop and bypasses the monoscopic postprocessing pipeline while presenting. Wheel-track offscreen rendering is paused during XR; overlays, speed lines, dense grass and weather particles are hidden. Stereo rendering uses native framebuffer scale, MSAA, moderate fixed foveation (0.35), ACES tone mapping and a dedicated balanced daylight/night palette. The vehicle underglow and extra contact-shadow overlay are disabled in XR. The terrain and water remain fixed at the world centre instead of following the car. Dynamic shadow maps stay disabled. These choices target Quest; actual headset frame rate must be measured on hardware.
 
 AR uses controller-space hit tests, a viewer-space fallback when controller hit testing is unavailable, then actual horizontal detected-plane polygons. No synthetic floor is presented as a detected surface. Optional anchors follow both position and heading corrections, with small position corrections damped; temporary loss of the anchor hides the world and brakes the car. Two-hand resizing brakes the car. Optional anchors follow the selected position; otherwise local reference-space coordinates are used, and a reference-space reset requires placement again. World resizing uses the inverse transform on the viewer rig, preserving all original world-space shader coordinates and physics. A full terrain patch replaces the small camera-following tile during XR.
 
@@ -40,7 +41,9 @@ Capability checks run in the browser. An unsupported browser shows a Quest instr
 
 The XR renderer also drives the GSAP root timeline, including in the lobby. This keeps delayed explosions, activity countdowns and respawn callbacks running when window RAF is suspended by a headset. Controller interaction, jump, boost and horn use the original input action bus and its category filters. Losing tracking or leaving a session releases all XR actions.
 
-Area visibility uses the XR mode instead of the desktop overhead camera footprint. All areas are shown in tabletop AR. Exploded crate instances collapse to zero scale and regain their original scale on reset; they are no longer hidden by moving them 100 metres above the map. AR hides floating interaction labels while retaining their triggers and showing only the active action hint.
+Area visibility uses the XR mode instead of the desktop overhead camera footprint. All areas are shown in tabletop AR. Four fixed perimeter colliders and a fixed safety floor enclose the full 256-metre world, including the dunes; an out-of-bounds fallback restores the car to a safe spawn. Exploded crate instances collapse to zero scale and regain their original scale on reset; they are no longer hidden by moving them 100 metres above the map. AR hides floating interaction labels while retaining their triggers and showing only the active action hint.
+
+X opens a stereo menu in both modes. It offers the existing vehicle bodies, sound/quality, camera/recentering, destinations, achievements and readable game menus. Menu input brakes the car and waits for neutral controls on closing. Full browser panels remain available from their menu entry.
 
 DOM activity panels show a short in-headset summary: A dismisses it, B leaves the session to show the full browser panel. No in-headset keyboard is claimed.
 
