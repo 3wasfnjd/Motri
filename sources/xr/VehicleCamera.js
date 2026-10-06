@@ -24,13 +24,13 @@ export class VehicleCamera {
         }
         // Dashboard, lower cowl, narrow pillars and hood. All are in metres;
         // opaque exterior glazing is hidden only while sitting in the cabin.
-        box([1.25, 0.12, 0.32], [0, 0.13, -0.48], leather)
-        box([1.25, 0.025, 0.025], [0, 0.2, -0.36], trim)
-        box([1.35, 0.08, 0.85], [0, -0.03, -1.05], trim)
-        box([0.035, 0.7, 0.045], [-0.69, 0.42, -0.63], leather)
-        box([0.035, 0.7, 0.045], [0.69, 0.42, -0.63], leather)
+        box([1.25, 0.12, 0.32], [0, 0.1, -0.78], leather)
+        box([1.25, 0.025, 0.025], [0, 0.17, -0.62], trim)
+        box([1.35, 0.08, 0.85], [0, -0.03, -1.4], trim)
+        box([0.035, 0.7, 0.045], [-0.69, 0.42, -0.96], leather)
+        box([0.035, 0.7, 0.045], [0.69, 0.42, -0.96], leather)
         this.wheel = new THREE.Group()
-        this.wheel.position.set(-0.32, 0.21, -0.25)
+        this.wheel.position.set(-0.32, 0.11, -0.52)
         this.cabin.add(this.wheel)
         this.wheel.add(new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.018, 8, 36), dark))
         for(const angle of [Math.PI / 2, Math.PI * 7 / 6, Math.PI * 11 / 6]) {
@@ -49,7 +49,7 @@ export class VehicleCamera {
         this.texture.generateMipmaps = false
         this.texture.minFilter = THREE.LinearFilter
         const display = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.094), new THREE.MeshBasicNodeMaterial({ map: this.texture, toneMapped: false }))
-        display.position.set(-0.32, 0.26, -0.36)
+        display.position.set(-0.32, 0.23, -0.65)
         this.cabin.add(display)
         this.lastSpeed = -1
         this.updateSpeed(0)

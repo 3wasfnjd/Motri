@@ -4,6 +4,7 @@ import { VehicleCamera } from './VehicleCamera.js'
 import { AnimationClock } from './AnimationClock.js'
 import { XRActions } from './Actions.js'
 import { contactPosition, contactDirection, contactStrength } from './ContactShadow.js'
+import { XRSky } from './Sky.js'
 import { clampWidth, WORLD_SPAN, WORLD_CENTER, roomToWorld, horizontalPlaneHit, readControllers } from './math.js'
 
 const FORWARD = new THREE.Vector3(0, 0, -1)
@@ -45,6 +46,7 @@ export class MotriXR {
         this.setHelpers()
         this.setWorldGeometry()
         this.vehicleCamera = new VehicleCamera(game)
+        this.sky = new XRSky(game)
         this.setModalHandling()
         const physical = game.physicalVehicle.chassis.physical
         const onCollision = physical.onCollision
@@ -530,6 +532,7 @@ export class MotriXR {
             }
         }
         if(this.mode === 'immersive-ar') {
+            this.sky.mesh.visible = false
             this.vehicleCamera.setCabinVisible(false)
             for(const object of this.arParticles) object.visible = false
             this.rig.matrixAutoUpdate = false
@@ -550,6 +553,7 @@ export class MotriXR {
             this.rig.scale.setScalar(1)
             const vehicle = this.game.physicalVehicle
             this.vehicleCamera.update(vehicle, this.headOrigin, this.rig, this.lookYaw, this.game.player.steering, this.dt)
+            this.sky.update(this.vehicleCamera.position)
             world.floor.mesh.position.x = vehicle.position.x
             world.floor.mesh.position.z = vehicle.position.z
             world.waterSurface.mesh.position.x = vehicle.position.x
@@ -595,6 +599,7 @@ export class MotriXR {
         if(this.session !== session) return
         this.session = null
         contactStrength.value = 0
+        this.sky.mesh.visible = false
         this.placementToken++
         this.anchor?.delete(); this.anchor = null
         for(const source of this.hitSources.values()) source?.cancel()
