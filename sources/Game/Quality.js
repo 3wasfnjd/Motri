@@ -10,7 +10,7 @@ export class Quality
         this.events = new Events()
 
         const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-        this.level = isMobile ? 1 : 0 // 0 = highest quality
+        this.level = (isMobile || this.game.xrEnabled) ? 1 : 0 // 0 = highest quality
 
         // Debug
         if(this.game.debug.active)

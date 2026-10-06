@@ -75,6 +75,8 @@ export class Tracks
 
     update()
     {
+        // Keep offscreen tire-track rendering out of the headset framebuffer.
+        if(this.game.rendering.renderer.xr.isPresenting) return
         this.camera.position.x = this.focusPoint.x
         this.camera.position.z = this.focusPoint.y
 

@@ -294,6 +294,7 @@ export class Leaves
 
     update()
     {
+        if(this.game.xrEnabled) return
         this.focusPoint.value.set(this.game.view.optimalArea.position.x, this.game.view.optimalArea.position.z)
 
         this.vehicleVelocity.value.copy(this.game.physicalVehicle.velocity)

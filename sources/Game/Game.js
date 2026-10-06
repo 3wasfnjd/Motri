@@ -56,15 +56,15 @@ export class Game
         return Game.instance
     }
 
-    constructor()
+    constructor(options = {})
     {
         // Singleton
         if(Game.instance)
             return Game.instance
 
         Game.instance = this
-
-        this.init()
+        this.xrEnabled = options.xr === true
+        this.ready = this.init()
     }
 
     async init()
@@ -265,7 +265,6 @@ export class Game
         })
     }
 }
-
 
 
 

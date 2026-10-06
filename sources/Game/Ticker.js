@@ -28,9 +28,15 @@ export class Ticker
 
     update(elapsed)
     {
+        // Three's animation loop restarts with no timestamp after an XR session.
+        // Ignore that callback and duplicate/backward timestamps: physics derives
+        // speed by dividing by delta, so neither NaN nor zero is a valid step.
+        if(!Number.isFinite(elapsed)) return
         const elapsedSeconds = elapsed / 1000
-        this.delta = Math.min(elapsedSeconds - this.elapsed, this.maxDelta)
+        const elapsedDelta = elapsedSeconds - this.elapsed
         this.elapsed = elapsedSeconds
+        if(elapsedDelta <= 0) return
+        this.delta = Math.min(elapsedDelta, this.maxDelta)
         this.deltaScaled = this.delta * this.scale
         this.elapsedScaled += this.deltaScaled
 

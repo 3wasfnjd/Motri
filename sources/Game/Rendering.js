@@ -40,15 +40,22 @@ export class Rendering
         this.renderer = new THREE.WebGPURenderer({
             canvas: this.game.canvasElement,
             powerPreference: 'high-performance',
-            forceWebGL: false,
+            forceWebGL: this.game.xrEnabled,
+            alpha: true,
             antialias: this.game.viewport.pixelRatio < 2
         })
         this.renderer.setSize(this.game.viewport.width, this.game.viewport.height)
         this.renderer.setPixelRatio(this.game.viewport.pixelRatio)
+        this.renderer.xr.enabled = this.game.xrEnabled
+        if(this.game.xrEnabled)
+        {
+            this.renderer.xr.setFramebufferScaleFactor(0.85)
+            this.renderer.xr.setFoveation(1)
+        }
         this.renderer.sortObjects = false
 
         this.renderer.domElement.classList.add('experience')
-        this.renderer.shadowMap.enabled = true
+        this.renderer.shadowMap.enabled = !this.game.xrEnabled
         // this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
         this.renderer.setOpaqueSort((a, b) =>
         {
@@ -65,7 +72,11 @@ export class Rendering
         }
 
         // Make the renderer control the ticker
-        this.renderer.setAnimationLoop((elapsedTime) => { this.game.ticker.update(elapsedTime) })
+        this.renderer.setAnimationLoop((elapsedTime, frame) =>
+        {
+            this.game.xr?.beforeTick(frame)
+            this.game.ticker.update(elapsedTime)
+        })
 
         return this.renderer
             .init()
@@ -164,6 +175,7 @@ export class Rendering
 
     resize()
     {
+        if(this.renderer.xr.isPresenting) return
         this.renderer.setSize(this.game.viewport.width, this.game.viewport.height)
         this.renderer.setPixelRatio(this.game.viewport.pixelRatio)
     }
@@ -171,7 +183,16 @@ export class Rendering
     async render()
     {
         // this.renderer.render(this.game.scene, this.game.view.camera)
-        this.postProcessing.render()
+        if(this.game.xr?.session)
+            this.game.xr.render()
+        else if(this.game.xrEnabled)
+        {
+            // The HTML loader covers startup. Avoid compiling the heavy original
+            // postprocessing/intro pipeline before the headset controls are ready.
+            if(this.game.xr) this.renderer.render(this.game.scene, this.game.view.camera)
+        }
+        else
+            this.postProcessing.render()
 
         if(this.stats)
             this.stats.update()

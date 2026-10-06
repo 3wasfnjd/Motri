@@ -44,6 +44,8 @@ jobs:
           node --experimental-vm-modules scripts/test-mobile-boost.mjs
           node scripts/test-vehicle-underglow.mjs
           node scripts/test-vehicle-underglow-shader.mjs
+          node scripts/test-motri-xr.mjs
+          node --experimental-vm-modules scripts/test-motri-xr-ticker.mjs
       - name: Install Firebase SDK for web build
         run: |
           rm -rf "$RUNNER_TEMP/firebase-sdk"
@@ -52,6 +54,7 @@ jobs:
       - name: Build Arabic game with approved identity removal
         run: |
           npm run build
+          test -f dist/xr/index.html
           touch dist/.nojekyll
           node --input-type=module -e "import{writeFileSync}from'node:fs';writeFileSync('dist/motri2-build.json',JSON.stringify({repository:'3wasfnjd/Motri',commit:process.env.SOURCE_SHA,upstream:'41046b57eeed8d156d9c3fd7fa259900baef7816',stage:'identity-cleanup',locale:'ar'}))"
         env:
