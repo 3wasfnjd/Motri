@@ -1,6 +1,9 @@
 import * as THREE from 'three/webgpu'
 import { installXRFramebufferCompatibility, installXRBindingCompatibility } from './compatibility.js'
 import { VehicleCamera } from './VehicleCamera.js'
+import { AnimationClock } from './AnimationClock.js'
+import { XRActions } from './Actions.js'
+import { contactPosition, contactDirection, contactStrength } from './ContactShadow.js'
 import { clampWidth, WORLD_SPAN, WORLD_CENTER, roomToWorld, horizontalPlaneHit, readControllers } from './math.js'
 
 const FORWARD = new THREE.Vector3(0, 0, -1)
@@ -34,9 +37,20 @@ export class MotriXR {
         this.savedVisibility = new Map()
         this.arParticles = new Set()
         this.savedCulling = new Map()
+        this.animationClock = new AnimationClock()
+        this.actions = new XRActions(game)
+        this.steering = 0
+        this.anchorTracked = true
         this.setHelpers()
         this.setWorldGeometry()
-        this.vehicleCamera = new VehicleCamera(game.scene)
+        this.vehicleCamera = new VehicleCamera(game)
+        this.setModalHandling()
+        const physical = game.physicalVehicle.chassis.physical
+        const onCollision = physical.onCollision
+        physical.onCollision = (...args) => {
+            onCollision?.(...args)
+            if(this.session && args[0] > 4) this.pulse(Math.min(0.55, args[0] / 100))
+        }
         for(const object of [game.world.grass.mesh, game.world.windLines.mesh, game.world.rain.mesh, game.world.snow.mesh, game.world.leaves.mesh])
             if(object) object.visible = false
         // After Player's order-1 reset, before PhysicsVehicle's order-2 forces.
@@ -45,7 +59,7 @@ export class MotriXR {
     }
 
     setHelpers() {
-        const material = new THREE.MeshBasicNodeMaterial({ color: 0xc6ee88, side: THREE.DoubleSide, depthTest: false })
+        const material = new THREE.MeshBasicNodeMaterial({ color: 0xc6ee88, side: THREE.DoubleSide, depthTest: false, depthWrite: false, toneMapped: false })
         this.reticle = new THREE.Mesh(new THREE.RingGeometry(0.075, 0.095, 48).rotateX(-Math.PI / 2), material)
         this.reticle.visible = false
         this.reticle.renderOrder = 100
@@ -55,7 +69,7 @@ export class MotriXR {
         this.hudCanvas.height = 256
         this.hudTexture = new THREE.CanvasTexture(this.hudCanvas)
         this.hudTexture.colorSpace = THREE.SRGBColorSpace
-        this.hud = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.104), new THREE.MeshBasicNodeMaterial({ map: this.hudTexture, transparent: true, depthTest: false, depthWrite: false }))
+        this.hud = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.104), new THREE.MeshBasicNodeMaterial({ map: this.hudTexture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false }))
         this.hud.position.set(0, -0.26, -0.75)
         this.hud.renderOrder = 101
         this.camera.add(this.hud)
@@ -98,6 +112,7 @@ export class MotriXR {
 
     setCameraMode(mode) {
         this.vehicleCamera.mode = mode === 'chase' ? 'chase' : 'driver'
+        this.vehicleCamera.reset()
         this.lookYaw = 0
         if(this.headCalibrated) this.headOrigin.copy(this.viewerPosition)
         for(const input of this.ui.querySelectorAll('[name="xr-camera"]')) input.checked = input.value === this.vehicleCamera.mode
@@ -125,6 +140,8 @@ export class MotriXR {
             session.addEventListener('visibilitychange', () => {
                 this.controls = null
                 this.gesture = null
+                this.actions.release()
+                this.primarySince = null
             })
             try {
                 this.referenceSpace = await session.requestReferenceSpace('local-floor')
@@ -175,6 +192,12 @@ export class MotriXR {
             this.rig.scale.setScalar(1)
             this.placed = false
             this.headCalibrated = false
+            this.anchorTracked = true
+            this.anchorHeading = null
+            this.primarySince = null
+            this.snapHeld = false
+            this.steering = 0
+            this.vehicleCamera.reset()
             this.lookYaw = 0
             this.controls = null
             this.buttons.clear()
@@ -188,7 +211,7 @@ export class MotriXR {
             this.renderer.xr.setReferenceSpace(this.referenceSpace)
             this.ui.classList.add('xr-entered')
             this.ui.querySelector('.xr-toolbar').hidden = mode !== 'immersive-ar' || !session.domOverlayState
-            this.hint(mode === 'immersive-ar' ? 'وجّه يدك إلى سطح مستوٍ ثم اضغط الزناد' : 'الزناد الأيمن: قيادة • Y: تبديل الكاميرا • B: خروج', 12)
+            this.hint(mode === 'immersive-ar' ? 'وجّه يدك إلى سطح مستوٍ ثم اضغط الزناد' : 'الزناد: قيادة • A: تفاعل / قفز • Y: الكاميرا', 8)
             if(mode === 'immersive-ar') this.syncHitSources()
             if(session.supportedFrameRates?.includes(72)) session.updateTargetFrameRate(72).catch(() => {})
         } catch(error) {
@@ -221,15 +244,20 @@ export class MotriXR {
         }
     }
 
-    beforeTick(frame) {
+    beforeTick(frame, timestamp) {
+        this.animationClock.update(timestamp)
         if(!this.session || !frame || !this.saved) return
         this.frame = frame
         const now = performance.now()
         this.dt = Math.min(0.05, Math.max(0, (now - this.lastTime) / 1000))
         this.lastTime = now
         const pose = frame.getViewerPose(this.referenceSpace)
-        this.tracking = !!pose && this.session.visibilityState === 'visible'
-        if(!this.tracking) { this.controls = null; this.gesture = null; this.reticle.visible = false; return }
+        this.tracking = !!pose && !pose.emulatedPosition && this.session.visibilityState === 'visible'
+        if(!this.tracking) {
+            this.controls = null; this.gesture = null; this.reticle.visible = false
+            this.actions.release(); this.primarySince = null; this.steering = 0
+            return
+        }
         this.viewerPosition.copy(pose.transform.position)
         if(!this.headCalibrated) {
             this.headOrigin.copy(pose.transform.position)
@@ -247,12 +275,12 @@ export class MotriXR {
             }
         } else {
             if(this.edge('camera', this.controls.left?.upper)) this.setCameraMode(this.vehicleCamera.mode === 'driver' ? 'chase' : 'driver')
-            if(this.edge('reset', this.controls.right?.lower)) this.game.player.respawn()
             const turn = this.controls.right?.x || 0
             if(Math.abs(turn) > 0.65 && !this.snapHeld) this.lookYaw -= Math.sign(turn) * Math.PI / 6
             this.snapHeld = Math.abs(turn) > 0.3
             if(this.edge('recenter', this.controls.left?.lower)) { this.lookYaw = 0; this.headOrigin.copy(this.viewerPosition) }
         }
+        this.updateActions(now)
         if(this.hintUntil < now && (this.mode !== 'immersive-ar' || this.placed)) this.hud.visible = false
         for(const handle of this.handles) handle.ray.visible = this.mode === 'immersive-ar' && !this.placed
     }
@@ -261,6 +289,71 @@ export class MotriXR {
         const previous = this.buttons.get(name)
         this.buttons.set(name, !!pressed)
         return !!pressed && !previous
+    }
+
+    pulse(strength = 0.25) {
+        const now = performance.now()
+        if(now - (this.lastPulse || 0) < 120) return
+        this.lastPulse = now
+        const actuator = this.controls?.right?.source.gamepad?.hapticActuators?.[0]
+        try { actuator?.pulse(strength, 45)?.catch?.(() => {}) } catch {}
+    }
+
+    updateActions(now) {
+        const { left, right } = this.controls
+        const active = this.mode === 'immersive-vr' || (this.placed && this.anchorTracked && !this.gesture)
+        if(!active) { this.actions.release(); this.primarySince = null; return }
+        const pressed = !!right?.lower
+        if(pressed && this.primarySince == null) {
+            this.primarySince = now
+            this.primaryHandled = false
+            if(this.game.modals.current?.isOpen) {
+                this.game.modals.close()
+                this.primaryHandled = true
+            } else {
+                const item = this.game.interactivePoints.activeItem
+                this.actions.set(item?.state === 4 ? 'interact' : 'suspensions', true)
+                this.pulse()
+            }
+        }
+        if(pressed && !this.primaryHandled && now - this.primarySince > 900) {
+            this.actions.release()
+            this.game.player.respawn()
+            this.vehicleCamera.reset()
+            this.primaryHandled = true
+            this.pulse(0.5)
+        }
+        if(!pressed) {
+            this.primarySince = null
+            this.actions.set('interact', false)
+            this.actions.set('suspensions', false)
+        }
+        this.actions.set('boost', this.mode === 'immersive-vr' && left?.grip > 0.65 && !(right?.grip > 0.5))
+        this.actions.set('honk', !!left?.stick)
+    }
+
+    setModalHandling() {
+        // CSS transitions are hidden in-headset, so complete their state changes.
+        // A dismisses the summary; B returns to the full panel in the browser.
+        this.game.modals.events.on('open', () => {
+            if(!this.session) return
+            this.game.modals.onTransitionEnded()
+            const item = this.game.modals.current
+            const title = item.element.querySelector('h1,h2,h3,.title')?.textContent?.trim() || 'تفاصيل النشاط'
+            this.hint(`${title.slice(0, 48)} • A: إغلاق • B: التفاصيل`, 3600)
+            this.actions.release()
+        })
+        this.game.modals.events.on('close', () => {
+            if(this.session) this.game.modals.onTransitionEnded()
+            this.ui.classList.remove('xr-modal-open')
+            document.documentElement.classList.remove('xr-modal-open')
+            this.hintUntil = 0
+        })
+    }
+
+    isAreaVisible(position, radius) {
+        if(this.mode === 'immersive-ar') return true
+        return Math.hypot(position.x - this.game.player.position.x, position.y - this.game.player.position.z) < 150 + radius
     }
 
     findSurface(frame, selectedSource = null) {
@@ -304,6 +397,8 @@ export class MotriXR {
         this.reticle.visible = false
         this.base.visible = true
         this.yaw = 0
+        this.anchorHeading = null
+        this.anchorTracked = true
         this.createAnchor(event.frame, this.surfaceHit)
         this.hint('العصا اليمنى: الحجم والدوران • X: سطح آخر • B: خروج', 10)
     }
@@ -322,9 +417,17 @@ export class MotriXR {
     }
 
     updateAnchor(frame) {
+        this.anchorTracked = true
         if(!this.anchor) return
         const pose = frame.getPose(this.anchor.anchorSpace, this.referenceSpace)
-        if(pose) this.anchorPosition.copy(pose.transform.position)
+        this.anchorTracked = !!pose
+        if(!pose) { this.actions.release(); this.hint('جاري استعادة تثبيت السطح…', 1); return }
+        const target = new THREE.Vector3().copy(pose.transform.position)
+        this.anchorPosition.lerp(target, this.anchorPosition.distanceTo(target) > 0.15 ? 1 : 1 - Math.exp(-this.dt * 18))
+        const matrix = pose.transform.matrix
+        const heading = Math.atan2(matrix[8], matrix[10])
+        if(this.anchorHeading !== null) this.yaw += Math.atan2(Math.sin(heading - this.anchorHeading), Math.cos(heading - this.anchorHeading))
+        this.anchorHeading = heading
     }
 
     async captureRoom() {
@@ -379,15 +482,20 @@ export class MotriXR {
         if(!this.session || !this.game.player) return
         const player = this.game.player
         player.accelerating = 0; player.steering = 0; player.boosting = 0; player.braking = 1
-        if(!this.tracking || !this.controls || player.state !== 1) return
+        if(!this.tracking || !this.controls || player.state !== 1 || this.game.inputs.filters.has('modal')) return
         const { left, right } = this.controls
+        const targetSteering = -(left?.x || 0)
+        const speedLimit = 1 / (1 + Math.max(0, this.game.physicalVehicle.xzSpeed - 8) * 0.025)
+        this.steering += (targetSteering * speedLimit - this.steering) * (1 - Math.exp(-this.dt * 14))
         if(this.mode === 'immersive-vr') {
             player.accelerating = (right?.trigger || 0) - (left?.trigger || 0)
-            player.steering = -(left?.x || 0)
+            player.steering = this.steering
             player.braking = right?.grip > 0.5 ? 1 : 0
-        } else if(this.placed) {
+            player.boosting = this.game.inputs.actions.get('boost').active ? 1 : 0
+            if(player.braking) player.accelerating = 0
+        } else if(this.placed && this.anchorTracked && !this.gesture) {
             player.accelerating = -(left?.y || 0)
-            player.steering = -(left?.x || 0)
+            player.steering = this.steering
             player.braking = 0
         }
     }
@@ -395,13 +503,31 @@ export class MotriXR {
     updateWorld() {
         if(!this.session || !this.saved) return
         const world = this.game.world
+        const vehicle = this.game.physicalVehicle
+        const contacts = vehicle.wheels.items.filter(wheel => wheel.inContact && wheel.contactPoint)
+        contactStrength.value = contacts.length ? 0.5 : 0
+        if(contacts.length) {
+            contactPosition.value.copy(vehicle.position)
+            contactPosition.value.y = contacts.reduce((sum, wheel) => sum + wheel.contactPoint.y, 0) / contacts.length
+            contactDirection.value.set(vehicle.forward.x, vehicle.forward.z).normalize()
+        }
         this.game.overlay.mesh.visible = false
         this.game.view.speedLines.mesh.visible = false
+        const item = this.game.interactivePoints.activeItem
+        if(item?.state === 4 && !this.game.modals.current?.isOpen) this.hint(`${item.text} • A`, 1)
+        for(const point of this.game.interactivePoints.items) {
+            if(this.mode === 'immersive-ar') {
+                if(!this.savedVisibility.has(point.group)) this.savedVisibility.set(point.group, point.group.visible)
+                point.group.visible = false
+            } else if(point.group.visible) {
+                point.group.rotation.set(0, this.vehicleCamera.headingYaw || 0, 0)
+            }
+        }
         if(this.mode === 'immersive-ar') {
-            this.vehicleCamera.cabin.visible = false
+            this.vehicleCamera.setCabinVisible(false)
             for(const object of this.arParticles) object.visible = false
             this.rig.matrixAutoUpdate = false
-            if(this.placed) roomToWorld(this.anchorPosition, this.yaw, this.width, this.rig.matrix)
+            if(this.placed && this.anchorTracked) roomToWorld(this.anchorPosition, this.yaw, this.width, this.rig.matrix)
             // Keep one scene and its shader/binding layout throughout AR. Until
             // placement, put the viewer above the world's far clip plane; the
             // room-space reticle/HUD stay with the rig and remain visible.
@@ -417,14 +543,14 @@ export class MotriXR {
             this.rig.matrixAutoUpdate = true
             this.rig.scale.setScalar(1)
             const vehicle = this.game.physicalVehicle
-            this.vehicleCamera.update(vehicle, this.headOrigin, this.rig, this.lookYaw, this.game.player.steering)
+            this.vehicleCamera.update(vehicle, this.headOrigin, this.rig, this.lookYaw, this.game.player.steering, this.dt)
             world.floor.mesh.position.x = vehicle.position.x
             world.floor.mesh.position.z = vehicle.position.z
             world.waterSurface.mesh.position.x = vehicle.position.x
             world.waterSurface.mesh.position.z = vehicle.position.z
             world.waterSurface.mesh.scale.setScalar(320)
-            this.game.fog.near.value = 65
-            this.game.fog.far.value = 155
+            this.game.fog.near.value = 90
+            this.game.fog.far.value = 220
             this.game.scene.background.copy(this.game.dayCycles.properties.fogColorA.value)
         }
         this.rig.updateWorldMatrix(true, true)
@@ -445,10 +571,13 @@ export class MotriXR {
         this.anchor?.delete(); this.anchor = null
         this.placed = false
         this.base.visible = false
-        this.vehicleCamera.cabin.visible = false
+        this.vehicleCamera.setCabinVisible(false)
         this.surfaceHit = null
         this.reticle.visible = false
         this.gesture = null
+        this.actions.release()
+        this.anchorHeading = null
+        this.anchorTracked = true
         this.hint('وجّه المؤشر إلى سطح جديد واضغط الزناد', 12)
     }
 
@@ -459,16 +588,19 @@ export class MotriXR {
     onEnd(session) {
         if(this.session !== session) return
         this.session = null
+        contactStrength.value = 0
         this.placementToken++
         this.anchor?.delete(); this.anchor = null
         for(const source of this.hitSources.values()) source?.cancel()
         this.hitSources.clear()
         this.controls = null
+        this.actions.release()
+        this.primarySince = null
         this.tracking = false
         this.gesture = null
         this.placed = false
         this.base.visible = false
-        this.vehicleCamera.cabin.visible = false
+        this.vehicleCamera.setCabinVisible(false)
         this.reticle.visible = false
         this.helperScene.add(this.rig)
         this.rig.matrixAutoUpdate = true
@@ -491,6 +623,11 @@ export class MotriXR {
         this.ui.classList.remove('xr-entered')
         this.ui.querySelector('.xr-toolbar').hidden = true
         this.status('اختر تجربتك')
+        if(this.game.modals.current?.isOpen) {
+            this.ui.classList.add('xr-modal-open')
+            document.documentElement.classList.add('xr-modal-open')
+            this.game.modals.element.classList.add('is-visible')
+        }
         this.game.rendering.resize()
     }
 }

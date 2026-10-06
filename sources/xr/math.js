@@ -5,7 +5,7 @@ export const WORLD_CENTER = new Vector3(16, -1.65, 16)
 export const MIN_WIDTH = 0.5
 export const MAX_WIDTH = 6
 export const clampWidth = value => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, value))
-export const deadzone = (value = 0, threshold = 0.16) => Math.abs(value) <= threshold ? 0 : Math.sign(value) * (Math.abs(value) - threshold) / (1 - threshold)
+export const deadzone = (value = 0, threshold = 0.12) => !Number.isFinite(value) || Math.abs(value) <= threshold ? 0 : Math.sign(value) * Math.min(1, (Math.abs(value) - threshold) / (1 - threshold))
 
 // Head movement remains 1:1 in metres. Snap turns rotate the view around the
 // selected eye position, never orbit the driver out of the seat.
@@ -72,7 +72,8 @@ export function readControllers(sources) {
             trigger: pad.buttons[0]?.value ?? 0,
             grip: pad.buttons[1]?.value ?? 0,
             lower: pad.buttons[4]?.pressed ?? false,
-            upper: pad.buttons[5]?.pressed ?? false
+            upper: pad.buttons[5]?.pressed ?? false,
+            stick: pad.buttons[3]?.pressed ?? false
         }
     }
     return result

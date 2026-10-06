@@ -25,7 +25,7 @@ ui.innerHTML = `
       <fieldset class="xr-camera-options"><legend>كاميرا VR</legend><label><input type="radio" name="xr-camera" value="driver" checked> داخل السيارة</label><label><input type="radio" name="xr-camera" value="chase"> خلف السيارة</label></fieldset>
       <p id="xr-status" role="status" aria-live="polite">جاري تحميل موتري…</p>
       <progress id="xr-progress" max="1" aria-label="تحميل العالم"></progress>
-      <details class="xr-help"><summary>التحكم</summary><p>VR: العصا اليسرى للتوجيه، الزناد الأيمن للقيادة والأيسر للرجوع. Y لتبديل الكاميرا، A لإعادة السيارة.</p><p>AR: وجّه المؤشر لسطح واضغط الزناد. العصا اليمنى للحجم والدوران، أو أمسك باليدين ووسّعهما. X لاختيار سطح آخر. B للخروج.</p></details>
+      <details class="xr-help"><summary>التحكم</summary><p>VR: العصا اليسرى للتوجيه، الزناد الأيمن للقيادة والأيسر للرجوع. القبضة اليمنى فرامل واليسرى تسارع إضافي. Y لتبديل الكاميرا.</p><p>A للتفاعل أو القفز، واستمرار الضغط يعيد السيارة. AR: وجّه المؤشر لسطح واضغط الزناد. العصا اليسرى للقيادة واليمنى للحجم والدوران، أو أمسك باليدين ووسّعهما. X لاختيار سطح آخر. B للخروج.</p></details>
     </div>
   </section>
   <div class="xr-toolbar" hidden>

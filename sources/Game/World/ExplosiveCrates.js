@@ -139,7 +139,9 @@ export class ExplosiveCrates
 
             // Disable
             this.game.objects.disable(crate.object)
-            crate.object.visual.object3D.position.y += 100 // Hide the instance reference
+            // Removing an instance reference from its parent does not remove the
+            // GPU instance. Collapse it instead of parking it above the AR map.
+            crate.object.visual.object3D.scale.setScalar(0)
             crate.object.visual.object3D.needsUpdate = true
 
             // Achievements
@@ -152,6 +154,8 @@ export class ExplosiveCrates
         for(const crate of this.items)
         {
             this.game.objects.resetObject(crate.object)
+            crate.object.visual.object3D.scale.copy(crate.reference.scale)
+            crate.object.visual.object3D.needsUpdate = true
             crate.exploded = false
 
             this.game.ticker.wait(2, () =>

@@ -35,4 +35,6 @@
 .xr-toolbar label { display: flex; align-items: center; gap: 10px; }
 .xr-toolbar input { width: min(28vw,180px); accent-color: #c6ee88; }
 .xr-entered .xr-shell { display: none; }
+.xr-modal-open .xr-shell { display: none; }
+.motri-xr.xr-modal-open .game > .modals { display: flex !important; z-index: 10001; }
 @media(max-width:500px) { .xr-card { padding: 24px 20px; } .xr-toolbar { gap: 8px; padding: 10px; } .xr-toolbar button { padding: 8px; font-size: 12px; } .xr-toolbar label { font-size: 12px; } }

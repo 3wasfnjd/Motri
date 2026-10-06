@@ -8,6 +8,18 @@ const presets = {
     dawn:  { revealColor: new THREE.Color('#ff9d9d'), revealIntensity: 4.85, electricField: 0.25, temperature: 0, lightColor: new THREE.Color('#ffa882'), lightIntensity: 1.2, shadowColor: new THREE.Color('#db004f'), fogColorA: new THREE.Color('#f885ff'), fogColorB: new THREE.Color('#ff7d24'), fogNearRatio: 0.3, fogFarRatio: 1.25 },
 }
 
+// The desktop palette is graded by its postprocessing. XR renders directly to
+// the eyes: keep daylight warm, shaded faces readable and the horizon neutral.
+const xrPresets = Object.fromEntries(Object.entries({
+    day: ['#fff0dc', 1.12, '#899aad', '#b8ced9'],
+    dusk: ['#ffd2ae', 1.15, '#747f9f', '#d5b4a2'],
+    night: ['#a8c2ef', 1.05, '#566588', '#253950'],
+    dawn: ['#ffe0c2', 1.1, '#8a8eaa', '#c8c5cf']
+}).map(([name, [light, intensity, shadow, sky]]) => [name, {
+    ...presets[name], lightColor: new THREE.Color(light), lightIntensity: intensity,
+    shadowColor: new THREE.Color(shadow), fogColorA: new THREE.Color(sky), fogColorB: new THREE.Color(sky)
+}]))
+
 export class DayCycles extends Cycles
 {
     constructor()
@@ -18,11 +30,12 @@ export class DayCycles extends Cycles
 
     get presets()
     {
-        return presets
+        return this.game.xrEnabled ? xrPresets : presets
     }
 
     getKeyframesDescriptions()
     {
+        const presets = this.presets
         // Debug
         if(this.game.debug.active)
         {

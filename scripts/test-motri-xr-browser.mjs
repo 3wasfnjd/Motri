@@ -3,6 +3,7 @@
 // MOTRI_XR_IWER_PATH=/.../iwer/build/iwer.min.js
 // Build first. No framebuffer adapter is injected: this exercises IWER as shipped.
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -17,7 +18,7 @@ const server = await preview({ configFile: path.join(root, 'vite.config.js'), ro
 const browser = await chromium.launch({
     headless: true,
     ...(process.env.MOTRI_XR_CHROMIUM ? { executablePath: process.env.MOTRI_XR_CHROMIUM } : {}),
-    args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox']
+    args: [...(process.env.MOTRI_XR_AGENT_BROWSER ? ['--remote-debugging-port=9222'] : []), '--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu-sandbox']
 })
 const page = await browser.newPage({ viewport: { width: 1000, height: 640 } })
 page.setDefaultTimeout(180000)
@@ -88,6 +89,12 @@ try {
     await page.goto('http://127.0.0.1:4174/xr/', { waitUntil: 'domcontentloaded' })
     await page.waitForFunction(() => window.game?.xr)
     console.log('XR ready')
+    if(process.env.MOTRI_XR_AGENT_BROWSER) {
+        const run = (...args) => execFileSync(process.env.MOTRI_XR_AGENT_BROWSER, ['--cdp', '9222', ...args], { encoding: 'utf8', timeout: 30000 })
+        console.log(run('snapshot', '-i'))
+        console.log(run('eval', 'JSON.stringify({title:document.title,overlay:!!document.querySelector("vite-error-overlay"),ready:!!window.game?.xr})'))
+        run('screenshot', path.join(artifacts, 'xr-lobby.png'))
+    }
     await page.click('#xr-ar')
     await page.waitForFunction(() => game.xr.reticle.visible)
     await page.waitForTimeout(700)
@@ -95,6 +102,30 @@ try {
     await page.waitForFunction(() => game.xr.placed)
     await visibleWorld()
     await page.screenshot({ path: path.join(artifacts, 'ar-world.png') })
+    // A real Rapier vehicle/crate contact must complete its delayed explosion.
+    await page.evaluate(() => {
+        const crates = game.world.explosiveCrates.items
+        window.testCrate = crates.find(c => !c.exploded)
+        const p = testCrate.object.physical.body.translation()
+        game.physicalVehicle.moveTo(game.player.position.clone().set(p.x - 1.1, p.y, p.z), game.physicalVehicle.quaternion.clone().identity())
+        game.physicalVehicle.chassis.physical.body.setLinvel({ x: 6, y: 0, z: 0 }, true)
+        testCrate.object.physical.body.wakeUp()
+    })
+    await page.waitForFunction(() => testCrate.exploded && !testCrate.object.physical.body.isEnabled())
+    const hiddenCrate = await page.evaluate(() => {
+        const matrix = game.xr.rig.matrix.clone()
+        game.world.explosiveCrates.instancedGroup.meshes[0].instance.getMatrixAt(testCrate.id, matrix)
+        return { scale: testCrate.object.visual.object3D.scale.length(), height: testCrate.object.visual.object3D.position.y, determinant: matrix.determinant() }
+    })
+    assert.equal(hiddenCrate.scale, 0)
+    assert.equal(hiddenCrate.determinant, 0)
+    assert.ok(hiddenCrate.height < 50, 'Exploded crate was parked above the map')
+    await page.screenshot({ path: path.join(artifacts, 'ar-after-explosion.png') })
+    console.log('Real vehicle collision, delayed explosion and zero-sized GPU instance passed', hiddenCrate)
+    const arStart = await page.evaluate(() => game.player.position.toArray())
+    await page.evaluate(() => xrDevice.controllers.left.updateAxes('thumbstick', 0, -.8))
+    await page.waitForFunction(p => Math.hypot(game.player.position.x - p[0], game.player.position.z - p[2]) > .5, arStart)
+    await page.evaluate(() => xrDevice.controllers.left.updateAxes('thumbstick', 0, 0))
     const startWidth = await page.evaluate(() => game.xr.width)
     await page.evaluate(() => xrDevice.controllers.right.updateAxes('thumbstick', .7, -.8))
     await page.waitForFunction(width => game.xr.width > width * 1.1 && Math.abs(game.xr.yaw) > .05, startWidth)
@@ -130,6 +161,30 @@ try {
     await page.waitForFunction(() => game.xr.vehicleCamera.mode === 'chase' && !game.xr.vehicleCamera.cabin.visible)
     await page.screenshot({ path: path.join(artifacts, 'vr-chase.png') })
     console.log('VR camera selector, driving, Y switching, and cabin visibility passed')
+    assert.equal(await page.evaluate(() => game.world.visualVehicle.parts.chassis.visible), true)
+    // Start the existing race by driving to its proximity trigger and pressing A.
+    await page.evaluate(() => {
+        const point = game.world.areas.circuit.interactivePoint.position
+        game.physicalVehicle.moveTo(game.player.position.clone().set(point.x, 2, point.y), game.physicalVehicle.quaternion.clone().identity())
+        game.interactivePoints.needsTest = true
+    })
+    await page.waitForFunction(() => game.interactivePoints.activeItem === game.world.areas.circuit.interactivePoint && game.interactivePoints.activeItem.state === 4)
+    await button('right', 'a-button')
+    await page.waitForFunction(() => game.world.areas.circuit.state === 3 && game.player.state === 1)
+    console.log('A starts the real circuit, countdown completes and driving unlocks in XR')
+    await page.evaluate(() => game.world.areas.circuit.finish(true))
+    await page.waitForFunction(() => game.world.areas.circuit.state === 1 && game.player.state === 1)
+    await page.evaluate(() => xrDevice.controllers.right.updateButtonValue('a-button', 1))
+    await page.waitForTimeout(1150)
+    await page.evaluate(() => xrDevice.controllers.right.updateButtonValue('a-button', 0))
+    await page.waitForFunction(() => game.player.state === 1 && game.overlay.progress.value === 0)
+    console.log('Hold A recovery completes without a frozen overlay callback')
+    await page.evaluate(() => {
+        const point = game.player.position.clone()
+        game.world.explosiveCrates.reset()
+        window.resetCrateScale = testCrate.object.visual.object3D.scale.length()
+    })
+    assert.ok(await page.evaluate(() => resetCrateScale > 0))
     await button('right', 'b-button')
     await page.waitForFunction(() => !game.xr.session)
     await page.evaluate(() => { testRoomMode = 'planes'; xrDevice.quaternion.set(Math.sin(-.35 / 2), 0, 0, Math.cos(-.35 / 2)) })
@@ -145,6 +200,9 @@ try {
     assert.equal(await page.evaluate(() => game.xr.vehicleCamera.cabin.visible), false)
     assert.deepEqual(errors, [])
     console.log('XR browser regression passed: direct AR, resizing, no surface, VR cameras/drive, plane fallback, repeated sessions, no page errors.')
+} catch(error) {
+    await page.screenshot({ path: path.join(artifacts, 'failure.png') }).catch(() => {})
+    throw error
 } finally {
     await browser.close()
     server.httpServer.close()

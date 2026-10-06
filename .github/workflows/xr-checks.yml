@@ -1,0 +1,40 @@
+name: Motri XR gameplay and stereo checks
+on:
+  push:
+    branches: [feat/motri-xr]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  xr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --force --ignore-scripts --no-audit --no-fund
+      - name: Install isolated browser and Firebase build dependency
+        run: |
+          npm install --prefix "$RUNNER_TEMP/xr-tools" --ignore-scripts --no-audit --no-fund firebase@12.19.0 playwright@1.55.0 iwer@2.5.0 agent-browser@0.38.2
+          cp -an "$RUNNER_TEMP/xr-tools/node_modules/." node_modules/
+          "$RUNNER_TEMP/xr-tools/node_modules/.bin/playwright" install --with-deps chromium
+          echo "MOTRI2_PLAYWRIGHT_MODULE=$RUNNER_TEMP/xr-tools/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+          echo "MOTRI_XR_IWER_PATH=$RUNNER_TEMP/xr-tools/node_modules/iwer/build/iwer.min.js" >> "$GITHUB_ENV"
+          echo "MOTRI_XR_AGENT_BROWSER=$RUNNER_TEMP/xr-tools/node_modules/.bin/agent-browser" >> "$GITHUB_ENV"
+      - name: Unit checks and production build
+        run: |
+          node scripts/test-motri-xr.mjs
+          node --experimental-vm-modules scripts/test-motri-xr-ticker.mjs
+          node --experimental-vm-modules scripts/test-motri-xr-actions.mjs
+          npm run build
+      - name: Real Rapier collisions, activities, stereo AR and camera regression
+        run: node scripts/test-motri-xr-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: motri-xr-review
+          path: artifacts/xr/
+          retention-days: 5

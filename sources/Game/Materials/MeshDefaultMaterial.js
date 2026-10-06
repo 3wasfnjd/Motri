@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu'
 import { Game } from '../Game.js'
 import { vehicleUnderglowNode } from './VehicleUnderglowNode.js'
+import { vehicleContactShadow } from '../../xr/ContactShadow.js'
 import { Fn, color, float, frontFacing, If, max, mix, normalWorld, positionWorld, vec2, vec3, vec4 } from 'three/tsl'
 
 export class MeshDefaultMaterial extends THREE.MeshLambertNodeMaterial
@@ -113,7 +114,8 @@ export class MeshDefaultMaterial extends THREE.MeshLambertNodeMaterial
             // Combined shadows
             if(this.hasCoreShadows || this.hasDropShadows)
             {
-                const combinedShadowMix = max(coreShadowMix, dropShadowMix, this._shadowNode).clamp(0, 1)
+                let combinedShadowMix = max(coreShadowMix, dropShadowMix, this._shadowNode).clamp(0, 1)
+                if(this.game.xrEnabled) combinedShadowMix = max(combinedShadowMix, vehicleContactShadow(positionWorld))
                 
                 const shadowColor = baseColor.rgb.mul(this.game.lighting.shadowColor).rgb
                 outputColor.assign(mix(outputColor, shadowColor, combinedShadowMix))

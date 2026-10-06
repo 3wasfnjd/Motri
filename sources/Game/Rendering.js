@@ -42,15 +42,17 @@ export class Rendering
             powerPreference: 'high-performance',
             forceWebGL: this.game.xrEnabled,
             alpha: true,
-            antialias: this.game.viewport.pixelRatio < 2
+            antialias: this.game.xrEnabled || this.game.viewport.pixelRatio < 2
         })
         this.renderer.setSize(this.game.viewport.width, this.game.viewport.height)
         this.renderer.setPixelRatio(this.game.viewport.pixelRatio)
         this.renderer.xr.enabled = this.game.xrEnabled
         if(this.game.xrEnabled)
         {
-            this.renderer.xr.setFramebufferScaleFactor(0.85)
-            this.renderer.xr.setFoveation(1)
+            this.renderer.xr.setFramebufferScaleFactor(1)
+            this.renderer.xr.setFoveation(0.35)
+            this.renderer.toneMapping = THREE.ACESFilmicToneMapping
+            this.renderer.toneMappingExposure = 1.08
         }
         this.renderer.sortObjects = false
 
@@ -74,7 +76,7 @@ export class Rendering
         // Make the renderer control the ticker
         this.renderer.setAnimationLoop((elapsedTime, frame) =>
         {
-            this.game.xr?.beforeTick(frame)
+            this.game.xr?.beforeTick(frame, elapsedTime)
             this.game.ticker.update(elapsedTime)
         })
 

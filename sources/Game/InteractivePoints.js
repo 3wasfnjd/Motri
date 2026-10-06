@@ -336,6 +336,8 @@ export class InteractivePoints
          * Item
          */
         const item = {}
+        item.group = group
+        item.text = text
         item.position = new THREE.Vector2(position.x, position.z)
         item.interactCallback = interactCallback
         item.revealCallback = revealCallback
