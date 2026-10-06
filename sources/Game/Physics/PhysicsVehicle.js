@@ -459,15 +459,21 @@ export class PhysicsVehicle
         this.position.copy(position)
     }
 
-    updatePrePhysics()
+    updatePrePhysics(stepDelta)
     {
+        // XR's physics world calls this before each short simulation step.
+        // Its normal order-2 tick must not apply a second suspension impulse.
+        if(this.game.xrEnabled && stepDelta === undefined) return
         if(this.rest.beforePhysics())
             return
 
         // Engine force
         const topSpeed = lerp(this.topSpeed, this.topSpeedBoost, this.game.player.boosting)
         const overflowSpeed = Math.max(0, this.speed - topSpeed)
-        let engineForce = (this.game.player.accelerating * (1 + this.game.player.boosting * this.boostMultiplier)) * this.engineForceAmplitude / (1 + overflowSpeed) * this.game.ticker.deltaScaled
+        // Rapier integrates engine force using updateVehicle's dt. Preserve the
+        // 60 Hz tuning in XR without multiplying the force by frame time twice.
+        const engineTuning = this.game.xrEnabled ? 1 / 60 : this.game.ticker.deltaScaled
+        let engineForce = (this.game.player.accelerating * (1 + this.game.player.boosting * this.boostMultiplier)) * this.engineForceAmplitude / (1 + overflowSpeed) * engineTuning
 
         // Brake
         let brake = this.game.player.braking
@@ -487,7 +493,7 @@ export class PhysicsVehicle
             engineForce = 0
         }
 
-        brake *= this.brakeAmplitude * this.game.ticker.deltaScaled
+        brake *= this.brakeAmplitude * (stepDelta ?? this.game.ticker.deltaScaled)
 
         // Steer
         const steer = this.game.player.steering * this.steeringAmplitude
@@ -516,7 +522,8 @@ export class PhysicsVehicle
         }
 
         // Update controller
-        const delta = this.game.quality.level === 1 ? 1/60 : Math.min(1/60, this.game.ticker.deltaAverage)
+        const delta = this.game.xrEnabled ? stepDelta
+            : this.game.quality.level === 1 ? 1/60 : Math.min(1/60, this.game.ticker.deltaAverage)
         this.controller.updateVehicle(delta)
     }
 

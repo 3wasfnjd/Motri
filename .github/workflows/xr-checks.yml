@@ -29,6 +29,7 @@ jobs:
           node scripts/test-motri-xr.mjs
           node --experimental-vm-modules scripts/test-motri-xr-ticker.mjs
           node --experimental-vm-modules scripts/test-motri-xr-actions.mjs
+          node --experimental-wasm-modules --loader ./scripts/camel-camp-test-loader.mjs scripts/test-motri-xr-physics.mjs
           npm run build
       - name: Real Rapier collisions, activities, stereo AR and camera regression
         run: node scripts/test-motri-xr-browser.mjs

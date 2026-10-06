@@ -9,7 +9,8 @@ export class Time
     {
         this.game = Game.getInstance()
 
-        this.defaultScale = 2
+        // XR head tracking, suspension and gravity share one real-time clock.
+        this.defaultScale = this.game.xrEnabled ? 1 : 2
         this._scale = this.defaultScale
         this.game.ticker.scale = this.scale
         gsap.globalTimeline.timeScale(this.scale)
@@ -44,6 +45,10 @@ export class Time
         this.bulletTime.outSpeed = 0.3
         this.bulletTime.activate = (duration = 1.5) =>
         {
+            // Slow motion prolongs airborne motion and can be extended by a
+            // chain of crates. Keep VR and tabletop AR at real time.
+            if(this.game.xrEnabled) return
+
             if(this.bulletTime.active)
             {
                 const newEndTime = Date.now() + duration * 1000

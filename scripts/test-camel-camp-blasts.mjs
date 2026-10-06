@@ -20,6 +20,8 @@ function fixture() {
         player: { position: new THREE.Vector3(26, 1, -10) }, water: { surfaceElevation: -1, depthElevation: -20 },
         view: { focusPoint: { position: new THREE.Vector3(26, 1, -10) }, roll: { kick() {} }, optimalArea: { radius: 65 } },
         time: { bulletTime: { activate() {} } }, world: {},
+        audio: { register() { return {} } },
+        achievements: { setProgress() {} },
         ticker: { delta: 1/60, deltaScaled: 1/30, events: new Events(), wait(n, fn) { waits.push([n, fn]) } }
     }
     globalThis.camelTestGame = game

@@ -239,8 +239,6 @@ export class Physics
 
     update()
     {
-        this.world.timestep = this.game.ticker.deltaScaled
-    
         for(const physical of this.physicals)
         {
             const waterDepth = Math.max(- physical.body.translation().y, this.game.water.surfaceElevation)
@@ -258,7 +256,20 @@ export class Physics
             }
         }
         
-        // this.world.step()
+        // The ray-cast suspension and world must integrate the same short dt.
+        // Substep XR at <= 1/120 s so a slow rendered frame cannot produce one
+        // oversized suspension/brake impulse. Rendering still happens once.
+        const steps = this.game.xrEnabled ? Math.max(1, Math.ceil(this.game.ticker.deltaScaled * 120 - 1e-7)) : 1
+        this.world.timestep = this.game.ticker.deltaScaled / steps
+        for(let i = 0; i < steps; i++)
+        {
+            if(this.game.xrEnabled) this.game.physicalVehicle?.updatePrePhysics(this.world.timestep)
+            this.step()
+        }
+    }
+
+    step()
+    {
         this.world.step(this.eventQueue)
 
         // // Works but not handy

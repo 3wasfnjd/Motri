@@ -166,7 +166,6 @@ export class MotriXR {
                 background: this.game.scene.background,
                 backgroundNode: this.game.scene.backgroundNode,
                 shadows: this.renderer.shadowMap.enabled,
-                tickerScale: this.game.ticker.scale,
                 floorGeometry: this.game.world.floor.mesh.geometry,
                 waterScale: this.game.world.waterSurface.mesh.scale.clone(),
                 clearAlpha: this.renderer.getClearAlpha(),
@@ -176,7 +175,6 @@ export class MotriXR {
             this.game.scene.background = mode === 'immersive-ar' ? null : new THREE.Color('#b9cfcd')
             this.renderer.setClearColor(0x000000, mode === 'immersive-ar' ? 0 : 1)
             this.renderer.shadowMap.enabled = false
-            this.game.ticker.scale = 1
             this.game.world.floor.mesh.geometry = this.fullFloor
             for(const object of [this.game.overlay.mesh, this.game.view.speedLines.mesh, this.game.world.grass.mesh, this.game.world.windLines.mesh, this.game.world.rain.mesh, this.game.world.snow.mesh]) {
                 if(object) { this.savedVisibility.set(object, object.visible); object.visible = false }
@@ -648,7 +646,6 @@ export class MotriXR {
             this.game.scene.backgroundNode = this.saved.backgroundNode
             this.renderer.shadowMap.enabled = this.saved.shadows
             this.renderer.setClearColor(this.saved.clearColor, this.saved.clearAlpha)
-            this.game.ticker.scale = this.saved.tickerScale
             this.game.world.floor.mesh.geometry = this.saved.floorGeometry
             this.game.world.waterSurface.mesh.scale.copy(this.saved.waterScale)
             this.saved = null

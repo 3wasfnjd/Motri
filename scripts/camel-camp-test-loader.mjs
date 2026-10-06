@@ -1,6 +1,8 @@
 // Renderer-free tests still use the actual game modules and Rapier WASM.
 // Browser-only Game/material dependencies are replaced only in this test process.
 export async function resolve(specifier, context, nextResolve) {
+    if(specifier === 'gsap')
+        return nextResolve('gsap/index.js', context)
     if(specifier === '@dimforge/rapier3d')
         return nextResolve('@dimforge/rapier3d/rapier.js', context)
     if(context.parentURL?.includes('/@dimforge/rapier3d/') && specifier.startsWith('.') && !/\.(js|wasm)$/.test(specifier)) {
@@ -25,7 +27,7 @@ export async function load(url, context, nextLoad) {
         source: "import { MeshBasicMaterial } from 'three/webgpu'; export class MeshDefaultMaterial extends MeshBasicMaterial { constructor() { super({vertexColors:true}) } }"
     }
     // The upstream package is bundler-targeted ESM without a package type field.
-    if(url.includes('/@dimforge/rapier3d/') && url.endsWith('.js'))
+    if((url.includes('/@dimforge/rapier3d/') || url.includes('/gsap/')) && url.endsWith('.js'))
         return nextLoad(url, { ...context, format: 'module' })
     return nextLoad(url, context)
 }

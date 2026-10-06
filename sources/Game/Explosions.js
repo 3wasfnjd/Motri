@@ -31,8 +31,11 @@ export class Explosions
             const position = new THREE.Vector3()
             position.copy(physicalObject.body.translation())
             const direction = position.clone().sub(coordinates)
+            // AR only scales the viewer rig; blast radii stay in world metres.
+            // Height must count, otherwise ground crates keep launching a car
+            // that is already far above the explosion.
+            const distance = this.game.xrEnabled ? direction.length() : Math.hypot(direction.x, direction.z)
             direction.y = 0
-            const distance = Math.hypot(direction.x, direction.z)
 
             const fadedStrength = remapClamp(distance, 1, radius, 1, 0)
             const impulse = direction.clone().setLength(0.5)
@@ -51,7 +54,11 @@ export class Explosions
                 const point = position
                 this.game.ticker.wait(1, () =>
                 {
-                    physicalObject.body.applyImpulseAtPoint(impulse, point, true)
+                    if(!physicalObject.body.isValid() || !physicalObject.body.isEnabled()) return
+                    if(this.game.xrEnabled && physicalObject === this.game.physicalVehicle.chassis.physical)
+                        this.applyXRVehicleImpulse(physicalObject.body, direction, finalStrength)
+                    else
+                        physicalObject.body.applyImpulseAtPoint(impulse, point, true)
                 })
 
                 // Is vehicle
@@ -81,5 +88,21 @@ export class Explosions
         // console.log('vehicleHit', vehicleHit)
 
         return vehicleHit
+    }
+
+    applyXRVehicleImpulse(body, direction, strength)
+    {
+        // Read velocity when the queued impulse runs so simultaneous crates
+        // share the same limit. Do not clamp ordinary driving or jump velocity.
+        const velocity = body.linvel()
+        const outward = direction.clone().normalize()
+        const outwardSpeed = velocity.x * outward.x + velocity.z * outward.z
+        const kick = Math.min(3, strength * 0.4)
+        const lateral = Math.min(kick, Math.max(0, 3 - outwardSpeed))
+        const grounded = this.game.physicalVehicle.wheels.inContactCount > 0
+        const lift = grounded ? Math.min(kick, Math.max(0, 3 - velocity.y)) : 0
+        // At g=9.81, 3 m/s gives a short ~0.46 m ballistic hop. Airborne
+        // blasts cannot add lift, and a centre-of-mass impulse avoids flipping.
+        body.applyImpulse(outward.multiplyScalar(lateral).setY(lift).multiplyScalar(body.mass()), true)
     }
 }
