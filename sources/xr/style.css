@@ -20,6 +20,10 @@
 .xr-modes strong { font-size: 27px; line-height: 1.2; }
 .xr-modes button>span:last-child { font-size: 13px; direction: rtl; }
 .xr-symbol { font-size: 35px; line-height: 1.1; }
+.xr-camera-options { border: 0; padding: 0; margin: 16px 0 0; display: flex; justify-content: center; gap: 18px; color: #d4dfd6; font-size: 13px; }
+.xr-camera-options legend { margin: auto; padding-bottom: 6px; font-size: 11px; color: #adbfba; }
+.xr-camera-options label { cursor: pointer; }
+.xr-camera-options input { accent-color: #c6ee88; }
 #xr-status { color: #d6ded9; font-size: 13px; min-height: 24px; margin: 20px 0 0; }
 #xr-progress { width: 100%; height: 4px; accent-color: #c6ee88; margin-top: 12px; }
 .xr-help { color: #adbfba; text-align: right; margin-top: 14px; font-size: 12px; }

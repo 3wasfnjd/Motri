@@ -22,9 +22,10 @@ ui.innerHTML = `
         <button id="xr-vr" type="button" disabled><span class="xr-symbol">◉</span><strong lang="en">VR</strong><span>قد داخل العالم</span></button>
         <button id="xr-ar" type="button" disabled><span class="xr-symbol">▧</span><strong lang="en">AR</strong><span>العالم على طاولتك</span></button>
       </div>
+      <fieldset class="xr-camera-options"><legend>كاميرا VR</legend><label><input type="radio" name="xr-camera" value="driver" checked> داخل السيارة</label><label><input type="radio" name="xr-camera" value="chase"> خلف السيارة</label></fieldset>
       <p id="xr-status" role="status" aria-live="polite">جاري تحميل موتري…</p>
       <progress id="xr-progress" max="1" aria-label="تحميل العالم"></progress>
-      <details class="xr-help"><summary>التحكم</summary><p>VR: العصا اليسرى للتوجيه، الزناد الأيمن للقيادة والأيسر للرجوع. A لإعادة السيارة.</p><p>AR: وجّه المؤشر لسطح واضغط الزناد. العصا اليمنى للحجم والدوران، أو أمسك باليدين ووسّعهما. X لاختيار سطح آخر. B للخروج.</p></details>
+      <details class="xr-help"><summary>التحكم</summary><p>VR: العصا اليسرى للتوجيه، الزناد الأيمن للقيادة والأيسر للرجوع. Y لتبديل الكاميرا، A لإعادة السيارة.</p><p>AR: وجّه المؤشر لسطح واضغط الزناد. العصا اليمنى للحجم والدوران، أو أمسك باليدين ووسّعهما. X لاختيار سطح آخر. B للخروج.</p></details>
     </div>
   </section>
   <div class="xr-toolbar" hidden>
@@ -70,13 +71,17 @@ try {
         await new Promise((resolve, reject) => {
             const started = performance.now()
             const timer = setInterval(() => {
-                if(game.reveal.step === 2) { clearInterval(timer); resolve() }
+                // Quest can pause window RAF during XR: complete the intro's
+                // GSAP reveal before offering an immersive entry button.
+                if(game.reveal.step === 2 && game.reveal.distance.value >= 99999) { clearInterval(timer); resolve() }
                 else if(performance.now() - started > 45000) { clearInterval(timer); reject(new Error('Intro did not finish')) }
             }, 100)
         })
     } finally { clearInterval(loading) }
     xr = new MotriXR(game, ui, message => { status.textContent = message })
     game.xr = xr
+    xr.setCameraMode(ui.querySelector('[name="xr-camera"]:checked').value)
+    for(const input of ui.querySelectorAll('[name="xr-camera"]')) input.addEventListener('change', () => xr.setCameraMode(input.value))
     ready = true
     progress.hidden = true
     await detectSupport()

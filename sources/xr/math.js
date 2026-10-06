@@ -7,6 +7,20 @@ export const MAX_WIDTH = 6
 export const clampWidth = value => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, value))
 export const deadzone = (value = 0, threshold = 0.16) => Math.abs(value) <= threshold ? 0 : Math.sign(value) * (Math.abs(value) - threshold) / (1 - threshold)
 
+// Head movement remains 1:1 in metres. Snap turns rotate the view around the
+// selected eye position, never orbit the driver out of the seat.
+export function vehicleCameraPose(position, forward, mode, lookYaw = 0) {
+    const yaw = Math.atan2(-forward.z, forward.x) - Math.PI / 2
+    const up = new Vector3(0, 1, 0)
+    const heading = new Quaternion().setFromAxisAngle(up, yaw)
+    const offset = mode === 'chase' ? new Vector3(0, 2.1, 5) : new Vector3(-0.32, 0.43, -0.02)
+    return {
+        position: offset.applyQuaternion(heading).add(position),
+        rotation: new Quaternion().setFromAxisAngle(up, yaw + lookYaw),
+        heading
+    }
+}
+
 // Invert the world-to-room transform on the viewer rig. Motri's shader coordinates,
 // terrain masks, animation and Rapier bodies remain in their original world units.
 export function roomToWorld(anchor, yaw, width, target = new Matrix4()) {

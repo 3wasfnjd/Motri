@@ -422,6 +422,9 @@ export class Snow
 
     update()
     {
+        // The XR entry omits snow and its offscreen elevation pass. Switching
+        // renderer targets mid-session also replaces the stereo camera layout.
+        if(this.game.xrEnabled) { this.mesh.visible = false; return }
         this.elevationBinding.update()
 
         if(this.elevation.value > -0.9)

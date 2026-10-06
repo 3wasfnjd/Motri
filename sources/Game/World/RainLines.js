@@ -224,6 +224,7 @@ export class RainLines
 
     update()
     {
+        if(this.game.xrEnabled) { this.mesh.visible = false; return }
         // Apply weather
         this.visibleRatioBinding.update()
         this.lengthRatioBinding.update()

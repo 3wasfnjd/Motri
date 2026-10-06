@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import { Matrix4, Ray, Vector3 } from 'three/webgpu'
-import { WORLD_CENTER, WORLD_SPAN, clampWidth, roomToWorld, horizontalPlaneHit, readControllers } from '../sources/xr/math.js'
+import { WORLD_CENTER, WORLD_SPAN, clampWidth, roomToWorld, horizontalPlaneHit, readControllers, vehicleCameraPose } from '../sources/xr/math.js'
 import { xrHTML } from './vite-xr-page.mjs'
+import WebGLState from 'three/src/renderers/webgl-fallback/utils/WebGLState.js'
+import { installXRFramebufferCompatibility, installXRBindingCompatibility } from '../sources/xr/compatibility.js'
 
 // The chosen surface point stays fixed through every scale and rotation; body and
 // terrain positions stay in world coordinates, including below-zero terrain.
@@ -40,4 +42,61 @@ assert.ok(html.includes('<base href="../">'))
 assert.ok(html.includes('./assets/xr.js'))
 assert.ok(html.includes('./assets/xr.css'))
 assert.ok(!html.includes('main.js'))
+
+// Reproduce Three r183's actual null-framebuffer crash, then exercise the
+// compatibility path and verify native Quest FBOs still use the original code.
+const calls = []
+const state = Object.create(WebGLState.prototype)
+state.gl = { FRAMEBUFFER: 36160, BACK: 1029, COLOR_ATTACHMENT0: 36064, drawBuffers: values => calls.push(['draw', ...values]), bindFramebuffer: (target, value) => calls.push(['bind', target, value]) }
+state.currentBoundFramebuffers = {}
+state.currentDrawbuffers = new WeakMap()
+const xrContext = { textures: [{}], renderTarget: { isXRRenderTarget: true } }
+assert.throws(() => state.drawBuffers(xrContext, null), TypeError)
+installXRFramebufferCompatibility({ backend: { state } })
+state.drawBuffers(xrContext, null)
+assert.deepEqual(calls.splice(0), [['bind', 36160, null], ['draw', 1029]])
+assert.equal(xrContext.textures.length, 1)
+const questFramebuffer = {}
+state.drawBuffers(xrContext, questFramebuffer)
+assert.deepEqual(calls.splice(0), [['draw', 36064]])
+assert.deepEqual(state.currentDrawbuffers.get(questFramebuffer), [36064])
+state.drawBuffers({ textures: null, renderTarget: null }, null)
+assert.deepEqual(calls.splice(0), [['draw', 1029]])
+
+// Shared stereo camera bindings must not steal another material's buffer slot.
+const bindingData = new WeakMap(), usedLayouts = []
+const cameraBinding = { name: 'cameraIndex', isUniformBuffer: true }
+const uniform = name => ({ name, isUniformBuffer: true })
+const programA = {}, programB = {}
+const backend = {
+    isWebGLBackend: true,
+    state: { useProgram() {} },
+    gl: { INVALID_INDEX: 4294967295, getUniformBlockIndex: () => 0, uniformBlockBinding() {} },
+    get(key) { if(!bindingData.has(key)) bindingData.set(key, {}); return bindingData.get(key) },
+    draw(object) { usedLayouts.push(object.getBindings().flatMap(g => g.bindings.map(b => this.get(b).index))) }
+}
+const helperGroups = [{ bindings: [uniform('helper'), cameraBinding] }]
+const worldGroups = [{ bindings: [uniform('terrain'), uniform('instances'), cameraBinding] }]
+backend.get(programA).programGPU = {}; backend.get(programB).programGPU = {}
+const helper = { pipeline: programA, getBindings: () => helperGroups }
+const world = { pipeline: programB, getBindings: () => worldGroups }
+installXRBindingCompatibility({ backend })
+backend.draw(helper); backend.draw(world); backend.draw(helper)
+assert.deepEqual(usedLayouts, [[0, 1], [0, 1, 2], [0, 1]])
+
+// Driver eye remains inside the H9 cabin; chase stays behind the vehicle.
+// Looking around or snap-turning cannot move either camera's anchor point.
+for(const forward of [new Vector3(1, 0, 0), new Vector3(0, 0, -1)]) {
+    const position = new Vector3(8, 1, 12)
+    const driver = vehicleCameraPose(position, forward, 'driver')
+    const chase = vehicleCameraPose(position, forward, 'chase')
+    assert.ok(driver.position.distanceTo(position) < 0.6)
+    assert.equal(driver.position.y, position.y + 0.43)
+    assert.ok(chase.position.clone().sub(position).dot(forward) < -4.9)
+    const viewForward = new Vector3(0, 0, -1).applyQuaternion(driver.rotation)
+    assert.ok(viewForward.distanceTo(forward) < 1e-8)
+    assert.ok(vehicleCameraPose(position, forward, 'driver', Math.PI / 2).position.distanceTo(driver.position) < 1e-8)
+}
 console.log('XR checks passed: anchored scaling/rotation, finite surface hits, controller mapping, isolated subpath assets.')
+console.log('XR framebuffer regression passed: emulator default buffer and native Quest FBO.')
+console.log('XR shared bindings and driver/chase camera regressions passed.')

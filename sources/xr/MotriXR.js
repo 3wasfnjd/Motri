@@ -1,13 +1,16 @@
 import * as THREE from 'three/webgpu'
+import { installXRFramebufferCompatibility, installXRBindingCompatibility } from './compatibility.js'
+import { VehicleCamera } from './VehicleCamera.js'
 import { clampWidth, WORLD_SPAN, WORLD_CENTER, roomToWorld, horizontalPlaneHit, readControllers } from './math.js'
 
-const UP = new THREE.Vector3(0, 1, 0)
 const FORWARD = new THREE.Vector3(0, 0, -1)
 
 export class MotriXR {
     constructor(game, ui, status) {
         this.game = game
         this.renderer = game.rendering.renderer
+        installXRFramebufferCompatibility(this.renderer)
+        installXRBindingCompatibility(this.renderer)
         this.ui = ui
         this.status = status
         this.session = null
@@ -33,6 +36,7 @@ export class MotriXR {
         this.savedCulling = new Map()
         this.setHelpers()
         this.setWorldGeometry()
+        this.vehicleCamera = new VehicleCamera(game.scene)
         for(const object of [game.world.grass.mesh, game.world.windLines.mesh, game.world.rain.mesh, game.world.snow.mesh, game.world.leaves.mesh])
             if(object) object.visible = false
         // After Player's order-1 reset, before PhysicsVehicle's order-2 forces.
@@ -90,6 +94,14 @@ export class MotriXR {
         ctx.font = '600 48px system-ui, sans-serif'; ctx.fillStyle = '#e9f5dd'
         ctx.fillText(text, 768, 128, 1460)
         this.hudTexture.needsUpdate = true
+    }
+
+    setCameraMode(mode) {
+        this.vehicleCamera.mode = mode === 'chase' ? 'chase' : 'driver'
+        this.lookYaw = 0
+        if(this.headCalibrated) this.headOrigin.copy(this.viewerPosition)
+        for(const input of this.ui.querySelectorAll('[name="xr-camera"]')) input.checked = input.value === this.vehicleCamera.mode
+        if(this.session && this.mode === 'immersive-vr') this.hint(this.vehicleCamera.mode === 'driver' ? 'منظور السائق • Y: الكاميرا الخلفية' : 'خلف السيارة • Y: منظور السائق', 4)
     }
 
     async enter(mode) {
@@ -176,7 +188,7 @@ export class MotriXR {
             this.renderer.xr.setReferenceSpace(this.referenceSpace)
             this.ui.classList.add('xr-entered')
             this.ui.querySelector('.xr-toolbar').hidden = mode !== 'immersive-ar' || !session.domOverlayState
-            this.hint(mode === 'immersive-ar' ? 'وجّه يدك إلى سطح مستوٍ ثم اضغط الزناد' : 'العصا اليسرى: توجيه • الزناد الأيمن: قيادة • B: خروج', 12)
+            this.hint(mode === 'immersive-ar' ? 'وجّه يدك إلى سطح مستوٍ ثم اضغط الزناد' : 'الزناد الأيمن: قيادة • Y: تبديل الكاميرا • B: خروج', 12)
             if(mode === 'immersive-ar') this.syncHitSources()
             if(session.supportedFrameRates?.includes(72)) session.updateTargetFrameRate(72).catch(() => {})
         } catch(error) {
@@ -234,6 +246,7 @@ export class MotriXR {
                 this.updateScale(frame)
             }
         } else {
+            if(this.edge('camera', this.controls.left?.upper)) this.setCameraMode(this.vehicleCamera.mode === 'driver' ? 'chase' : 'driver')
             if(this.edge('reset', this.controls.right?.lower)) this.game.player.respawn()
             const turn = this.controls.right?.x || 0
             if(Math.abs(turn) > 0.65 && !this.snapHeld) this.lookYaw -= Math.sign(turn) * Math.PI / 6
@@ -254,7 +267,8 @@ export class MotriXR {
         this.surfaceHit = null
         const sources = [...this.session.inputSources]
         const controller = selectedSource || sources.find(source => source.handedness === 'right' && source.targetRayMode === 'tracked-pointer') || sources.find(source => source.targetRayMode === 'tracked-pointer')
-        const hitSource = this.hitSources.get(controller) || (!controller ? this.hitSources.get('viewer') : null)
+        const controllerHitSource = this.hitSources.get(controller)
+        const hitSource = controllerHitSource || this.hitSources.get('viewer')
         if(hitSource) for(const result of frame.getHitTestResults(hitSource)) {
             const pose = result.getPose(this.referenceSpace)
             if(!pose || pose.transform.matrix[5] < 0.85) continue
@@ -274,7 +288,7 @@ export class MotriXR {
         if(this.surfaceHit) {
             this.reticle.position.copy(this.surfaceHit.position)
             this.reticle.position.y += 0.002
-            this.hint('اضغط الزناد لوضع موتري هنا', 1)
+            this.hint(controller && !controllerHitSource && this.surfaceHit.result ? 'انظر إلى السطح ثم اضغط الزناد لوضع موتري' : 'اضغط الزناد لوضع موتري هنا', 1)
         } else if(performance.now() - this.startedAt > 7000) {
             this.hint('لم يظهر سطح؟ حرّك المؤشر أو اضغط Y لمسح الغرفة', 1)
         }
@@ -384,10 +398,14 @@ export class MotriXR {
         this.game.overlay.mesh.visible = false
         this.game.view.speedLines.mesh.visible = false
         if(this.mode === 'immersive-ar') {
+            this.vehicleCamera.cabin.visible = false
             for(const object of this.arParticles) object.visible = false
             this.rig.matrixAutoUpdate = false
             if(this.placed) roomToWorld(this.anchorPosition, this.yaw, this.width, this.rig.matrix)
-            else this.rig.matrix.identity()
+            // Keep one scene and its shader/binding layout throughout AR. Until
+            // placement, put the viewer above the world's far clip plane; the
+            // room-space reticle/HUD stay with the rig and remain visible.
+            else this.rig.matrix.makeTranslation(0, WORLD_SPAN * 8, 0)
             this.rig.matrixWorldNeedsUpdate = true
             world.floor.mesh.position.set(WORLD_CENTER.x, 0, WORLD_CENTER.z)
             world.waterSurface.mesh.position.x = WORLD_CENTER.x
@@ -399,12 +417,7 @@ export class MotriXR {
             this.rig.matrixAutoUpdate = true
             this.rig.scale.setScalar(1)
             const vehicle = this.game.physicalVehicle
-            const yaw = Math.atan2(-vehicle.forward.z, vehicle.forward.x) - Math.PI / 2 + this.lookYaw
-            this.rig.quaternion.setFromAxisAngle(UP, yaw)
-            // Roof-height viewpoint: no chassis roll/pitch, full head tracking, no camera below ground.
-            const target = vehicle.position.clone().add(new THREE.Vector3(0, 2.1, 0))
-            const offset = this.headOrigin.clone().applyQuaternion(this.rig.quaternion)
-            this.rig.position.copy(target.sub(offset))
+            this.vehicleCamera.update(vehicle, this.headOrigin, this.rig, this.lookYaw, this.game.player.steering)
             world.floor.mesh.position.x = vehicle.position.x
             world.floor.mesh.position.z = vehicle.position.z
             world.waterSurface.mesh.position.x = vehicle.position.x
@@ -419,10 +432,9 @@ export class MotriXR {
 
     render() {
         if(!this.saved) return
-        const drawWorld = this.mode === 'immersive-vr' || this.placed
         // One stereo render is essential: WebGPURenderer's output conversion can
         // replace the first scene when a helper scene is drawn in a second pass.
-        const scene = drawWorld ? this.game.scene : this.helperScene
+        const scene = this.game.scene
         if(this.rig.parent !== scene) scene.add(this.rig)
         this.renderer.render(scene, this.camera)
     }
@@ -433,6 +445,7 @@ export class MotriXR {
         this.anchor?.delete(); this.anchor = null
         this.placed = false
         this.base.visible = false
+        this.vehicleCamera.cabin.visible = false
         this.surfaceHit = null
         this.reticle.visible = false
         this.gesture = null
@@ -455,6 +468,7 @@ export class MotriXR {
         this.gesture = null
         this.placed = false
         this.base.visible = false
+        this.vehicleCamera.cabin.visible = false
         this.reticle.visible = false
         this.helperScene.add(this.rig)
         this.rig.matrixAutoUpdate = true
