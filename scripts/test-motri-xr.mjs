@@ -100,3 +100,30 @@ for(const forward of [new Vector3(1, 0, 0), new Vector3(0, 0, -1)]) {
 console.log('XR checks passed: anchored scaling/rotation, finite surface hits, controller mapping, isolated subpath assets.')
 console.log('XR framebuffer regression passed: emulator default buffer and native Quest FBO.')
 console.log('XR shared bindings and driver/chase camera regressions passed.')
+
+// A filtered vehicle anchor must never filter physical head movement; probe
+// scene collision in chase mode and restore the exterior on exit/re-entry.
+const { VehicleCamera } = await import('../sources/xr/VehicleCamera.js')
+const { Scene, Group, Quaternion } = await import('three/webgpu')
+globalThis.document = { createElement: () => ({ getContext: () => ({ fillRect() {}, fillText() {} }) }) }
+let cameraHit = null
+const exterior = { visible: true }
+const cameraGame = {
+    scene: new Scene(), world: { visualVehicle: { parts: { chassis: exterior } } },
+    RAPIER: { Ray: class {}, QueryFilterFlags: { EXCLUDE_SENSORS: 1 } },
+    physics: { world: { castRay: () => cameraHit } }
+}
+const vehicle = { position: new Vector3(0, 1, 0), forward: new Vector3(1, 0, 0), xzSpeed: 5, chassis: { physical: { body: {} } } }
+const rig = new Group(), head = new Vector3(0, 1.6, 0)
+const cabin = new VehicleCamera(cameraGame)
+cabin.update(vehicle, head, rig, 0, 0)
+assert.equal(exterior.visible, false)
+assert.ok(head.clone().applyQuaternion(rig.quaternion).add(rig.position).distanceTo(cabin.position) < 1e-8)
+cabin.mode = 'chase'; cabin.reset(); cameraHit = { timeOfImpact: 2 }
+cabin.update(vehicle, head, rig, 0, 0)
+assert.equal(exterior.visible, true)
+assert.ok(cabin.position.distanceTo(vehicle.position.clone().add(new Vector3(0, .7, 0))) <= 1.751)
+cabin.mode = 'driver'; cabin.reset(); cabin.update(vehicle, head, rig, 0, 0)
+cabin.setCabinVisible(false)
+assert.equal(exterior.visible, true)
+console.log('XR camera obstruction, physical head movement and exterior restoration passed.')

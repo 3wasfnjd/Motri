@@ -83,6 +83,7 @@ async function visibleWorld() {
     assert.ok(result.terrain > 300, `Terrain missing from stereo output: ${JSON.stringify(result)}`)
     assert.equal(result.glError, 0)
     console.log('Visible terrain', result)
+    console.log('Stereo render budget', await page.evaluate(() => ({ drawCalls: game.rendering.renderer.info.render.drawCalls, triangles: game.rendering.renderer.info.render.triangles })))
 }
 
 try {
@@ -107,7 +108,7 @@ try {
         const crates = game.world.explosiveCrates.items
         window.testCrate = crates.find(c => !c.exploded)
         const p = testCrate.object.physical.body.translation()
-        game.physicalVehicle.moveTo(game.player.position.clone().set(p.x - 1.1, p.y, p.z), game.physicalVehicle.quaternion.clone().identity())
+        game.physicalVehicle.moveTo(game.player.position.clone().set(p.x - 1.1, p.y, p.z), 0)
         game.physicalVehicle.chassis.physical.body.setLinvel({ x: 6, y: 0, z: 0 }, true)
         testCrate.object.physical.body.wakeUp()
     })
@@ -122,6 +123,7 @@ try {
     assert.ok(hiddenCrate.height < 50, 'Exploded crate was parked above the map')
     await page.screenshot({ path: path.join(artifacts, 'ar-after-explosion.png') })
     console.log('Real vehicle collision, delayed explosion and zero-sized GPU instance passed', hiddenCrate)
+    await page.evaluate(() => { const p = game.respawns.getDefault(); game.physicalVehicle.moveTo(p.position, p.rotation) })
     const arStart = await page.evaluate(() => game.player.position.toArray())
     await page.evaluate(() => xrDevice.controllers.left.updateAxes('thumbstick', 0, -.8))
     await page.waitForFunction(p => Math.hypot(game.player.position.x - p[0], game.player.position.z - p[2]) > .5, arStart)
@@ -165,7 +167,7 @@ try {
     // Start the existing race by driving to its proximity trigger and pressing A.
     await page.evaluate(() => {
         const point = game.world.areas.circuit.interactivePoint.position
-        game.physicalVehicle.moveTo(game.player.position.clone().set(point.x, 2, point.y), game.physicalVehicle.quaternion.clone().identity())
+        game.physicalVehicle.moveTo(game.player.position.clone().set(point.x, 2, point.y), 0)
         game.interactivePoints.needsTest = true
     })
     await page.waitForFunction(() => game.interactivePoints.activeItem === game.world.areas.circuit.interactivePoint && game.interactivePoints.activeItem.state === 4)
@@ -174,6 +176,8 @@ try {
     console.log('A starts the real circuit, countdown completes and driving unlocks in XR')
     await page.evaluate(() => game.world.areas.circuit.finish(true))
     await page.waitForFunction(() => game.world.areas.circuit.state === 1 && game.player.state === 1)
+    await page.evaluate(() => { const p = game.respawns.getDefault(); game.physicalVehicle.moveTo(p.position, p.rotation); game.interactivePoints.needsTest = true })
+    await page.waitForFunction(() => game.interactivePoints.activeItem?.state !== 4)
     await page.evaluate(() => xrDevice.controllers.right.updateButtonValue('a-button', 1))
     await page.waitForTimeout(1150)
     await page.evaluate(() => xrDevice.controllers.right.updateButtonValue('a-button', 0))

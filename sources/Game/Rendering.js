@@ -54,19 +54,16 @@ export class Rendering
             this.renderer.toneMapping = THREE.ACESFilmicToneMapping
             this.renderer.toneMappingExposure = 1.08
         }
-        this.renderer.sortObjects = false
+        this.renderer.sortObjects = this.game.xrEnabled
 
         this.renderer.domElement.classList.add('experience')
         this.renderer.shadowMap.enabled = !this.game.xrEnabled
         // this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
-        this.renderer.setOpaqueSort((a, b) =>
+        if(!this.game.xrEnabled)
         {
-            return a.renderOrder - b.renderOrder
-        })
-        this.renderer.setTransparentSort((a, b) =>
-        {
-            return a.renderOrder - b.renderOrder
-        })
+            this.renderer.setOpaqueSort((a, b) => a.renderOrder - b.renderOrder)
+            this.renderer.setTransparentSort((a, b) => a.renderOrder - b.renderOrder)
+        }
 
         if(location.hash.match(/inspector/i))
         {

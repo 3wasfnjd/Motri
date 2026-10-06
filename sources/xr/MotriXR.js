@@ -37,6 +37,7 @@ export class MotriXR {
         this.savedVisibility = new Map()
         this.arParticles = new Set()
         this.savedCulling = new Map()
+        this.savedPointRotations = new Map()
         this.animationClock = new AnimationClock()
         this.actions = new XRActions(game)
         this.steering = 0
@@ -312,11 +313,12 @@ export class MotriXR {
                 this.primaryHandled = true
             } else {
                 const item = this.game.interactivePoints.activeItem
+                this.primaryHandled = item?.state === 4
                 this.actions.set(item?.state === 4 ? 'interact' : 'suspensions', true)
                 this.pulse()
             }
         }
-        if(pressed && !this.primaryHandled && now - this.primarySince > 900) {
+        if(pressed && !this.primaryHandled && this.game.player.state === 1 && now - this.primarySince > 900) {
             this.actions.release()
             this.game.player.respawn()
             this.vehicleCamera.reset()
@@ -337,7 +339,7 @@ export class MotriXR {
         // A dismisses the summary; B returns to the full panel in the browser.
         this.game.modals.events.on('open', () => {
             if(!this.session) return
-            this.game.modals.onTransitionEnded()
+            queueMicrotask(() => { if(this.session) this.game.modals.onTransitionEnded() })
             const item = this.game.modals.current
             const title = item.element.querySelector('h1,h2,h3,.title')?.textContent?.trim() || 'تفاصيل النشاط'
             this.hint(`${title.slice(0, 48)} • A: إغلاق • B: التفاصيل`, 3600)
@@ -365,7 +367,9 @@ export class MotriXR {
         if(hitSource) for(const result of frame.getHitTestResults(hitSource)) {
             const pose = result.getPose(this.referenceSpace)
             if(!pose || pose.transform.matrix[5] < 0.85) continue
-            this.surfaceHit = { position: new THREE.Vector3().copy(pose.transform.position), result }
+            const position = new THREE.Vector3().copy(pose.transform.position)
+            if(position.distanceTo(this.viewerPosition) > 6) continue
+            this.surfaceHit = { position, result }
             break
         }
         if(!this.surfaceHit) {
@@ -468,7 +472,8 @@ export class MotriXR {
             const distance = grips[0].distanceTo(grips[1])
             if(distance > 0.08) {
                 if(!this.gesture) this.gesture = { distance, width: this.width }
-                this.setWidth(this.gesture.width * distance / this.gesture.distance)
+                const target = clampWidth(this.gesture.width * distance / this.gesture.distance)
+                this.setWidth(this.width + (target - this.width) * (1 - Math.exp(-this.dt * 16)))
             }
         } else {
             this.gesture = null
@@ -520,6 +525,7 @@ export class MotriXR {
                 if(!this.savedVisibility.has(point.group)) this.savedVisibility.set(point.group, point.group.visible)
                 point.group.visible = false
             } else if(point.group.visible) {
+                if(!this.savedPointRotations.has(point.group)) this.savedPointRotations.set(point.group, point.group.quaternion.clone())
                 point.group.rotation.set(0, this.vehicleCamera.headingYaw || 0, 0)
             }
         }
@@ -607,6 +613,8 @@ export class MotriXR {
         this.rig.position.set(0, 0, 0); this.rig.quaternion.identity(); this.rig.scale.setScalar(1)
         for(const [object, visible] of this.savedVisibility) object.visible = visible
         for(const [object, culled] of this.savedCulling) object.frustumCulled = culled
+        for(const [object, rotation] of this.savedPointRotations) object.quaternion.copy(rotation)
+        this.savedPointRotations.clear()
         this.savedVisibility.clear(); this.savedCulling.clear()
         this.arParticles.clear()
         if(this.saved) {
