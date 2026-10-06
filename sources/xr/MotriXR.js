@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu'
-import { installXRFramebufferCompatibility, installXRBindingCompatibility } from './compatibility.js'
+import { installXRFramebufferCompatibility, installXRBindingCompatibility, installXRScaledStereoCulling } from './compatibility.js'
 import { VehicleCamera } from './VehicleCamera.js'
 import { AnimationClock } from './AnimationClock.js'
 import { XRActions } from './Actions.js'
@@ -10,6 +10,8 @@ import { XRWorldBounds } from './WorldBounds.js'
 import { clampWidth, WORLD_SPAN, WORLD_CENTER, roomToWorld, horizontalPlaneHit, readControllers } from './math.js'
 
 const FORWARD = new THREE.Vector3(0, 0, -1)
+export const XR_BOOST_TOP_SPEED = 14
+export const XR_BOOST_MULTIPLIER = 0.5
 
 export class MotriXR {
     constructor(game, ui, status) {
@@ -17,6 +19,7 @@ export class MotriXR {
         this.renderer = game.rendering.renderer
         installXRFramebufferCompatibility(this.renderer)
         installXRBindingCompatibility(this.renderer)
+        installXRScaledStereoCulling(this.renderer)
         this.ui = ui
         this.status = status
         this.session = null
@@ -39,7 +42,6 @@ export class MotriXR {
         this.ray = new THREE.Ray()
         this.savedVisibility = new Map()
         this.arParticles = new Set()
-        this.savedCulling = new Map()
         this.savedPointRotations = new Map()
         this.animationClock = new AnimationClock()
         this.actions = new XRActions(game)
@@ -51,6 +53,13 @@ export class MotriXR {
         this.sky = new XRSky(game)
         this.menu = new XRMenu(this)
         this.worldBounds = new XRWorldBounds(game)
+        // Boost was tuned for the desktop's doubled clock: 159 km/h in real-time
+        // XR, and its 3× engine force from rest lifts the nose 60–80° onto the
+        // rear wheels. From the driver's seat both are disorienting and unlike a
+        // real SUV. In headsets the car stays on four wheels (≤ 7° squat) and
+        // boost settles near 70 km/h; normal driving is unchanged (≈40 km/h).
+        game.physicalVehicle.topSpeedBoost = XR_BOOST_TOP_SPEED
+        game.physicalVehicle.boostMultiplier = XR_BOOST_MULTIPLIER
         this.setModalHandling()
         const physical = game.physicalVehicle.chassis.physical
         const onCollision = physical.onCollision
@@ -96,8 +105,14 @@ export class MotriXR {
         this.fullFloor.deleteAttribute('normal')
         this.vrFloor = new THREE.PlaneGeometry(320, 320, 160, 160).rotateX(-Math.PI / 2)
         this.vrFloor.deleteAttribute('normal')
-        this.base = new THREE.Mesh(new THREE.BoxGeometry(WORLD_SPAN, 2.4, WORLD_SPAN), new THREE.MeshBasicNodeMaterial({ color: 0x584c39 }))
-        this.base.position.set(WORLD_CENTER.x, WORLD_CENTER.y - 1.2, WORLD_CENTER.z)
+        // Diorama tray: its underside rests on the detected surface and its walls
+        // rise to the terrain border (y = 0), closing the gap above the sea bed.
+        // The open top keeps the sea, lakes and terrain visible.
+        const height = -WORLD_CENTER.y
+        const side = new THREE.MeshBasicNodeMaterial({ color: 0x584c39 })
+        const open = new THREE.MeshBasicNodeMaterial({ visible: false })
+        this.base = new THREE.Mesh(new THREE.BoxGeometry(WORLD_SPAN, height, WORLD_SPAN), [side, side, open, side, side, side])
+        this.base.position.set(WORLD_CENTER.x, WORLD_CENTER.y + height / 2, WORLD_CENTER.z)
         this.base.visible = false
         this.game.scene.add(this.base)
     }
@@ -179,10 +194,9 @@ export class MotriXR {
             for(const object of [this.game.overlay.mesh, this.game.view.speedLines.mesh, this.game.world.grass.mesh, this.game.world.windLines.mesh, this.game.world.rain.mesh, this.game.world.snow.mesh]) {
                 if(object) { this.savedVisibility.set(object, object.visible); object.visible = false }
             }
-            // A scaled viewer rig has a larger stereo eye separation in world units.
-            // Disable the aggregate stereo frustum shortcut for tabletop rendering.
+            // Frustum culling stays enabled: the stereo union is rebuilt in rig
+            // units (compatibility.js), so the scaled tabletop culls correctly.
             if(mode === 'immersive-ar') this.game.scene.traverse(object => {
-                if(object.isMesh) { this.savedCulling.set(object, object.frustumCulled); object.frustumCulled = false }
                 // Screen-facing particles ignore the inverse viewer scale and can
                 // cover the miniature world. Simplify these decorations in AR.
                 const materials = Array.isArray(object.material) ? object.material : [object.material]
@@ -424,7 +438,8 @@ export class MotriXR {
         this.placed = true
         this.reticle.visible = false
         this.base.visible = true
-        this.yaw = 0
+        // Face the miniature's +Z side toward the viewer from any side of the table.
+        this.yaw = Math.atan2(this.viewerPosition.x - this.anchorPosition.x, this.viewerPosition.z - this.anchorPosition.z)
         this.anchorHeading = null
         this.anchorTracked = true
         this.createAnchor(event.frame, this.surfaceHit)
@@ -504,7 +519,7 @@ export class MotriXR {
             if(right?.y) this.setWidth(this.width * Math.exp(-right.y * this.dt * 1.1))
             if(right?.x) this.yaw -= right.x * this.dt * 1.1
         }
-        if(right?.x || right?.y || this.gesture) this.hint(`عرض العالم ${this.width.toFixed(1)} م`, 2)
+        if(right?.x || right?.y || this.gesture) this.hint(`عرض العالم ${this.width.toFixed(1)} م • مقياس 1:${Math.round(WORLD_SPAN / this.width)}`, 2)
     }
 
     applyInput() {
@@ -547,6 +562,10 @@ export class MotriXR {
             } else if(point.group.visible) {
                 if(!this.savedPointRotations.has(point.group)) this.savedPointRotations.set(point.group, point.group.quaternion.clone())
                 point.group.rotation.set(0, this.vehicleCamera.headingYaw || 0, 0)
+                // Revealed labels disable depth testing for the desktop overhead
+                // view. In stereo that draws them through the car body and over
+                // the steering wheel with conflicting eye depth; keep them occluded.
+                for(const material of point.materials || []) if(!material.depthTest) { material.depthTest = true; material.needsUpdate = true }
             }
         }
         if(this.mode === 'immersive-ar') {
@@ -636,10 +655,9 @@ export class MotriXR {
         this.rig.matrixAutoUpdate = true
         this.rig.position.set(0, 0, 0); this.rig.quaternion.identity(); this.rig.scale.setScalar(1)
         for(const [object, visible] of this.savedVisibility) object.visible = visible
-        for(const [object, culled] of this.savedCulling) object.frustumCulled = culled
         for(const [object, rotation] of this.savedPointRotations) object.quaternion.copy(rotation)
         this.savedPointRotations.clear()
-        this.savedVisibility.clear(); this.savedCulling.clear()
+        this.savedVisibility.clear()
         this.arParticles.clear()
         if(this.saved) {
             this.game.scene.background = this.saved.background

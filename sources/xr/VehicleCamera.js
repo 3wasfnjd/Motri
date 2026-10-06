@@ -1,5 +1,18 @@
 import * as THREE from 'three/webgpu'
-import { vehicleCameraPose } from './math.js'
+import { CHASE_OFFSET, DRIVER_EYE, vehicleCameraPose } from './math.js'
+
+// Real-car cockpit proportions in metres, relative to the driver's eye.
+export const STEERING_WHEEL = { diameter: 0.37, rim: 0.032, ahead: 0.42, below: 0.27, rake: 23 * Math.PI / 180, lock: 2.4 }
+// The cluster sits in the opening between the rim top and the spokes (≈ -20°).
+const CLUSTER = { width: 0.24, ahead: 0.62, below: 0.225 }
+
+// Orient a part in the car frame (x forward, y up, z right) so that its face
+// looks back at the driver, tilted up by `tilt`.
+function facingDriver(object, tilt) {
+    const normal = new THREE.Vector3(-Math.cos(tilt), Math.sin(tilt), 0)
+    const up = new THREE.Vector3(Math.sin(tilt), Math.cos(tilt), 0)
+    object.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), up, normal))
+}
 
 export class VehicleCamera {
     constructor(game) {
@@ -10,59 +23,56 @@ export class VehicleCamera {
         this.headOffset = new THREE.Vector3()
         this.up = new THREE.Vector3(0, 1, 0)
         this.reset()
+        // The car's own body is the cockpit: its roof, pillars, beltline and hood
+        // stay visible from the seat. Only the wheel and cluster are added, in the
+        // car's frame, drawn after the body so the beltline cannot cover them.
         this.cabin = new THREE.Group()
         this.cabin.visible = false
         game.scene.add(this.cabin)
-        const dark = new THREE.MeshBasicNodeMaterial({ color: 0x172328 })
-        const trim = new THREE.MeshBasicNodeMaterial({ color: 0x667977 })
-        const leather = new THREE.MeshBasicNodeMaterial({ color: 0x34434a })
-        const box = (size, position, material = dark) => {
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material)
-            mesh.position.set(...position)
-            this.cabin.add(mesh)
-            return mesh
-        }
-        // Dashboard, lower cowl, narrow pillars and hood. All are in metres;
-        // opaque exterior glazing is hidden only while sitting in the cabin.
-        box([1.25, 0.12, 0.32], [0, 0.1, -0.78], leather)
-        box([1.25, 0.025, 0.025], [0, 0.17, -0.62], trim)
-        box([1.35, 0.08, 0.85], [0, -0.03, -1.4], trim)
-        box([0.035, 0.7, 0.045], [-0.69, 0.42, -0.96], leather)
-        box([0.035, 0.7, 0.045], [0.69, 0.42, -0.96], leather)
+        const material = color => new THREE.MeshBasicNodeMaterial({ color, depthTest: false })
+        const leather = material(0x1c2326), trim = material(0x7d8b8a), hubColor = material(0x2c3639)
+        const add = (parent, mesh, order) => { mesh.renderOrder = order; mesh.frustumCulled = false; parent.add(mesh); return mesh }
+
+        const eye = DRIVER_EYE
+        this.column = new THREE.Group()
+        this.column.position.set(eye.x + STEERING_WHEEL.ahead, eye.y - STEERING_WHEEL.below, eye.z)
+        facingDriver(this.column, STEERING_WHEEL.rake)
+        this.cabin.add(this.column)
         this.wheel = new THREE.Group()
-        this.wheel.position.set(-0.32, 0.11, -0.52)
-        this.cabin.add(this.wheel)
-        this.wheel.add(new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.018, 8, 36), dark))
-        for(const angle of [Math.PI / 2, Math.PI * 7 / 6, Math.PI * 11 / 6]) {
-            const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.016, 0.018), trim)
-            spoke.position.set(Math.cos(angle) * 0.052, Math.sin(angle) * 0.052, 0)
+        this.column.add(this.wheel)
+        const radius = STEERING_WHEEL.diameter / 2
+        add(this.wheel, new THREE.Mesh(new THREE.TorusGeometry(radius - STEERING_WHEEL.rim / 2, STEERING_WHEEL.rim / 2, 10, 48), leather), 95)
+        for(const angle of [0, Math.PI, Math.PI * 3 / 2]) {
+            const spoke = add(this.wheel, new THREE.Mesh(new THREE.BoxGeometry(radius - 0.03, 0.03, 0.012), trim), 96)
+            spoke.position.set(Math.cos(angle) * (radius / 2 + 0.01), Math.sin(angle) * (radius / 2 + 0.01), -0.01)
             spoke.rotation.z = angle
-            this.wheel.add(spoke)
         }
-        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.028, 16), leather)
+        const hub = add(this.wheel, new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.06, 0.035, 24), hubColor), 97)
         hub.rotation.x = Math.PI / 2
-        this.wheel.add(hub)
+        hub.position.z = -0.005
+        // Top-centre marker shows the wheel's rotation at a glance.
+        add(this.wheel, new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.03, 0.036), trim), 96).position.set(0, radius - STEERING_WHEEL.rim / 2, 0)
+
         this.canvas = document.createElement('canvas')
         this.canvas.width = 512; this.canvas.height = 160
         this.texture = new THREE.CanvasTexture(this.canvas)
         this.texture.colorSpace = THREE.SRGBColorSpace
         this.texture.generateMipmaps = false
         this.texture.minFilter = THREE.LinearFilter
-        const display = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.094), new THREE.MeshBasicNodeMaterial({ map: this.texture, toneMapped: false }))
-        display.position.set(-0.32, 0.23, -0.65)
-        this.cabin.add(display)
+        this.display = add(this.cabin, new THREE.Mesh(new THREE.PlaneGeometry(CLUSTER.width, CLUSTER.width * 160 / 512),
+            new THREE.MeshBasicNodeMaterial({ map: this.texture, toneMapped: false, depthTest: false })), 94)
+        this.display.position.set(eye.x + CLUSTER.ahead, eye.y - CLUSTER.below, eye.z)
+        facingDriver(this.display, Math.atan2(CLUSTER.below, CLUSTER.ahead))
         this.lastSpeed = -1
         this.updateSpeed(0)
     }
 
     reset() { this.initialized = false }
 
+    // The exterior is never hidden: from the seat, its front faces form the
+    // windshield frame, headliner and hood. Only the cockpit parts toggle.
     setCabinVisible(visible) {
         this.cabin.visible = visible
-        const body = this.game.world.visualVehicle.parts.chassis
-        if(visible && this.exteriorVisible === undefined) this.exteriorVisible = body.visible
-        if(visible) body.visible = false
-        else if(this.exteriorVisible !== undefined) { body.visible = this.exteriorVisible; this.exteriorVisible = undefined }
     }
 
     updateSpeed(speed) {
@@ -78,7 +88,8 @@ export class VehicleCamera {
     }
 
     update(vehicle, headOrigin, rig, lookYaw, steering, dt = 1 / 72) {
-        const pose = vehicleCameraPose(vehicle.position, vehicle.forward, this.mode, lookYaw)
+        const orientation = vehicle.quaternion || null
+        const pose = vehicleCameraPose(vehicle.position, vehicle.forward, this.mode, lookYaw, orientation)
         const snap = !this.initialized || this.position.distanceTo(pose.position) > 10
         if(snap) { this.position.copy(pose.position); this.heading.copy(pose.heading) }
         else if(this.mode === 'driver') {
@@ -88,7 +99,7 @@ export class VehicleCamera {
             this.heading.copy(pose.heading)
         } else {
             this.heading.slerp(pose.heading, 1 - Math.exp(-dt * 8))
-            const target = new THREE.Vector3(0, 2.1, 5).applyQuaternion(this.heading).add(vehicle.position)
+            const target = CHASE_OFFSET.clone().applyQuaternion(this.heading).add(vehicle.position)
             this.position.lerp(target, 1 - Math.exp(-dt * 12))
         }
         this.initialized = true
@@ -108,11 +119,15 @@ export class VehicleCamera {
         this.headOffset.copy(headOrigin).applyQuaternion(rig.quaternion)
         rig.position.copy(this.position).sub(this.headOffset)
         this.setCabinVisible(this.mode === 'driver')
-        this.cabin.position.copy(this.mode === 'driver' ? this.position : pose.position)
-        // Cabin uses the same filtered car anchor as the eye, without head motion.
-        this.cabin.position.sub(new THREE.Vector3(-0.32, 0.43, -0.02).applyQuaternion(pose.heading))
-        this.cabin.quaternion.copy(pose.heading)
-        this.wheel.rotation.z = -steering * 0.75
+        if(this.mode === 'driver') {
+            // The cockpit shares the filtered eye anchor and the car's attitude,
+            // so it stays aligned with the dashboard without head motion.
+            const carOrientation = orientation || new THREE.Quaternion().setFromAxisAngle(this.up, Math.atan2(-vehicle.forward.z, vehicle.forward.x))
+            this.cabin.quaternion.copy(carOrientation)
+            this.cabin.position.copy(this.position).sub(DRIVER_EYE.clone().applyQuaternion(carOrientation))
+        }
+        // Positive steering turns left: counter-clockwise from the driver's seat.
+        this.wheel.rotation.z = steering * STEERING_WHEEL.lock
         this.updateSpeed(vehicle.xzSpeed)
     }
 }

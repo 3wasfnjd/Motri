@@ -9,7 +9,7 @@ import { Time } from '../sources/Game/Time.js'
 import { Physics } from '../sources/Game/Physics/Physics.js'
 import { PhysicsVehicle } from '../sources/Game/Physics/PhysicsVehicle.js'
 import { Explosions } from '../sources/Game/Explosions.js'
-import { MotriXR } from '../sources/xr/MotriXR.js'
+import { MotriXR, XR_BOOST_TOP_SPEED, XR_BOOST_MULTIPLIER } from '../sources/xr/MotriXR.js'
 import { XRWorldBounds } from '../sources/xr/WorldBounds.js'
 import { roomToWorld, WORLD_SPAN } from '../sources/xr/math.js'
 
@@ -164,6 +164,22 @@ try {
         f.advance(1)
         assert(car.forward.distanceTo(heading) > .1, `Steering must turn: ${JSON.stringify({ hz, turn: car.forward.distanceTo(heading), up: car.upward, speed: car.xzSpeed, contacts: car.wheels.inContactCount })}`)
         driving.push({ hz, speed, brakedSpeed })
+        f.close()
+    }
+    // Headset comfort: the desktop boost from rest pitches the car 60–80° onto
+    // its rear wheels and reaches 159 km/h in real time. XR keeps four wheels
+    // down and settles well above ordinary driving but near 70 km/h.
+    {
+        const f = fixture({ hz: 72 }), { car, game } = f
+        car.topSpeedBoost = XR_BOOST_TOP_SPEED; car.boostMultiplier = XR_BOOST_MULTIPLIER
+        f.advance(4)
+        game.player.accelerating = 1; game.player.boosting = 1
+        let pitch = 0
+        for(let i = 0; i < 72 * 10; i++) { f.tick(); pitch = Math.max(pitch, Math.asin(Math.min(1, Math.abs(car.forward.y)))) }
+        const kmh = car.xzSpeed * 3.6
+        assert(kmh > 60 && kmh < 85, `XR boost speed ${kmh}`)
+        assert(pitch < 10 * Math.PI / 180, `XR boost must not lift the nose: ${pitch}`)
+        assert.equal(car.wheels.inContactCount, 4)
         f.close()
     }
     const speeds = driving.map(d => d.speed)

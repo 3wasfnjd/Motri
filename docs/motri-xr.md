@@ -18,7 +18,7 @@ The `/xr/` entry reuses the current Motri world, Haval vehicle, Rapier physics a
 | Menu | Left stick + either trigger / A | Navigate + select; Y or B goes back |
 | VR | Camera selector before entry, or Y while driving | Driver's seat / camera behind the car |
 | AR | Ray + trigger/pinch | Place on a detected horizontal surface |
-| AR | Right stick up/down | Scale the world from 0.5 to 6 metres wide |
+| AR | Right stick up/down | Scale the world from 0.5 to 6 metres wide (the hint shows the ratio) |
 | AR | Right stick left/right | Rotate around the selected surface point |
 | AR | Both grips or both hand pinches | Scale by changing hand separation |
 | AR | Menu → Settings / Y | Place again / request room capture |
@@ -31,11 +31,28 @@ Three r183's XR manager requires the WebGL2 backend. The XR entry selects `force
 
 AR uses controller-space hit tests, a viewer-space fallback when controller hit testing is unavailable, then actual horizontal detected-plane polygons. No synthetic floor is presented as a detected surface. Optional anchors follow both position and heading corrections, with small position corrections damped; temporary loss of the anchor hides the world and brakes the car. Two-hand resizing brakes the car. Optional anchors follow the selected position; otherwise local reference-space coordinates are used, and a reference-space reset requires placement again. World resizing uses the inverse transform on the viewer rig, preserving all original world-space shader coordinates and physics. A full terrain patch replaces the small camera-following tile during XR.
 
-The renderer uses one scene throughout AR, including surface selection, so the shared stereo camera uniforms retain a consistent layout. Before placement the world is beyond the far clip plane, while the room-space reticle and HUD remain visible. The r183 WebGL compatibility layer restores binding slots per material and handles the default/null framebuffer returned by Meta IWER. Native Quest framebuffer objects keep Three's normal framebuffer path. Intro reveal completes before entry, and snow's offscreen render is disabled in the XR entry.
+The renderer uses one scene throughout AR, including surface selection, so the shared stereo camera uniforms retain a consistent layout. Before placement the world is beyond the far clip plane, while the room-space reticle and HUD remain visible. The r183 WebGL compatibility layer restores binding slots per material and handles the default/null framebuffer returned by Meta IWER. Native Quest framebuffer objects keep Three's normal framebuffer path. Intro reveal completes before entry, and snow's offscreen render is disabled in the XR entry. Frustum culling stays enabled in AR. Three r183's stereo union frustum measures the eye distance in world units but the FOV and near/far planes in eye units. Under the tabletop rig (≈142 world units per metre) it culled every visible object, so culling had previously been switched off. `installXRScaledStereoCulling` rebuilds the union in rig units; looking away from the table drops a frame from ≈750 draw calls to ≈25. The miniature rests on the surface: the detected point is the underside of an open-topped tray whose walls rise to the terrain border. The tray no longer sinks into the real table, and the gap above the sea bed is closed. The world's +Z side faces the viewer on placement, and resizing shows the scale ratio (for example 1:142 at 1.8 m). Unused cookie-pool instances collapse to zero scale instead of floating 99 m above the map.
 
-VR starts at the driver's seat with a dashboard and steering wheel. A world-space sky dome provides a stereo-safe horizon gradient and subtle sun without screen-space postprocessing. The chase camera damps the vehicle motion and probes Rapier obstacles to avoid crossing walls. Driver mode filters suspension chatter, keeps the horizon level and leaves physical head motion unfiltered. Opaque exterior bodywork is hidden in driver mode and restored on camera changes and exit; the cabin includes steering and a speed display. Y switches views without restarting the session; view turns preserve the selected seat position, and physical head movement remains one-to-one in metres.
+VR starts at the driver's seat. The cockpit is the selected car's own body: from the measured eye point its headliner, A-pillars, beltline and hood frame the windshield, so H9, Shas and Datsun each look and measure like themselves. A 0.37 m steering wheel, raked 23° and turning counter-clockwise for a left turn (±137° at full lock), and a speed cluster seen through its upper opening are drawn after the body. The eye follows the car's full attitude, so it stays in the seat on slopes, while the view keeps a level horizon. A world-space sky dome provides a stereo-safe horizon gradient and subtle sun without screen-space postprocessing. The chase camera damps the vehicle motion and probes Rapier obstacles to avoid crossing walls. Driver mode filters suspension chatter and leaves physical head motion unfiltered. Y switches views without restarting the session; view turns preserve the selected seat position, and physical head movement remains one-to-one in metres. Revealed interaction labels keep depth testing in VR, so they no longer draw through the car body with conflicting eye depth. The X menu is world-locked where it opens rather than following the head.
 
 Capability checks run in the browser. An unsupported browser shows a Quest instruction, not a nonfunctional entry button. AR may require Quest room/space setup and permission to use it. The experience runs on HTTPS and is intended for Meta Quest Browser; iPhone Safari is not assumed to support immersive WebXR.
+
+## Physics, dimensions and measurements
+
+Gravity is 9.81 m/s². XR runs the original vehicle at real time (desktop doubles the clock), with ≤ 1/120 s substeps at any refresh rate. Measured with the production Rapier code:
+
+| Quantity | Motri XR | Reference |
+| --- | --- | --- |
+| Driver eye height | 1.55 m above the ground, 0.35 m left of centre | Real SUV ≈ 1.45–1.55 m |
+| Roof / wheel diameter | 1.89 m / 0.80 m | Haval H9: 1.93 m / ≈ 0.80 m |
+| Headroom / door / beltline from eye | 0.17 m up / 0.26 m left / 0.19 m down | |
+| Steering wheel | 0.37 m, 0.42 m ahead, 0.27 m below the eye | Typical 0.36–0.38 m |
+| 0–30 km/h, top speed | 2.2 s, ≈ 40 km/h | |
+| Braking from 40 km/h | 4.4 m, ≈ 0.73 g | Dry road 0.7–0.9 g |
+| Steady cornering | up to ≈ 0.8 g; ≈ 8 m turning circle | |
+| 3 m fall | 0.79 s (free fall: 0.78 s) | |
+
+The car is shorter than a real H9 (3.0 m body on a 1.8 m wheelbase, versus 4.95 m and 2.85 m). Its heights and wheels are life-size, which is why the seat, roof and hood read correctly in VR. On desktop, boosting from rest pitches the car 60–80° onto its rear wheels and reaches 159 km/h in real time. XR keeps the normal tuning but halves the boost force and caps it near 70 km/h, so the car stays on four wheels (≤ 7° squat).
 
 ## Gameplay integration
 

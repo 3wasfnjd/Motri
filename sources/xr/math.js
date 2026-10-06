@@ -1,22 +1,35 @@
 import { Matrix4, Quaternion, Vector3 } from 'three/webgpu'
 
 export const WORLD_SPAN = 256
-export const WORLD_CENTER = new Vector3(16, -1.65, 16)
+// The world point placed on the detected surface: the underside of the tabletop
+// tray, 2.4 units below the sea bed (-1.5), so the miniature rests on the table
+// instead of sinking into it.
+export const WORLD_CENTER = new Vector3(16, -3.92, 16)
 export const MIN_WIDTH = 0.5
 export const MAX_WIDTH = 6
 export const clampWidth = value => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, value))
 export const deadzone = (value = 0, threshold = 0.12) => !Number.isFinite(value) || Math.abs(value) <= threshold ? 0 : Math.sign(value) * Math.min(1, (Math.abs(value) - threshold) / (1 - threshold))
 
+// Driver's eye in the vehicle's own frame (x forward, y up, z right), measured
+// against the H9/Shas/Datsun bodies: 1.55 m above the ground at rest, 0.35 m
+// left of the centre line (left-hand drive), 0.17 m below the headliner and
+// 0.19 m above the beltline, with the windshield from about -20° to +15°.
+export const DRIVER_EYE = new Vector3(-0.12, 0.38, -0.35)
+export const CHASE_OFFSET = new Vector3(0, 2.1, 5)
+const UP = new Vector3(0, 1, 0)
+
 // Head movement remains 1:1 in metres. Snap turns rotate the view around the
-// selected eye position, never orbit the driver out of the seat.
-export function vehicleCameraPose(position, forward, mode, lookYaw = 0) {
+// selected eye position, never orbit the driver out of the seat. With the car's
+// full orientation the eye stays in its seat on slopes, while the view itself
+// keeps a level horizon.
+export function vehicleCameraPose(position, forward, mode, lookYaw = 0, orientation = null) {
     const yaw = Math.atan2(-forward.z, forward.x) - Math.PI / 2
-    const up = new Vector3(0, 1, 0)
-    const heading = new Quaternion().setFromAxisAngle(up, yaw)
-    const offset = mode === 'chase' ? new Vector3(0, 2.1, 5) : new Vector3(-0.32, 0.43, -0.02)
+    const heading = new Quaternion().setFromAxisAngle(UP, yaw)
+    const offset = mode === 'chase' ? CHASE_OFFSET.clone().applyQuaternion(heading)
+        : DRIVER_EYE.clone().applyQuaternion(orientation || new Quaternion().setFromAxisAngle(UP, yaw + Math.PI / 2))
     return {
-        position: offset.applyQuaternion(heading).add(position),
-        rotation: new Quaternion().setFromAxisAngle(up, yaw + lookYaw),
+        position: offset.add(position),
+        rotation: new Quaternion().setFromAxisAngle(UP, yaw + lookYaw),
         heading
     }
 }

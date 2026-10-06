@@ -16,11 +16,12 @@ export class XRMenu {
         this.texture.generateMipmaps = false
         this.texture.minFilter = THREE.LinearFilter
         this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(.82, .82), new THREE.MeshBasicNodeMaterial({ map: this.texture, transparent: true, depthTest: false, depthWrite: false, toneMapped: false }))
-        this.mesh.position.set(0, 0, -1.05)
         this.mesh.renderOrder = 120
         this.mesh.visible = false
         this.mesh.frustumCulled = false
-        xr.camera.add(this.mesh)
+        // World-locked in the rig (room metres in AR, the car in VR) instead of
+        // following the head, per Meta's comfort guidance for stereo panels.
+        xr.rig.add(this.mesh)
     }
 
     toggle() { this.opened ? this.close() : this.open() }
@@ -28,6 +29,7 @@ export class XRMenu {
         this.xr.actions.release()
         this.filters = [...this.game.inputs.filters]
         this.game.inputs.filters.clear(); this.game.inputs.filters.add('xr-menu')
+        this.place()
         this.opened = this.mesh.visible = true
         this.confirmHeld = true // A driving trigger must be released before selecting.
         this.navHeld = true
@@ -42,6 +44,15 @@ export class XRMenu {
         this.xr.actions.release()
         this.xr.primarySince = null
         this.xr.menuReleaseRequired = true
+    }
+    place() {
+        const head = this.xr.camera
+        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(head.quaternion).setY(0)
+        if(forward.lengthSq() < 1e-4) forward.set(0, 0, -1)
+        forward.normalize()
+        this.mesh.position.copy(head.position).addScaledVector(forward, 1.05)
+        this.mesh.position.y -= 0.08
+        this.mesh.rotation.set(0, Math.atan2(-forward.x, -forward.z), 0)
     }
     back() { this.page === 'home' ? this.close() : this.show('home') }
 

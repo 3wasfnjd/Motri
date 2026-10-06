@@ -219,6 +219,9 @@ export class CookieArea extends Area
             {
                 reference.position.copy(this.cookies.spawnerPosition)
                 reference.position.y += 99
+                // Parked pool cookies are visible 99 m up in VR and above the AR
+                // table. Collapse them until accept() spawns them.
+                reference.scale.setScalar(0)
             }
             reference.needsUpdate = true
             references.push(reference)
@@ -468,6 +471,8 @@ export class CookieArea extends Area
         spawnPosition.z += Math.random() - 0.5
         object.physical.body.setTranslation(spawnPosition)
         object.physical.body.setEnabled(true)
+        object.visual.object3D.scale.setScalar(1)
+        object.visual.object3D.needsUpdate = true
         this.game.ticker.wait(2, () =>
         {
             const impulse = {

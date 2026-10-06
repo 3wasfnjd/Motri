@@ -1,3 +1,5 @@
+import { Quaternion, Vector3 } from 'three/webgpu'
+
 // Three r183's WebGL backend treats every XR render target as a native FBO.
 // Meta's desktop emulator draws its XRWebGLLayer into the default framebuffer
 // (null), which cannot be a WeakMap key or use COLOR_ATTACHMENT0. Keep native
@@ -13,6 +15,46 @@ export function installXRFramebufferCompatibility(renderer) {
             return
         }
         return drawBuffers.call(this, context, framebuffer)
+    }
+}
+
+// r183's union frustum mixes units: the eye distance is measured in world units
+// but near/far/FOV come from the eyes' unscaled projections. Under the tabletop
+// rig (world units per metre ≈ 140) the union camera is pushed far behind the
+// eyes and culls visible scenery. Rebuild it in rig units so culling stays valid.
+const _left = new Vector3(), _right = new Vector3(), _position = new Vector3(), _scale = new Vector3(), _offset = new Vector3()
+const _quaternion = new Quaternion()
+export function setScaledProjectionFromUnion(camera, cameraL, cameraR) {
+    cameraL.matrixWorld.decompose(_position, _quaternion, _scale)
+    const scale = _scale.x
+    const ipd = _left.setFromMatrixPosition(cameraL.matrixWorld).distanceTo(_right.setFromMatrixPosition(cameraR.matrixWorld)) / scale
+    const projL = cameraL.projectionMatrix.elements, projR = cameraR.projectionMatrix.elements
+    const near = projL[14] / (projL[10] - 1), far = projL[14] / (projL[10] + 1)
+    const topFov = (projL[9] + 1) / projL[5], bottomFov = (projL[9] - 1) / projL[5]
+    const leftFov = (projL[8] - 1) / projL[0], rightFov = (projR[8] + 1) / projR[0]
+    const zOffset = ipd / (-leftFov + rightFov), xOffset = zOffset * -leftFov
+    _position.add(_offset.set(xOffset * scale, 0, zOffset * scale).applyQuaternion(_quaternion))
+    camera.matrixWorld.compose(_position, _quaternion, _scale)
+    camera.matrixWorldInverse.copy(camera.matrixWorld).invert()
+    if(projL[10] === -1) {
+        camera.projectionMatrix.copy(cameraL.projectionMatrix)
+    } else {
+        const near2 = near + zOffset, far2 = far + zOffset
+        camera.projectionMatrix.makePerspective(near * leftFov - xOffset, near * rightFov + ipd - xOffset,
+            topFov * far / far2 * near2, bottomFov * far / far2 * near2, near2, far2)
+    }
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert()
+}
+
+export function installXRScaledStereoCulling(renderer) {
+    const xr = renderer.xr
+    const updateCamera = xr.updateCamera
+    xr.updateCamera = function(camera) {
+        updateCamera.call(this, camera)
+        const cameraXR = this.getCamera()
+        const [cameraL, cameraR] = cameraXR.cameras
+        if(!cameraR || Math.abs(cameraL.matrixWorld.getMaxScaleOnAxis() - 1) < 1e-6) return
+        setScaledProjectionFromUnion(cameraXR, cameraL, cameraR)
     }
 }
 

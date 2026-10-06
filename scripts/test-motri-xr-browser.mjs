@@ -243,16 +243,22 @@ try {
     })
     await page.waitForFunction(() => game.interactivePoints.activeItem === game.world.areas.circuit.interactivePoint && game.interactivePoints.activeItem.state === 4)
     await button('right', 'a-button')
-    await page.waitForFunction(() => game.world.areas.circuit.state === 3 && game.player.state === 1)
+    // About 12 s of game time (overlay, countdown, reveal): software-rendered
+    // emulators can run near 1 frame/s, so allow longer than the default.
+    const slowGameTime = { timeout: 600000 }
+    await page.waitForFunction(() => game.world.areas.circuit.state === 3 && game.player.state === 1, null, slowGameTime)
     console.log('A starts the real circuit, countdown completes and driving unlocks in XR')
     await page.evaluate(() => game.world.areas.circuit.finish(true))
-    await page.waitForFunction(() => game.world.areas.circuit.state === 1 && game.player.state === 1)
+    await page.waitForFunction(() => game.world.areas.circuit.state === 1 && game.player.state === 1, null, slowGameTime)
     await page.evaluate(() => { const p = game.respawns.getDefault(); game.physicalVehicle.moveTo(p.position, p.rotation); game.interactivePoints.needsTest = true })
     await page.waitForFunction(() => game.interactivePoints.activeItem?.state !== 4)
+    // Hold A until recovery begins (0.9 s); at ~1 frame/s a fixed 1.15 s hold
+    // can end before a second frame samples it.
     await page.evaluate(() => xrDevice.controllers.right.updateButtonValue('a-button', 1))
     await page.waitForTimeout(1150)
+    await page.waitForFunction(() => game.overlay.progress.value > 0, null, slowGameTime)
     await page.evaluate(() => xrDevice.controllers.right.updateButtonValue('a-button', 0))
-    await page.waitForFunction(() => game.player.state === 1 && game.overlay.progress.value === 0)
+    await page.waitForFunction(() => game.player.state === 1 && game.overlay.progress.value === 0, null, slowGameTime)
     console.log('Hold A recovery completes without a frozen overlay callback')
     await page.evaluate(() => {
         const point = game.player.position.clone()
